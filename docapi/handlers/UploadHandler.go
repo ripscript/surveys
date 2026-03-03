@@ -1,0 +1,64 @@
+package handlers
+
+import (
+	"backend/docapi/models"
+	"backend/docapi/service"
+	pb "backend/siccore/pb"
+	"context"
+	"net/url"
+)
+
+type UploadHandler interface {
+	UploadAvatar(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadIdentity(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadFile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ViewFIle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadBank(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadEvent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SendFileWebchat(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SendFileWithdraw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+}
+
+type uploadHandler struct {
+	uploadService service.UploadService
+}
+
+func NewUploadHandler(
+	uploadService service.UploadService,
+) UploadHandler {
+	return &uploadHandler{
+		uploadService,
+	}
+}
+
+func (handler *uploadHandler) SendFileWithdraw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "withdraw", "")
+}
+
+func (handler *uploadHandler) SendFileWebchat(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "webchat", "")
+}
+
+func (handler *uploadHandler) UploadBank(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "bank", "")
+}
+
+func (handler *uploadHandler) UploadAvatar(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "avatar", "")
+}
+
+func (handler *uploadHandler) UploadIdentity(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "identity", "")
+}
+
+func (handler *uploadHandler) UploadFile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "upload", "")
+}
+
+func (handler *uploadHandler) UploadEvent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadFile(usr, req, param, "event", "")
+}
+
+func (handler *uploadHandler) ViewFIle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.Show(slug)
+}

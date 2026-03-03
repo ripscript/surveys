@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package siccore;
+
+option go_package = "/pb";
+
+service Proxy {
+    rpc SendData(ProxyRequest) returns (ProxyResponse);
+}
+
+message Empty{}
+
+message ProxyResponse {
+    bytes data = 1;
+    bool success = 2;
+    string message = 3;
+    int32 code = 4;
+}
+
+message ProxyRequest {
+    bytes data = 1;
+    string path = 2;
+    string method = 3;
+    bool isSecure = 4;
+    bytes slug = 5;
+    bytes param = 6;
+}
