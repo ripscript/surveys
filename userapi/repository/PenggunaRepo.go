@@ -4,30 +4,19 @@ import (
 	"backend/userapi/models"
 	"backend/userapi/payloads"
 	"backend/userapi/utils"
-	"errors"
-	"fmt"
+	"strconv"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type PenggunaRepo interface {
-	ValidasiCredential(payloads.LoginPayload) (models.Users, error)
-	ValidasiPengguna(pengguna models.Users, status string, jenis string) error
-	EditLastLog(data models.Users) (interface{}, error)
-	GetProfile(usr models.JwtCustomClaims) (interface{}, error)
-	Add(data models.Users) (models.Users, error)
-	CompleteProfile(data models.CompleteProfile) error
-	UserBank(data models.UserBank) error
-	GetDetail(id int) (models.Users, error)
-	ResetPassword(data models.UpdatePasswordPenggune) error
-	ActiveUser(data models.UpdateActiveUser) error
-	Verification(id int) error
-	AddressDetail(userid int) (models.DetailAddress, error)
-	GetUserByEmail(email string) (models.Users, error)
-	ValidasiPenggunaUpdate(pengguna models.UpdateProfile) error
-	UpdateProfile(data models.UpdateProfile) error
-	UpdateBankProfile(data models.UserBank) error
+	FindRespondentByRole(payload payloads.LoginPayload) (*models.Respondent, string, error)
+	FindUserByRespondentID(id int) (*models.User, error)
+	CountFailedLogin(userID int) (int64, error)
+	InsertFailedLogin(userID int) error
+	BlockRespondent(id int) error
+	CheckActiveJabatan(id int) (bool, error)
+	FindUserByID(id int) (*models.User, error)
 }
 
 type penggunaRepo struct {
@@ -43,305 +32,90 @@ func NewPenggunaRepo(dbSlave, dbMaster *gorm.DB) *penggunaRepo {
 	}
 }
 
-func (repository *penggunaRepo) GetUserByEmail(email string) (models.Users, error) {
-	defer utils.GeneralRecover()
-	var data models.Users
-	db := repository.dbSlave
+func (r *penggunaRepo) FindRespondentByRole(payload payloads.LoginPayload) (*models.Respondent, string, error) {
+	var respondent models.Respondent
+	var requestEmail string
 
-	err := db.Where("email = ?", email).First(&data).Error
-	if err != nil {
-		return data, err
-	}
+	query := r.dbSlave.Where("role_id = ?", payload.Role).Where("deleted_at IS NULL")
 
-	return data, nil
-}
-
-func (repository *penggunaRepo) Verification(id int) error {
-	defer utils.GeneralRecover()
-
-	db := repository.dbMaster
-	err := db.Model(&models.Users{}).Where("id = ?", id).Update("account_status", true).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (repository *penggunaRepo) ActiveUser(data models.UpdateActiveUser) error {
-	defer utils.GeneralRecover()
-	db := repository.dbMaster
-	err := db.Save(&data).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (repository *penggunaRepo) ValidasiCredential(payload payloads.LoginPayload) (models.Users, error) {
-	defer utils.GeneralRecover()
-
-	var storedUser models.Users
-
-	db := repository.dbSlave
-
-	if err := db.Where("email = ?", payload.Email).Find(&storedUser).Error; err != nil {
-		err = errors.New("Email atau password tidak valid")
-		return models.Users{}, err
-	}
-
-	if storedUser.ID == 0 {
-		err := errors.New("Email atau password tidak valid")
-		return models.Users{}, err
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(payload.Password)); err != nil {
-		err = errors.New("Email atau password tidak valid")
-		return models.Users{}, err
-	}
-	return storedUser, nil
-}
-
-func (repository *penggunaRepo) EditLastLog(data models.Users) (interface{}, error) {
-	defer utils.GeneralRecover()
-	dbMaster := repository.dbMaster
-
-	if data.Email != "" {
-		err := dbMaster.Save(&data).Error
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return data, nil
-}
-
-func (repository *penggunaRepo) ValidasiPengguna(pengguna models.Users, status string, jenis string) error {
-	defer utils.GeneralRecover()
-	if status == "add" {
-		// validate email
-		if repository.ValidEmail(pengguna.Email, 0) {
-			err := "Email sudah digunakan, silahkan gunakan email lain!"
-			return errors.New(err)
-		}
-		if jenis != "register" {
-			if repository.ValidPhone(pengguna.PhoneNumber, 0) {
-				err := "Nomor Telepon Sudah Di gunakan!"
-				return errors.New(err)
-			}
-		}
+	if payload.Role == 8 || payload.Role == 7 || payload.Role == 9 {
+		query = query.Where("email = ?", payload.Email)
+		requestEmail = payload.Email
 	} else {
-		// validate email
-		if repository.ValidEmail(pengguna.Email, pengguna.ID) {
-			err := "Email sudah digunakan, silahkan gunakan email lain!"
-			return errors.New(err)
+		if payload.SelectedKecamatan != nil {
+			query = query.Where("kecamatan_id = ?", *payload.SelectedKecamatan)
 		}
-		if repository.ValidPhone(pengguna.PhoneNumber, pengguna.ID) {
-			err := "Nomor Telepon sudah digunakan, silahkan gunakan nomor lain!"
-			return errors.New(err)
+		if payload.SelectedKelurahan != nil {
+			query = query.Where("kelurahan_id = ?", *payload.SelectedKelurahan)
+		}
+		if payload.SelectedRW != nil {
+			query = query.Where("rw_id = ?", *payload.SelectedRW)
+		}
+		if payload.SelectedRT != nil {
+			query = query.Where("rt_id = ?", *payload.SelectedRT)
 		}
 	}
 
-	return nil
-}
-
-func (repository *penggunaRepo) ValidasiPenggunaUpdate(pengguna models.UpdateProfile) error {
-	defer utils.GeneralRecover()
-
-	if repository.ValidEmail(pengguna.Email, pengguna.ID) {
-		err := "Email sudah digunakan, silahkan gunakan email lain!"
-		return errors.New(err)
-	}
-	if repository.ValidPhone(pengguna.PhoneNumber, pengguna.ID) {
-		err := "Nomor Telepon sudah digunakan, silahkan gunakan nomor lain!"
-		return errors.New(err)
+	err := query.First(&respondent).Error
+	if err != nil {
+		return nil, "", err
 	}
 
-	return nil
-}
-
-func (repository *penggunaRepo) ValidEmail(email string, id int64) bool {
-	defer utils.GeneralRecover()
-
-	db := repository.dbSlave
-
-	var total int64 = 0
-
-	// Validasi email di tabel
-	if id != 0 {
-		if err := db.Model(&models.Users{}).Where("email = ?", email).Where("id != ?", id).Count(&total).Error; err != nil {
-			return false
-		}
+	if respondent.Email != "" {
+		requestEmail = respondent.Email
+	} else if respondent.Username != "" {
+		requestEmail = respondent.Username
 	} else {
-		if err := db.Model(&models.Users{}).Where("email = ?", email).Count(&total).Error; err != nil {
-			return false
-		}
+		requestEmail = respondent.NIK
 	}
 
-	fmt.Println("total", total)
-
-	if total > 0 {
-		return true
-	}
-	return false
-
+	return &respondent, requestEmail, nil
 }
 
-func (repository *penggunaRepo) ValidPhone(phone string, id int64) bool {
-	defer utils.GeneralRecover()
-
-	db := repository.dbSlave
-
-	var total int64 = 0
-
-	if id != 0 {
-		if err := db.Model(&models.Users{}).Where("phone_number = ?", phone).Where("id != ?", id).Count(&total).Error; err != nil {
-			return false
-		}
-	} else {
-		if err := db.Model(&models.Users{}).Where("phone_number = ?", phone).Count(&total).Error; err != nil {
-			return false
-		}
-	}
-
-	fmt.Println("total", total)
-
-	if total > 0 {
-		return true
-	}
-	return false
-
+func (r *penggunaRepo) FindUserByRespondentID(id int) (*models.User, error) {
+	var user models.User
+	err := r.dbSlave.Where("respondent_id = ?", id).First(&user).Error
+	return &user, err
 }
 
-func (repository *penggunaRepo) GetProfile(usr models.JwtCustomClaims) (interface{}, error) {
-	defer utils.GeneralRecover()
+func (r *penggunaRepo) CountFailedLogin(userID int) (int64, error) {
+	var count int64
 
-	dbSlave := repository.dbSlave
+	err := r.dbSlave.Model(&models.LogBlockLogin{}).
+		Where("user_credential = ?", strconv.Itoa(userID)).
+		Count(&count).Error
 
-	var pengguna models.UserProfile
-	if err := dbSlave.Preload("UserBank").First(&pengguna, usr.ID).Error; err != nil {
-		return models.UserProfile{}, err
-	}
-
-	var bank models.UserBankProfile
-	if err := dbSlave.Where("id = ?", pengguna.UserBank.BankID).First(&bank).Error; err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return models.UserProfile{}, err
-		}
-	}
-
-	pengguna.Password = ""
-	if bank.ID != 0 {
-		pengguna.UserBank.BankName = bank.BankName
-		// pengguna.UserBank.BankImage = bank.Path
-	}
-
-	return pengguna, nil
+	return count, err
 }
 
-func (repository *penggunaRepo) Add(data models.Users) (models.Users, error) {
-	defer utils.GeneralRecover()
-	db := repository.dbMaster
-
-	err := db.Create(&data).Error
-	if err != nil {
-		return models.Users{}, err
-	}
-
-	return data, nil
+func (r *penggunaRepo) InsertFailedLogin(userID int) error {
+	return r.dbMaster.Create(&models.LogBlockLogin{
+		UserCredential: userID,
+	}).Error
 }
 
-func (repository *penggunaRepo) CompleteProfile(data models.CompleteProfile) error {
-	defer utils.GeneralRecover()
-	dbMaster := repository.dbMaster
-	err := dbMaster.Save(&data).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (r *penggunaRepo) BlockRespondent(id int) error {
+	return r.dbMaster.Model(&models.Respondent{}).
+		Where("id = ?", id).
+		Update("is_blocked", true).Error
 }
 
-func (repository *penggunaRepo) UserBank(data models.UserBank) error {
-	defer utils.GeneralRecover()
-	dbMaster := repository.dbMaster
-	err := dbMaster.Save(&data).Error
+func (r *penggunaRepo) CheckActiveJabatan(id int) (bool, error) {
+	var data models.PejabatWilayah
+
+	err := r.dbSlave.Where("id_responden = ?", id).
+		Where("status_jabat = ?", 1).
+		First(&data).Error
+
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
-func (repository *penggunaRepo) GetDetail(id int) (models.Users, error) {
-	defer utils.GeneralRecover()
-	var data models.Users
-	db := repository.dbSlave
-
-	err := db.Where("id = ?", id).First(&data).Error
-	if err != nil {
-		return data, err
-	}
-
-	return data, nil
-}
-
-func (repository *penggunaRepo) ResetPassword(data models.UpdatePasswordPenggune) error {
-	defer utils.GeneralRecover()
-	db := repository.dbMaster
-	err := db.Save(&data).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (repository *penggunaRepo) AddressDetail(userid int) (models.DetailAddress, error) {
-	defer utils.GeneralRecover()
-	var data models.DetailAddress
-	var User models.AddressUser
-	db := repository.dbSlave
-
-	err := db.Where("id = ?", userid).First(&User).Error
-	if err != nil {
-		return data, nil
-	}
-
-	cityString, err := utils.ToString(User.CityID)
-	if err != nil {
-		return data, err
-	}
-
-	provinceString, err := utils.ToString(User.ProvinceID)
-	if err != nil {
-		return data, err
-	}
-
-	data.CustomerName = User.Name
-	data.NoTelp = User.PhoneNumber
-	data.PostalCode = User.PostalCode
-	data.Address.City = cityString
-	data.Address.Detail = User.Address
-	data.Address.Province = provinceString
-
-	return data, nil
-}
-
-func (r *penggunaRepo) UpdateProfile(data models.UpdateProfile) error {
-	defer utils.GeneralRecover()
-	db := r.dbMaster
-	err := db.Where("id", data.ID).Updates(&data).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *penggunaRepo) UpdateBankProfile(data models.UserBank) error {
-	defer utils.GeneralRecover()
-	db := r.dbMaster
-	err := db.Where("user_id", data.UserID).Updates(&data).Error
-	if err != nil {
-		return err
-	}
-	return nil
+func (r *penggunaRepo) FindUserByID(id int) (*models.User, error) {
+	var user models.User
+	err := r.dbSlave.Where("id = ?", id).First(&user).Error
+	return &user, err
 }

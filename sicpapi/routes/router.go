@@ -30,11 +30,13 @@ func SetupRoutes(e *echo.Echo) {
 						Message string      `json:"message"`
 						Success bool        `json:"success"`
 						Code    int         `json:"code"`
+						Token   string      `json:"token"`
 					}{
 						Data:    "",
 						Message: "Terjadi kendala pada service yang sedang anda akses",
 						Success: false,
 						Code:    500,
+						Token:   "",
 					}
 					return c.JSON(int(resp.Code), resp)
 				}
@@ -90,12 +92,27 @@ func SetupRoutes(e *echo.Echo) {
 
 	// USERAPI AUTH
 	e.POST("/login", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.POST("/logout", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	// USERAPI Service
 	e.GET("/kecamatan/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/kelurahan/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/rw/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/rt/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
+	// Responden Management
+	e.GET("/respondent", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.GET("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.DELETE("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.PUT("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
+	// Users Management
+	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.GET("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.PUT("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.DELETE("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
+	e.PUT("/reset/password/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })

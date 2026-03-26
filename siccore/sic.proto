@@ -15,6 +15,7 @@ message ProxyResponse {
     bool success = 2;
     string message = 3;
     int32 code = 4;
+    string token = 5;
 }
 
 message ProxyRequest {

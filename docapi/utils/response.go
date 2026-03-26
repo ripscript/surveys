@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func SetResponseData(data []byte, success bool, message string, code int, err error) *pb.ProxyResponse {
+func SetResponseData(data []byte, success bool, message string, code int, err error, token string) *pb.ProxyResponse {
 	defer func() {
 		if r := recover(); r != nil {
 			message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v", r)
@@ -24,6 +24,7 @@ func SetResponseData(data []byte, success bool, message string, code int, err er
 		Message: message,
 		Code:    int32(code),
 		Data:    data,
+		Token:   token,
 	}
 
 	return response
