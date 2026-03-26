@@ -232,11 +232,13 @@ func HandleFunc(c echo.Context, service string) error {
 
 	resp := struct {
 		Data    interface{} `json:"data"`
+		Token   string      `json:"token"`
 		Message string      `json:"message"`
 		Success bool        `json:"success"`
 		Code    int         `json:"code"`
 	}{
 		Data:    jsonData,
+		Token:   res.Token,
 		Message: mess,
 		Success: res.Success,
 		Code:    code,
@@ -322,11 +324,13 @@ func HandleFunc(c echo.Context, service string) error {
 			fmt.Println("err :", r)
 			resp = struct {
 				Data    interface{} `json:"data"`
+				Token   string      `json:"token"`
 				Message string      `json:"message"`
 				Success bool        `json:"success"`
 				Code    int         `json:"code"`
 			}{
 				Data:    "",
+				Token:   "",
 				Message: "Terjadi kendala pada service yang sedang anda akses.",
 				Success: false,
 				Code:    500,
