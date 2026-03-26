@@ -75,6 +75,7 @@ func SetupRoutes(e *echo.Echo) {
 	userapiService := "USERAPI"
 	docapiService := "DOCAPI"
 	masterapiService := "MASTERAPI"
+	surveyapiService := "SURVEYAPI"
 
 	// Healthy Route API
 
@@ -104,6 +105,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenWilayahKecamatanGroup.GET("/detail/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKecamatanGroup.PUT("/update/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup.GET("/kecamatan/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKecamatanGroup.DELETE("/delete/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
 	manajemenWilayahKelurahanGroup := manajemenWilayahGroup.Group("/kelurahan")
 	manajemenWilayahKelurahanGroup.GET("/detail/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -111,6 +113,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenWilayahKelurahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKelurahanGroup.GET("/list/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKelurahanGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKelurahanGroup.DELETE("/delete/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
 	manajemenWilayahRwGroup := manajemenWilayahGroup.Group("/rw")
 	manajemenWilayahRwGroup.GET("/detail/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -119,6 +122,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenWilayahRwGroup.GET("/list/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahRwGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup.GET("/rw/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRwGroup.DELETE("/delete/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
 	manajemenWilayahRtGroup := manajemenWilayahGroup.Group("/rt")
 	manajemenWilayahRtGroup.GET("/detail/:rt_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -140,4 +144,8 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenArtikelKategoriGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenArtikelKategoriGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenArtikelKategoriGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	// SURVEYAPI Service
+	e.GET("/surveyapi/healthy", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	e.GET("/template/ucapan/detail/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

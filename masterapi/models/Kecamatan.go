@@ -23,17 +23,18 @@ func (u *Kecamatan) TableName() string {
 }
 
 type KecamatanDatatableResponse struct {
-	ID              int64      `json:"id"`
-	SubDistrictName string     `json:"sub_district_name"`
-	SubDistrictSlug string     `json:"sub_district_slug"`
-	KodeWilayah     *string    `json:"kode_wilayah"`
-	Lat             *string    `json:"lat"`
-	Long            *string    `json:"long"`
-	NamaPejabat     *string    `json:"nama_pejabat"`
-	PeriodeAwal     *time.Time `json:"periode_awal"`
-	PeriodeAkhir    *time.Time `json:"periode_akhir"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              int64          `json:"id"`
+	SubDistrictName string         `json:"sub_district_name"`
+	SubDistrictSlug string         `json:"sub_district_slug"`
+	KodeWilayah     *string        `json:"kode_wilayah"`
+	Lat             *string        `json:"lat"`
+	Long            *string        `json:"long"`
+	NamaPejabat     *string        `json:"nama_pejabat"`
+	PeriodeAwal     *time.Time     `json:"periode_awal"`
+	PeriodeAkhir    *time.Time     `json:"periode_akhir"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at"`
 }
 
 type KecamatanOptionItem struct {

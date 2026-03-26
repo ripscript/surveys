@@ -1,13 +1,13 @@
 package routingGrpc
 
 import (
-	"backend/masterapi/configs"
-	"backend/masterapi/handlers"
-	"backend/masterapi/models"
-	"backend/masterapi/repository"
-	"backend/masterapi/service"
-	"backend/masterapi/utils"
 	pb "backend/siccore/pb"
+	"backend/surveyapi/configs"
+	"backend/surveyapi/handlers"
+	"backend/surveyapi/models"
+	"backend/surveyapi/repository"
+	"backend/surveyapi/service"
+	"backend/surveyapi/utils"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -31,76 +31,27 @@ var (
 )
 
 var (
-	manajemenWilayahRepo  repository.ManajemenWilayahRepo  = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
-	manajemenPenggunaRepo repository.ManajemenPenggunaRepo = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
-	manajemenArtikelRepo  repository.ManajemenArtikelRepo  = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	templateUcapanRepo repository.TemplateUcapanRepo = repository.NewTemplateUcapanRepo(dbSlave, dbMaster)
 )
 
 var (
-	manajemenWilayahService service.ManajemenWilayahService = service.NewManajemenWilayahService(
-		manajemenWilayahRepo,
-	)
-	manajemenPenggunaService service.ManajemenPenggunaService = service.NewManajemenPenggunaService(
-		manajemenPenggunaRepo,
-	)
-	manajemenArtikelService service.ManajemenArtikelService = service.NewManajemenArtikelService(
-		manajemenArtikelRepo,
+	templateUcapanService service.TemplateUcapanService = service.NewTemplateUcapanService(
+		templateUcapanRepo,
 	)
 )
 
 var (
-	manajemenWilayahHandler handlers.ManajemenWilayahHandler = handlers.NewManajemenWilayahHandler(
-		manajemenWilayahService,
-	)
-	manajemenPenggunaHandler handlers.ManajemenPenggunaHandler = handlers.NewManajemenPenggunaHandler(
-		manajemenPenggunaService,
-	)
-	manajemenArtikelHandler handlers.ManajemenArtikelHandler = handlers.NewManajemenArtikelHandler(
-		manajemenArtikelService,
+	templateUcapanHandler handlers.TemplateUcapanHandler = handlers.NewTemplateUcapanHandler(
+		templateUcapanService,
 	)
 )
 
 // ROUTING GRPC
 // Definisikan pemetaan fungsi handler dengan path dan metode HTTP
 var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error){
-	"/masterapi/healthy": {"GET": handlers.Healthy},
+	"/surveyapi/healthy": {"GET": handlers.Healthy},
 
-	"/manajemen-wilayah/kecamatan/list":                 {"GET": manajemenWilayahHandler.GetListKecamatan},
-	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": manajemenWilayahHandler.GetKecamatanDetail},
-	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": manajemenWilayahHandler.UpdateKecamatan},
-	"/manajemen-wilayah/kecamatan/options":              {"GET": manajemenWilayahHandler.OptionsKecamatan},
-	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": manajemenWilayahHandler.DeleteKecamatan},
-
-	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": manajemenWilayahHandler.GetKelurahanDetail},
-	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": manajemenWilayahHandler.UpdateKelurahan},
-	"/manajemen-wilayah/kelurahan/list":                 {"GET": manajemenWilayahHandler.GetListKelurahan},
-	"/manajemen-wilayah/kelurahan/list/:kecamatan_id":   {"GET": manajemenWilayahHandler.GetListKelurahan},
-	"/manajemen-wilayah/kelurahan/options":              {"GET": manajemenWilayahHandler.OptionsKelurahan},
-	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"DELETE": manajemenWilayahHandler.DeleteKelurahan},
-
-	"/manajemen-wilayah/rw/detail/:rw_id":      {"GET": manajemenWilayahHandler.GetRwDetail},
-	"/manajemen-wilayah/rw/update/:rw_id":      {"PUT": manajemenWilayahHandler.UpdateRw},
-	"/manajemen-wilayah/rw/list":               {"GET": manajemenWilayahHandler.GetListRw},
-	"/manajemen-wilayah/rw/list/:kelurahan_id": {"GET": manajemenWilayahHandler.GetListRwByKelurahan},
-	"/manajemen-wilayah/rw/create":             {"POST": manajemenWilayahHandler.CreateRw},
-	"/manajemen-wilayah/rw/options":            {"GET": manajemenWilayahHandler.OptionsRw},
-	"/manajemen-wilayah/rw/delete/:rw_id":      {"DELETE": manajemenWilayahHandler.DeleteRw},
-
-	"/manajemen-wilayah/rt/detail/:rt_id": {"GET": manajemenWilayahHandler.GetRtDetail},
-	"/manajemen-wilayah/rt/update/:rt_id": {"PUT": manajemenWilayahHandler.UpdateRt},
-	"/manajemen-wilayah/rt/list":          {"GET": manajemenWilayahHandler.GetListRt},
-	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": manajemenWilayahHandler.GetListRtByRw},
-	"/manajemen-wilayah/rt/create":        {"POST": manajemenWilayahHandler.CreateRt},
-	"/manajemen-wilayah/rt/options":       {"GET": manajemenWilayahHandler.OptionsRt},
-
-	"/manajemen-pengguna/role/options":     {"GET": manajemenPenggunaHandler.OptionsRole},
-	"/manajemen-pengguna/responden/create": {"POST": manajemenPenggunaHandler.CreateResponden},
-
-	"/manajemen-artikel/kategori/create":     {"POST": manajemenArtikelHandler.CreateKategoriArtikel},
-	"/manajemen-artikel/kategori/update/:id": {"PUT": manajemenArtikelHandler.UpdateKategoriArtikel},
-	"/manajemen-artikel/kategori/delete/:id": {"DELETE": manajemenArtikelHandler.DeleteKategoriArtikel},
-	"/manajemen-artikel/kategori/detail/:id": {"GET": manajemenArtikelHandler.GetKategoriArtikel},
-	"/manajemen-artikel/kategori/list":       {"GET": manajemenArtikelHandler.GetListKategoriArtikel},
+	"/template/ucapan/detail/:template_ucapan_id": {"GET": templateUcapanHandler.GetTemplateUcapanDetail},
 }
 
 // Metode untuk menangani permintaan yang masuk

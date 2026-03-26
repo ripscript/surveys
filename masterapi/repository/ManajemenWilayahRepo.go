@@ -17,6 +17,8 @@ type ManajemenWilayahRepo interface {
 	GetKecamatanBySlug(slug string) (*models.Kecamatan, error)
 	GetListKecamatan(req payloads.DatatablePayload) ([]models.KecamatanDatatableResponse, int64, error)
 	GetKecamatanOptions(req payloads.KecamatanOptionsPayload) ([]response.OptionItem, int64, error)
+	IsKecamatanUsed(id int64) (bool, error)
+	DeleteKecamatanById(id int64) error
 
 	GetKelurahanByID(id int) (*models.KelurahanDetail, error)
 	GetKelurahanByName(name string) (*models.KelurahanDetail, error)
@@ -24,6 +26,8 @@ type ManajemenWilayahRepo interface {
 	UpdateKelurahan(kelurahan models.Kelurahan) (*models.Kelurahan, error)
 	GetListKelurahan(req payloads.DatatablePayload, kecamatanId *int64) ([]models.KelurahanDatatableResponse, int64, error)
 	GetKelurahanOptions(req payloads.KelurahanOptionsPayload) ([]response.OptionItem, int64, error)
+	IsKelurahanUsed(id int64) (bool, error)
+	DeleteKelurahanById(id int64) error
 
 	GetRwByID(id int) (*models.DataRwDetail, error)
 	GetRwByName(name string, kelurahanId *int64) (*models.DataRwDetail, error)
@@ -31,6 +35,8 @@ type ManajemenWilayahRepo interface {
 	GetListRw(req payloads.DatatablePayload, kelurahanId *int64) ([]models.RwDatatableResponse, int64, error)
 	CreateRw(rw models.DataRw) (*models.DataRw, error)
 	GetRwOptions(req payloads.RwOptionsPayload) ([]response.OptionItem, int64, error)
+	IsRwUsed(id int64) (bool, error)
+	DeleteRwById(id int64) error
 
 	GetRtByID(id int) (*models.DataRtDetail, error)
 	GetRtByName(name string, rwId *int64) (*models.DataRtDetail, error)
@@ -191,9 +197,10 @@ func (repository *manajemenWilayahRepo) GetKecamatanOptions(req payloads.Kecamat
 
 	db := repository.dbSlave.Table("kecamatans").
 		Select(`
-            kecamatans.id AS id, 
-            kecamatans.sub_district_name AS label
-        `)
+			kecamatans.id AS id, 
+			kecamatans.sub_district_name AS label
+		`).
+		Where("kecamatans.deleted_at IS NULL")
 
 	if len(req.IDs) > 0 {
 		db = db.Where("kecamatans.id IN ?", req.IDs)
@@ -230,6 +237,26 @@ func (repository *manajemenWilayahRepo) GetKecamatanOptions(req payloads.Kecamat
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	db := repository.dbSlave
+	var count int64
+	err := db.Model(&models.Kelurahan{}).Where("sub_district_id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *manajemenWilayahRepo) DeleteKecamatanById(id int64) error {
+	defer utils.GeneralRecover()
+	db := repository.dbMaster
+	err := db.Delete(&models.Kecamatan{}, id).Error
+	return err
 }
 
 func (repository *manajemenWilayahRepo) GetKelurahanByID(id int) (*models.KelurahanDetail, error) {
@@ -398,7 +425,8 @@ func (repository *manajemenWilayahRepo) GetKelurahanOptions(req payloads.Kelurah
 		Select(`
             kelurahans.id AS id, 
             kelurahans.village_name AS label
-        `)
+        `).
+		Where("kelurahans.deleted_at IS NULL")
 
 	if req.KecamatanId != 0 {
 		db = db.Where("kelurahans.sub_district_id = ?", req.KecamatanId)
@@ -440,6 +468,26 @@ func (repository *manajemenWilayahRepo) GetKelurahanOptions(req payloads.Kelurah
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *manajemenWilayahRepo) IsKelurahanUsed(id int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	db := repository.dbSlave
+	var count int64
+	err := db.Model(&models.DataRw{}).Where("kelurahan_id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *manajemenWilayahRepo) DeleteKelurahanById(id int64) error {
+	defer utils.GeneralRecover()
+	db := repository.dbMaster
+	err := db.Delete(&models.Kelurahan{}, id).Error
+	return err
 }
 
 func (repository *manajemenWilayahRepo) GetRwByID(id int) (*models.DataRwDetail, error) {
@@ -622,7 +670,8 @@ func (repository *manajemenWilayahRepo) GetRwOptions(req payloads.RwOptionsPaylo
 		Select(`
             data__rws.id AS id, 
             data__rws.nama_rw AS label
-        `)
+        `).
+		Where("data__rws.deleted_at IS NULL")
 
 	if req.KelurahanId != 0 {
 		db = db.Where("data__rws.kelurahan_id = ?", req.KelurahanId)
@@ -664,6 +713,26 @@ func (repository *manajemenWilayahRepo) GetRwOptions(req payloads.RwOptionsPaylo
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *manajemenWilayahRepo) IsRwUsed(id int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	db := repository.dbSlave
+	var count int64
+	err := db.Model(&models.DataRt{}).Where("rw_id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *manajemenWilayahRepo) DeleteRwById(id int64) error {
+	defer utils.GeneralRecover()
+	db := repository.dbMaster
+	err := db.Delete(&models.DataRw{}, id).Error
+	return err
 }
 
 func (repository *manajemenWilayahRepo) GetRtByID(id int) (*models.DataRtDetail, error) {

@@ -22,17 +22,20 @@ type ManajemenWilayahService interface {
 	UpdateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListKecamatan(req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKecamatanOptions(param url.Values) (*pb.ProxyResponse, error)
+	DeleteKecamatan(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetKelurahanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListKelurahan(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKelurahanOptions(param url.Values) (*pb.ProxyResponse, error)
+	DeleteKelurahan(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetRwDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRw(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListRw(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	CreateRw(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRwOptions(param url.Values) (*pb.ProxyResponse, error)
+	DeleteRw(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetRtDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRt(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -240,6 +243,32 @@ func (s *manajemenWilayahService) GetKecamatanOptions(param url.Values) (*pb.Pro
 	return utils.SendData(responseData, "Berhasil mengambil opsi kecamatan")
 }
 
+func (service *manajemenWilayahService) DeleteKecamatan(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	StrId := slug["kecamatan_id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	isUsed, err := service.manajemenWilayahRepo.IsKecamatanUsed(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isUsed {
+		err := errors.New("Data tidak dapat dihapus karena masih digunakan oleh data lain.")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	err = service.manajemenWilayahRepo.DeleteKecamatanById(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus kecamatan")
+}
+
 func (service *manajemenWilayahService) GetKelurahanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	StrId := slug["kelurahan_id"]
@@ -445,6 +474,32 @@ func (s *manajemenWilayahService) GetKelurahanOptions(param url.Values) (*pb.Pro
 	return utils.SendData(responseData, "Berhasil mengambil opsi kelurahan")
 }
 
+func (service *manajemenWilayahService) DeleteKelurahan(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	StrId := slug["kelurahan_id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	isUsed, err := service.manajemenWilayahRepo.IsKelurahanUsed(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isUsed {
+		err := errors.New("Data tidak dapat dihapus karena masih digunakan oleh data lain.")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	err = service.manajemenWilayahRepo.DeleteKelurahanById(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus kelurahan")
+}
+
 func (service *manajemenWilayahService) GetRwDetail(slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	StrId := slug["rw_id"]
@@ -491,7 +546,7 @@ func (service *manajemenWilayahService) UpdateRw(usr models.JwtCustomClaims, req
 	}
 
 	if getRwById.NamaRw != payload.NamaRw {
-		getRwByName, err := service.manajemenWilayahRepo.GetKelurahanByName(payload.NamaRw)
+		getRwByName, err := service.manajemenWilayahRepo.GetRwByName(payload.NamaRw, &getRwById.VillageId)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 			return utils.SendError(err, http.StatusInternalServerError)
 		}
@@ -691,6 +746,32 @@ func (s *manajemenWilayahService) GetRwOptions(param url.Values) (*pb.ProxyRespo
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi rw")
+}
+
+func (service *manajemenWilayahService) DeleteRw(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	StrId := slug["rw_id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	isUsed, err := service.manajemenWilayahRepo.IsRwUsed(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isUsed {
+		err := errors.New("Data tidak dapat dihapus karena masih digunakan oleh data lain.")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	err = service.manajemenWilayahRepo.DeleteRwById(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus rw")
 }
 
 func (service *manajemenWilayahService) GetRtDetail(slug map[string]interface{}) (*pb.ProxyResponse, error) {

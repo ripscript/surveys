@@ -18,12 +18,14 @@ var Whitelist = map[string]map[string]bool{
 	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": true},
 	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": true},
 	"/manajemen-wilayah/kecamatan/options":              {"GET": true},
+	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": true},
 
 	"/manajemen-wilayah/kelurahan/list":                 {"GET": true},
 	"/manajemen-wilayah/kelurahan/list/:kecamatan_id":   {"GET": true},
 	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": true},
 	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": true},
 	"/manajemen-wilayah/kelurahan/options":              {"GET": true},
+	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"DELETE": true},
 
 	"/manajemen-wilayah/rw/list":               {"GET": true},
 	"/manajemen-wilayah/rw/list/:kelurahan_id": {"GET": true},
@@ -31,6 +33,7 @@ var Whitelist = map[string]map[string]bool{
 	"/manajemen-wilayah/rw/update/:rw_id":      {"PUT": true},
 	"/manajemen-wilayah/rw/create":             {"POST": true},
 	"/manajemen-wilayah/rw/options":            {"GET": true},
+	"/manajemen-wilayah/rw/delete/:rw_id":      {"DELETE": true},
 
 	"/manajemen-wilayah/rt/list":          {"GET": true},
 	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": true},
@@ -47,6 +50,10 @@ var Whitelist = map[string]map[string]bool{
 	"/manajemen-artikel/kategori/delete/:id": {"DELETE": true},
 	"/manajemen-artikel/kategori/detail/:id": {"GET": true},
 	"/manajemen-artikel/kategori/list":       {"GET": true},
+
+	// SURVEYAPI SERVICE
+	"/surveyapi/healthy":                          {"GET": true},
+	"/template/ucapan/detail/:template_ucapan_id": {"GET": true},
 	// Tambahkan URL dan metode lainnya sesuai kebutuhan Anda
 }
 

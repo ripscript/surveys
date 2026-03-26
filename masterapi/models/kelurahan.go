@@ -44,16 +44,17 @@ func (u *KelurahanDetail) TableName() string {
 }
 
 type KelurahanDatatableResponse struct {
-	ID              int64      `json:"id"`
-	SubDistrictName string     `json:"sub_district_name"`
-	SubDistrictId   int64      `json:"sub_district_id"`
-	KodeWilayah     *string    `json:"kode_wilayah"`
-	VillageName     string     `json:"village_name"`
-	NamaPejabat     *string    `json:"nama_pejabat"`
-	PeriodeAwal     *time.Time `json:"periode_awal"`
-	PeriodeAkhir    *time.Time `json:"periode_akhir"`
-	Lat             *string    `json:"lat"`
-	Long            *string    `json:"long"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              int64          `json:"id"`
+	SubDistrictName string         `json:"sub_district_name"`
+	SubDistrictId   int64          `json:"sub_district_id"`
+	KodeWilayah     *string        `json:"kode_wilayah"`
+	VillageName     string         `json:"village_name"`
+	NamaPejabat     *string        `json:"nama_pejabat"`
+	PeriodeAwal     *time.Time     `json:"periode_awal"`
+	PeriodeAkhir    *time.Time     `json:"periode_akhir"`
+	Lat             *string        `json:"lat"`
+	Long            *string        `json:"long"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
