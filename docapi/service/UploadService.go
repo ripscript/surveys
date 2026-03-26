@@ -139,7 +139,7 @@ func (service *uploadService) Show(slug map[string]interface{}) (*pb.ProxyRespon
 
 	fmt.Println("mimeType:", mimeType)
 
-	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil), nil
+	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }
 
 func (service *uploadService) ShowMinio(slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -207,7 +207,7 @@ func (service *uploadService) ShowMinio(slug map[string]interface{}) (*pb.ProxyR
 
 	fmt.Println("mimeType:", mimeType)
 
-	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil), nil
+	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }
 
 func (service *uploadService) DownloadFilePath(param url.Values) (*pb.ProxyResponse, error) {
@@ -265,7 +265,7 @@ func (service *uploadService) DownloadFilePath(param url.Values) (*pb.ProxyRespo
 		return nil, err
 	}
 
-	return utils.SetResponseData(jsonData, true, "Berhasil", 200, nil), nil
+	return utils.SetResponseData(jsonData, true, "Berhasil", 200, nil, ""), nil
 }
 
 func (service *uploadService) DownloadFilePathMinio(param url.Values) (*pb.ProxyResponse, error) {
@@ -337,5 +337,5 @@ func (service *uploadService) DownloadFilePathMinio(param url.Values) (*pb.Proxy
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	return utils.SetResponseData(jsonData, true, "Berhasil", 200, nil), nil
+	return utils.SetResponseData(jsonData, true, "Berhasil", 200, nil, ""), nil
 }

@@ -57,6 +57,7 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 }
 
 // Metode untuk menangani permintaan yang masuk
+// Metode untuk menangani permintaan yang masuk
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -68,46 +69,71 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	path := req.GetPath()
 	method := req.GetMethod()
 
-	success, mess, code, userLogin := ValidasiToken(ctx, req)
+	// Validasi token
+	success, mess, code, userLogin, newToken := ValidasiToken(ctx, req)
 	if !success {
-		return utils.SetResponseData([]byte{}, success, mess, code, nil), nil
+		utils.LogErrors(mess)
+		return utils.SetResponseData([]byte{}, success, mess, code, nil, ""), nil
 	}
 
-	// Cek apakah handler sesuai dengan path dan method HTTP
-	handler, ok := grpcMap[path][method]
+	// Cek path tersedia
+	methodMap, ok := grpcMap[path]
 	if !ok {
-		message := "Terjadi kesalahan saat mencari grpc path method"
+		message := "Path grpc tidak ditemukan"
 		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+		return utils.SetResponseData([]byte{}, false, message, http.StatusNotFound, nil, ""), nil
 	}
 
-	// reqs
+	// Cek method tersedia
+	handler, ok := methodMap[method]
+	if !ok {
+		message := "Method grpc tidak ditemukan"
+		utils.LogErrors(message)
+		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
+	}
+
+	// Parsing request body
 	var reqs map[string]interface{}
-	if req.Data != nil {
+	if len(req.Data) > 0 {
 		if err := json.Unmarshal(req.Data, &reqs); err != nil {
-			message := "Terjadi kesalahan saat unmarshal request data"
+			message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
 			utils.LogErrors(message)
-			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 		}
 	}
 
-	// slug
+	// Parsing slug
 	var slug map[string]interface{}
-	if err := json.Unmarshal(req.Slug, &slug); err != nil {
-		message := "Terjadi kesalahan saat unmarshal slug"
-		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+	if len(req.Slug) > 0 {
+		if err := json.Unmarshal(req.Slug, &slug); err != nil {
+			message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
+			utils.LogErrors(message)
+			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
+		}
 	}
 
-	// mengambil param dan meneruskan
+	// Parsing query param
 	paramString := string(req.Param)
-	queryValues, _ := url.ParseQuery(paramString)
+	queryValues, err := url.ParseQuery(paramString)
+	if err != nil {
+		message := "Terjadi kesalahan saat parsing query param : " + err.Error()
+		utils.LogErrors(message)
+		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
+	}
 
-	// Panggil handler yang sesuai
-	return handler(ctx, reqs, userLogin, queryValues, slug)
+	response, err := handler(ctx, reqs, userLogin, queryValues, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	if response != nil && newToken != "" {
+		response.Token = newToken
+	}
+
+	return response, nil
 }
 
-func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int, models.JwtCustomClaims) {
+func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int, models.JwtCustomClaims, string) {
 	defer func() {
 		if r := recover(); r != nil {
 			message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v", r)
@@ -116,12 +142,13 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 	}()
 	var withToken bool = true
 	var userData models.JwtCustomClaims
+	var newToken string
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		message := "Terjadi kesalahan saat unmarshal mengambil metadata"
 		utils.LogErrors(message)
-		return false, message, int(http.StatusInternalServerError), userData
+		return false, message, int(http.StatusInternalServerError), userData, newToken
 	}
 
 	// Ambil token dari metadata
@@ -132,7 +159,7 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			withToken = false
 			if req.GetIsSecure() {
-				return false, "Uploadat header token tidak valid", int(http.StatusUnauthorized), userData
+				return false, "Format header token tidak valid", int(http.StatusUnauthorized), userData, newToken
 			}
 		}
 		if withToken {
@@ -141,7 +168,7 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 	} else {
 		withToken = false
 		if req.GetIsSecure() {
-			return false, "Header token tidak ditemukan", int(http.StatusUnauthorized), userData
+			return false, "Header token tidak ditemukan", int(http.StatusUnauthorized), userData, newToken
 		}
 	}
 
@@ -160,9 +187,9 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		if err != nil {
 			withToken = false
 			if req.GetIsSecure() {
-				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData
+				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
 			} else {
-				return true, "Tervalidasi", int(http.StatusOK), userData
+				return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 			}
 		}
 
@@ -178,13 +205,38 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 			if req.GetIsSecure() {
 				message := "Terjadi kesalahan : " + err.Error()
 				utils.LogErrors(message)
-				return false, message, int(http.StatusInternalServerError), userData
+				return false, message, int(http.StatusInternalServerError), userData, newToken
 			}
 		}
+		refreshedToken, err := GenerateJWTToken(userData)
+		if err != nil {
+			utils.LogErrors("Gagal generate token baru: " + err.Error())
+		} else {
+			newToken = refreshedToken
+		}
 
-		return true, "Tervalidasi", int(http.StatusOK), userData
+		return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 
 	}
 
-	return true, "Tervalidasi", int(http.StatusOK), userData
+	return true, "Tervalidasi", int(http.StatusOK), userData, newToken
+}
+
+func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
+	defer utils.GeneralRecover()
+
+	claims := models.JwtCustomClaims{
+		ID:    int64(user.ID),
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", err
+	}
+
+	return encryptedToken, nil
 }

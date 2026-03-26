@@ -11,14 +11,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+func IsDirectRole(role int) bool {
+	return role == 1 || role == 6 || role == 7 || role == 8 || role == 9
+}
 
 func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
 	data, errs := json.Marshal(js)
 	if errs != nil {
 		message := "Terjadi Kesalahan : " + errs.Error()
 		LogErrors(message)
-		return SetResponseData(data, false, message, 500, errs), errs
+		return SetResponseData(data, false, message, 500, errs, ""), errs
 	}
 	var message string
 	if len(messages) > 0 {
@@ -26,16 +32,16 @@ func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
 	} else {
 		message = "Berhasil"
 	}
-	return SetResponseData(data, true, message, 200, nil), nil
+	return SetResponseData(data, true, message, 200, nil, ""), nil
 }
 
 func SendError(err error, code int) (*pb.ProxyResponse, error) {
 	if err.Error() != "" {
 		message := err.Error()
-		return SetResponseData(nil, false, message, code, nil), nil
+		return SetResponseData(nil, false, message, code, nil, ""), nil
 	}
 	message := "Terjadi kesalahan "
-	return SetResponseData(nil, false, message, code, nil), nil
+	return SetResponseData(nil, false, message, code, nil, ""), nil
 }
 
 func GeneralRecover() {
@@ -505,4 +511,13 @@ func ConvertZeroToNil(v interface{}) {
 			}
 		}
 	}
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+func VerifyPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
 }

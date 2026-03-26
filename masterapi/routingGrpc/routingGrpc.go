@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/grpc/metadata"
@@ -111,10 +112,10 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	path := req.GetPath()
 	method := req.GetMethod()
 
-	success, mess, code, userLogin := ValidasiToken(ctx, req)
+	success, mess, code, userLogin, newToken := ValidasiToken(ctx, req)
 	if !success {
 		utils.LogErrors(mess)
-		return utils.SetResponseData([]byte{}, success, mess, code, nil), nil
+		return utils.SetResponseData([]byte{}, success, mess, code, nil, newToken), nil
 	}
 
 	// Cek apakah handler sesuai dengan path dan method HTTP
@@ -122,7 +123,7 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	if !ok {
 		message := "Terjadi kesalahan saat mencari grpc path method"
 		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
 	}
 
 	// reqs
@@ -130,7 +131,7 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	if err := json.Unmarshal(req.Data, &reqs); err != nil {
 		message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
 		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
 	}
 
 	// slug
@@ -138,7 +139,7 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	if err := json.Unmarshal(req.Slug, &slug); err != nil {
 		message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
 		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil), nil
+		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
 	}
 
 	// mengambil param dan meneruskan
@@ -149,84 +150,120 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	return handler(ctx, reqs, userLogin, queryValues, slug)
 }
 
-func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int, models.JwtCustomClaims) {
+func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int, models.JwtCustomClaims, string) {
 	defer func() {
 		if r := recover(); r != nil {
 			message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v", r)
 			utils.LogErrors(message)
 		}
 	}()
+
 	var withToken bool = true
 	var userData models.JwtCustomClaims
+	var newToken string
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		message := "Terjadi kesalahan saat unmarshal mengambil metadata"
+		message := "Terjadi kesalahan saat mengambil metadata"
 		utils.LogErrors(message)
-		return false, message, int(http.StatusInternalServerError), userData
+		return false, message, int(http.StatusInternalServerError), userData, newToken
 	}
 
-	// Ambil token dari metadata
 	token := ""
 	if val, ok := md["authorization"]; ok {
-		// Harap header berbentuk "Bearer <token>"
 		parts := strings.Split(val[0], " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			withToken = false
 			if req.GetIsSecure() {
-				return false, "Format header token tidak valid", int(http.StatusUnauthorized), userData
+				return false, "Format header token tidak valid", int(http.StatusUnauthorized), userData, newToken
 			}
 		}
+
 		if withToken {
 			token = parts[1]
 		}
 	} else {
 		withToken = false
 		if req.GetIsSecure() {
-			return false, "Header token tidak ditemukan", int(http.StatusUnauthorized), userData
+			return false, "Header token tidak ditemukan", int(http.StatusUnauthorized), userData, newToken
 		}
 	}
 
-	// Parse token
 	if withToken {
 		claims := &models.JwtCustomClaims{}
+
 		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-			defer func() {
-				if r := recover(); r != nil {
-					message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v", r)
-					utils.LogErrors(message)
-				}
-			}()
 			return []byte(os.Getenv("JWT_SECRET_KEY")), nil
 		})
+
 		if err != nil {
-			withToken = false
 			if req.GetIsSecure() {
-				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData
-			} else {
-				return true, "Tervalidasi", int(http.StatusOK), userData
+				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
 			}
+			return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 		}
 
-		// Dapatkan klaim dari token
-		userData := models.JwtCustomClaims{
+		// isi userData lengkap termasuk expired
+		userData = models.JwtCustomClaims{
 			ID:    int64(claims.ID),
 			Name:  claims.Name,
 			Email: claims.Email,
 			Role:  claims.Role,
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: claims.ExpiresAt,
+			},
 		}
 
-		if err != nil {
-			if req.GetIsSecure() {
-				message := "Terjadi kesalahan : " + err.Error()
-				utils.LogErrors(message)
-				return false, message, int(http.StatusInternalServerError), userData
+		// cek sisa waktu expired
+		if claims.ExpiresAt != nil {
+			remaining := claims.ExpiresAt.Time.Sub(time.Now())
+
+			if remaining > 0 && remaining < 30*time.Minute {
+				refreshedToken, err := GenerateJWTToken(userData)
+				if err != nil {
+					utils.LogErrors("Gagal generate token baru: " + err.Error())
+				} else {
+					newToken = refreshedToken
+				}
 			}
 		}
 
-		return true, "Tervalidasi", int(http.StatusOK), userData
-
+		return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 	}
 
-	return true, "Tervalidasi", int(http.StatusOK), userData
+	return true, "Tervalidasi", int(http.StatusOK), userData, newToken
+}
+
+func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
+	defer utils.GeneralRecover()
+
+	expiredAt := user.ExpiresAt
+
+	if user.ExpiresAt != nil {
+		remaining := user.ExpiresAt.Time.Sub(time.Now())
+		if remaining < 30*time.Minute {
+			expiredAt = jwt.NewNumericDate(time.Now().Add(3 * time.Hour))
+		}
+	} else {
+		expiredAt = jwt.NewNumericDate(time.Now().Add(3 * time.Hour))
+	}
+
+	claims := models.JwtCustomClaims{
+		ID:    int64(user.ID),
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expiredAt,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", err
+	}
+
+	return encryptedToken, nil
 }
