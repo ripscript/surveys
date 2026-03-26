@@ -86,7 +86,7 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		Email: requestEmail,
 		Role:  storedUser.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 		},
 	}
 

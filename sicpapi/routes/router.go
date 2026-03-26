@@ -76,6 +76,7 @@ func SetupRoutes(e *echo.Echo) {
 	// deklarasi service
 	userapiService := "USERAPI"
 	docapiService := "DOCAPI"
+	masterapiService := "MASTERAPI"
 
 	// Healthy Route API
 
@@ -111,4 +112,49 @@ func SetupRoutes(e *echo.Echo) {
 	e.DELETE("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	e.PUT("/reset/password/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
+	// MASTERAPI Service
+	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahGroup := e.Group("/manajemen-wilayah")
+	manajemenWilayahKecamatanGroup := manajemenWilayahGroup.Group("/kecamatan")
+	manajemenWilayahKecamatanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKecamatanGroup.GET("/detail/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKecamatanGroup.PUT("/update/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahGroup.GET("/kecamatan/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenWilayahKelurahanGroup := manajemenWilayahGroup.Group("/kelurahan")
+	manajemenWilayahKelurahanGroup.GET("/detail/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKelurahanGroup.PUT("/update/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKelurahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKelurahanGroup.GET("/list/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahKelurahanGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenWilayahRwGroup := manajemenWilayahGroup.Group("/rw")
+	manajemenWilayahRwGroup.GET("/detail/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRwGroup.PUT("/update/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRwGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRwGroup.GET("/list/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRwGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahGroup.GET("/rw/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenWilayahRtGroup := manajemenWilayahGroup.Group("/rt")
+	manajemenWilayahRtGroup.GET("/detail/:rt_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRtGroup.PUT("/update/:rt_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRtGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRtGroup.GET("/list/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRtGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahGroup.GET("/rt/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenPenggunaGroup := e.Group("/manajemen-pengguna")
+	manajemenPenggunaGroup.GET("/role/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPenggunaRespondenGroup := manajemenPenggunaGroup.Group("/responden")
+	manajemenPenggunaRespondenGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenArtikelGroup := e.Group("/manajemen-artikel")
+	manajemenArtikelKategoriGroup := manajemenArtikelGroup.Group("/kategori")
+	manajemenArtikelKategoriGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenArtikelKategoriGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenArtikelKategoriGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenArtikelKategoriGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenArtikelKategoriGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 }
