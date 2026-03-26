@@ -1,0 +1,9 @@
+# air.toml
+
+[build]
+exclude_dir = ["webroot"]
+
+[[tasks]]
+name = "run"
+script = "main.go"
+args = []

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" style="box-sizing: border-box;">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Email Verif Password</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body style="margin: 0; padding: 0; 
+background: #F2F2F2;
+font-family: 'Inter', Arial, sans-serif;">
+<!-- background-image: linear-gradient(to bottom, #27445d, #306077, #3d7e8e, #539ca2, #71bbb2);  -->
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding: 20px;">
+        <table width="100%" style="max-width: 500px; background-color: #ffffff; border-radius: 30px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);" border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td align="center" style="background-color: #71BBB2; border-radius: 30px 30px 0px 0px; padding: 35px 1px 5px 1px;">
+                  <img src="{{.BaseUrl}}/view/webroot/files/upload/2025-06-30/20250630111745000-imageTrue_1751257065841350631.png" alt="Logo Key" style="width: 150px; height: auto;">
+                  <h3 style="color: #ffffff; font-size: 20px;">Verifikasi Email Akun Pengguna Jastipers</h3>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 1px 40px 40px 40px;">              
+              <h2 style="margin-top: 20px; color: #000;">Halo, {{.Nama}}</h2>
+              <p style="color: #000; line-height: 1.5; font-size: 13px;">Kami ingin melakukan verifikasi email untuk akun pengguna di aplikasi jastipers. </p>
+              <p style="color: #000; line-height: 1.5; font-size: 13px;">Silahkan melakukan verifikasi dengan klik button verifikasi dibawah ini. </p>
+              <!-- <p style="color: #000; line-height: 1.5; font-size: 13px;">Berikut adalah password untuk login akun <b>Jastiper</b>:</p> -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{.Url}}" style="background-color: #71BBB2;color: white;padding: 10px 20px;border: none;border-radius: 8px;font-size: 16px;cursor: pointer;transition: background-color 0.3s ease; text-decoration: none;">Verifikasi </a>
+                  </td>                  
+                </tr>
+              </table>
+              <p style="color: #000; line-height: 1.5; font-size: 13px;">Untuk keamanan akun Anda, kami sarankan untuk melakukan verifikasi email ini..</p>
+              
+              <p style="color: #000; line-height: 1.5; font-size: 13px;">Jika anda tidak merasa melakukan pendaftaran akun jastipers di jastipers.com, maka hiraukan email berikut.</p>
+              
+              <p style="color: #000; line-height: 1.5; font-size: 13px; margin-top: 30px; margin-bottom: 0;">Salam hangat,<br><strong>Tim Jastiper</strong></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
