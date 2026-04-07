@@ -5,8 +5,10 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
+	"math/big"
 	"os"
 	"regexp"
 	"strconv"
@@ -118,33 +120,91 @@ func toSnakeCase(str string) string {
 	return strings.ToLower(snake)
 }
 
-func FormatValidationError(err error) string {
-	// Cek apakah error ini berasal dari go-playground/validator
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		var errorMessages []string
+func formatToTitleCase(snakeStr string) string {
+	spacedStr := strings.ReplaceAll(snakeStr, "_", " ")
 
-		// Looping setiap field yang error
+	words := strings.Fields(spacedStr)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+		}
+	}
+
+	return strings.Join(words, " ")
+}
+
+func FormatValidationError(err error) string {
+	if validationErrors, ok := err.(validator.ValidationErrors); ok {
 		for _, e := range validationErrors {
-			// Ubah nama field dari Struct menjadi format snake_case untuk frontend
-			field := toSnakeCase(e.Field()) // Contoh: "NamaResponden" -> "nama_responden"
+			snakeCaseField := toSnakeCase(e.Field())
+			field := formatToTitleCase(snakeCaseField)
 
 			switch e.Tag() {
 			case "required":
-				errorMessages = append(errorMessages, field+" wajib diisi")
+				return field + " wajib diisi"
 			case "len":
-				errorMessages = append(errorMessages, field+" harus tepat "+e.Param()+" karakter")
+				return field + " harus tepat " + e.Param() + " karakter"
 			case "numeric":
-				errorMessages = append(errorMessages, field+" hanya boleh berisi angka")
+				return field + " hanya boleh berisi angka"
 			case "email":
-				errorMessages = append(errorMessages, "Format "+field+" tidak valid")
+				return "Format " + field + " tidak valid"
 			default:
-				errorMessages = append(errorMessages, field+" tidak valid")
+				return field + " tidak valid"
 			}
 		}
-		// Gabungkan semua pesan error dengan koma
-		return strings.Join(errorMessages, ", ")
 	}
 
-	// Jika bukan error validator, kembalikan pesan aslinya
+	// 2. Penanganan error dari proses binding (menggunakan Regex agar lebih kebal)
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "error binding field") || strings.Contains(errMsg, "strconv") {
+
+		// Mengambil nama field dari pesan error menggunakan Regex
+		// Pola ini akan mencari teks "error binding field " diikuti oleh nama field
+		re := regexp.MustCompile(`error binding field ([a-zA-Z0-9_]+)`)
+		matches := re.FindStringSubmatch(errMsg)
+
+		// Set default nama field jika gagal diekstrak
+		field := "Input"
+		if len(matches) > 1 {
+			rawField := matches[1]
+			snakeCaseField := toSnakeCase(rawField)
+			field = formatToTitleCase(snakeCaseField)
+		}
+
+		// Menentukan pesan error berdasarkan tipe kegagalan strconv
+		if strings.Contains(errMsg, "strconv.ParseBool") {
+			return field + " harus berupa nilai true atau false"
+		} else if strings.Contains(errMsg, "strconv.ParseInt") || strings.Contains(errMsg, "strconv.ParseUint") {
+			return field + " harus berupa angka bulat"
+		} else if strings.Contains(errMsg, "strconv.ParseFloat") {
+			return field + " harus berupa angka desimal"
+		}
+
+		return "Format " + field + " tidak sesuai tipe data yang diharapkan"
+	}
+
 	return err.Error()
+}
+
+func GenerateUniqueString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length)
+	charsetLength := big.NewInt(int64(len(charset)))
+
+	for i := 0; i < length; i++ {
+		randomIndex, err := rand.Int(rand.Reader, charsetLength)
+		if err != nil {
+			return "", err
+		}
+
+		result[i] = charset[randomIndex.Int64()]
+	}
+
+	return string(result), nil
+}
+
+func GenerateShortHash() string {
+	bytes := make([]byte, 4)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }

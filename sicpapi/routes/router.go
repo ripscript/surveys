@@ -105,6 +105,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.DELETE("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.GET("/respondent/raw/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	// Users Management
 	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
@@ -118,6 +119,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup := e.Group("/manajemen-wilayah")
 	manajemenWilayahKecamatanGroup := manajemenWilayahGroup.Group("/kecamatan")
+	manajemenWilayahKecamatanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKecamatanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKecamatanGroup.GET("/detail/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKecamatanGroup.PUT("/update/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -125,6 +127,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenWilayahKecamatanGroup.DELETE("/delete/:kecamatan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
 	manajemenWilayahKelurahanGroup := manajemenWilayahGroup.Group("/kelurahan")
+	manajemenWilayahKelurahanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKelurahanGroup.GET("/detail/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKelurahanGroup.PUT("/update/:kelurahan_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahKelurahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -148,11 +151,14 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenWilayahRtGroup.GET("/list/:rw_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahRtGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup.GET("/rt/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenWilayahRtGroup.DELETE("/delete/:rt_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
-	manajemenPenggunaGroup := e.Group("/manajemen-pengguna")
-	manajemenPenggunaGroup.GET("/role/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	manajemenPenggunaRespondenGroup := manajemenPenggunaGroup.Group("/responden")
-	manajemenPenggunaRespondenGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPejabatGroup := e.Group("/manajemen-pejabat")
+	manajemenPejabatGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPejabatGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPejabatGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPejabatGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenPejabatGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
 	manajemenArtikelGroup := e.Group("/manajemen-artikel")
 	manajemenArtikelKategoriGroup := manajemenArtikelGroup.Group("/kategori")
@@ -164,5 +170,28 @@ func SetupRoutes(e *echo.Echo) {
 
 	// SURVEYAPI Service
 	e.GET("/surveyapi/healthy", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	e.GET("/template/ucapan/detail/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	templateGroup := e.Group("/template")
+
+	templateUcapanGroup := templateGroup.Group("/ucapan")
+	templateUcapanGroup.GET("/detail/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.GET("/variable-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.PUT("/update/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.DELETE("/delete/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	templateFormulirPertanyaanGroup := templateGroup.Group("/formulir-pertanyaan")
+	templateFormulirPertanyaanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/detail/:template_formulir_pertanyaan_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.PUT("/update/:template_formulir_pertanyaan_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.POST("/duplicate/:template_formulir_pertanyaan_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.DELETE("/delete/:template_formulir_pertanyaan_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/question-type-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	manajemenAlurGroup := e.Group("/manajemen-alur")
+	manajemenAlurGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
 }

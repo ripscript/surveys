@@ -80,8 +80,9 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/rt/options":        {"GET": regionHandler.RtOptions},
 
 	// Respondent Management
-	"/respondent":     {"GET": respondentHandler.GetRespondent},
-	"/respondent/:id": {"GET": respondentHandler.GetDetailRespondent, "DELETE": respondentHandler.DeleteRespondent, "PUT": respondentHandler.UpdateRespondent},
+	"/respondent":         {"GET": respondentHandler.GetRespondent},
+	"/respondent/:id":     {"GET": respondentHandler.GetDetailRespondent, "DELETE": respondentHandler.DeleteRespondent, "PUT": respondentHandler.UpdateRespondent},
+	"/respondent/raw/:id": {"GET": respondentHandler.GetRawDetailRespondent},
 
 	// Users Management
 	"/users":              {"GET": usersHandler.GetUsers},

@@ -13,8 +13,8 @@ type Kecamatan struct {
 	KodeWilayah     *string        `json:"kode_wilayah" gorm:"type:varchar(191);"`
 	Lat             *string        `json:"lat" gorm:"type:varchar(191);"`
 	Long            *string        `json:"long" gorm:"type:varchar(191);"`
-	CreatedAt       time.Time      `json:"created_at" gorm:"type:timestamp;default:now()"`
-	UpdatedAt       time.Time      `json:"updated_at" gorm:"type:timestamp;default:now()"`
+	CreatedAt       time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt       time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 

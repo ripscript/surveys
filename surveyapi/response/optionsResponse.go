@@ -5,6 +5,11 @@ type OptionItem struct {
 	Label *string `form:"label"`
 }
 
+type StringOptionItem struct {
+	ID    *string `form:"id"`
+	Label *string `form:"label"`
+}
+
 type PaginationMeta struct {
 	CurrentPage int   `json:"current_page"`
 	PerPage     int   `json:"per_page"`
@@ -15,4 +20,19 @@ type PaginationMeta struct {
 type OptionsResponse struct {
 	Options []OptionItem   `json:"options"`
 	Meta    PaginationMeta `json:"meta"`
+}
+
+type StringOptionsResponse struct {
+	Options []StringOptionItem `json:"options"`
+	Meta    PaginationMeta     `json:"meta"`
+}
+
+type OptionsStringIdResponse struct {
+	Options []EnumOption   `json:"options"`
+	Meta    PaginationMeta `json:"meta"`
+}
+
+type EnumOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }

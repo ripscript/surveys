@@ -31,18 +31,32 @@ var (
 )
 
 var (
-	templateUcapanRepo repository.TemplateUcapanRepo = repository.NewTemplateUcapanRepo(dbSlave, dbMaster)
+	templateUcapanRepo             repository.TemplateUcapanRepo             = repository.NewTemplateUcapanRepo(dbSlave, dbMaster)
+	templateFormulirPertanyaanRepo repository.TemplateFormulirPertanyaanRepo = repository.NewTemplateFormulirPertanyaanRepo(dbSlave, dbMaster)
+	manajemenAlurRepo              repository.ManajemenAlurRepo              = repository.NewManajemenAlurRepo(dbSlave, dbMaster)
 )
 
 var (
 	templateUcapanService service.TemplateUcapanService = service.NewTemplateUcapanService(
 		templateUcapanRepo,
 	)
+	templateFormulirPertanyaanService service.TemplateFormulirPertanyaanService = service.NewTemplateFormulirPertanyaanService(
+		templateFormulirPertanyaanRepo,
+	)
+	manajemenAlurService service.ManajemenAlurService = service.NewManajemenAlurService(
+		manajemenAlurRepo,
+	)
 )
 
 var (
 	templateUcapanHandler handlers.TemplateUcapanHandler = handlers.NewTemplateUcapanHandler(
 		templateUcapanService,
+	)
+	templateFormulirPertanyaanHandler handlers.TemplateFormulirPertanyaanHandler = handlers.NewTemplateFormulirPertanyaanHandler(
+		templateFormulirPertanyaanService,
+	)
+	manajemenAlurHandler handlers.ManajemenAlurHandler = handlers.NewManajemenAlurHandler(
+		manajemenAlurService,
 	)
 )
 
@@ -52,6 +66,22 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/surveyapi/healthy": {"GET": handlers.Healthy},
 
 	"/template/ucapan/detail/:template_ucapan_id": {"GET": templateUcapanHandler.GetTemplateUcapanDetail},
+	"/template/ucapan/variable-options":           {"GET": templateUcapanHandler.OptionsVariableTemplateUcapan},
+	"/template/ucapan/create":                     {"POST": templateUcapanHandler.CreateTemplateUcapan},
+	"/template/ucapan/update/:template_ucapan_id": {"PUT": templateUcapanHandler.UpdateTemplateUcapan},
+	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": templateUcapanHandler.DeleteTemplateUcapan},
+	"/template/ucapan/list":                       {"GET": templateUcapanHandler.GetListTemplateUcapan},
+
+	"/template/formulir-pertanyaan/create":                                       {"POST": templateFormulirPertanyaanHandler.CreateTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/detail/:template_formulir_pertanyaan_code":    {"GET": templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code":    {"PUT": templateFormulirPertanyaanHandler.UpdateTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/duplicate/:template_formulir_pertanyaan_code": {"POST": templateFormulirPertanyaanHandler.DuplicateTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code":    {"DELETE": templateFormulirPertanyaanHandler.DeleteTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/list":                                         {"GET": templateFormulirPertanyaanHandler.GetListTemplateFormulirPertanyaan},
+	"/template/formulir-pertanyaan/question-type-options":                        {"GET": templateFormulirPertanyaanHandler.GetQuestionTypeOptions},
+	"/template/formulir-pertanyaan/options":                                      {"GET": templateFormulirPertanyaanHandler.GetFormulirPertanyaanOptions},
+
+	"/manajemen-alur/create": {"POST": manajemenAlurHandler.CreateManajemenAlur},
 }
 
 // Metode untuk menangani permintaan yang masuk

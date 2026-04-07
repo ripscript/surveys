@@ -14,6 +14,7 @@ type RespondentRepo interface {
 	GetDetailRespondent(id int) (models.Respondents, error)
 	DeleteUsers(deletedUsers models.DeleteRespondent) error
 	UpdateUsers(id int, updateData models.UpdateRespondents) error
+	GetRespondenById(id int) (*models.RawRespondents, error)
 }
 
 type respondentRepo struct {
@@ -107,4 +108,18 @@ func (r *respondentRepo) UpdateUsers(id int, updateData models.UpdateRespondents
 	}
 
 	return nil
+}
+
+func (r *respondentRepo) GetRespondenById(id int) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	db := r.dbSlave
+
+	var responden models.RawRespondents
+	err := db.Where("id = ?", id).Where("deleted_at IS NULL").First(&responden).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &responden, nil
 }

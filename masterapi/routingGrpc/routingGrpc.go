@@ -35,6 +35,7 @@ var (
 	manajemenWilayahRepo  repository.ManajemenWilayahRepo  = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
 	manajemenPenggunaRepo repository.ManajemenPenggunaRepo = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
 	manajemenArtikelRepo  repository.ManajemenArtikelRepo  = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	manajemenPejabatRepo  repository.ManajemenPejabatRepo  = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -46,6 +47,9 @@ var (
 	)
 	manajemenArtikelService service.ManajemenArtikelService = service.NewManajemenArtikelService(
 		manajemenArtikelRepo,
+	)
+	manajemenPejabatService service.ManajemenPejabatService = service.NewManajemenPejabatService(
+		manajemenPejabatRepo,
 	)
 )
 
@@ -59,6 +63,9 @@ var (
 	manajemenArtikelHandler handlers.ManajemenArtikelHandler = handlers.NewManajemenArtikelHandler(
 		manajemenArtikelService,
 	)
+	manajemenPejabatHandler handlers.ManajemenPejabatHandler = handlers.NewManajemenPejabatHandler(
+		manajemenPejabatService,
+	)
 )
 
 // ROUTING GRPC
@@ -66,12 +73,14 @@ var (
 var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error){
 	"/masterapi/healthy": {"GET": handlers.Healthy},
 
+	"/manajemen-wilayah/kecamatan/create":               {"POST": manajemenWilayahHandler.CreateKecamatan},
 	"/manajemen-wilayah/kecamatan/list":                 {"GET": manajemenWilayahHandler.GetListKecamatan},
 	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": manajemenWilayahHandler.GetKecamatanDetail},
 	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": manajemenWilayahHandler.UpdateKecamatan},
 	"/manajemen-wilayah/kecamatan/options":              {"GET": manajemenWilayahHandler.OptionsKecamatan},
 	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": manajemenWilayahHandler.DeleteKecamatan},
 
+	"/manajemen-wilayah/kelurahan/create":               {"POST": manajemenWilayahHandler.CreateKelurahan},
 	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": manajemenWilayahHandler.GetKelurahanDetail},
 	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": manajemenWilayahHandler.UpdateKelurahan},
 	"/manajemen-wilayah/kelurahan/list":                 {"GET": manajemenWilayahHandler.GetListKelurahan},
@@ -93,6 +102,13 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": manajemenWilayahHandler.GetListRtByRw},
 	"/manajemen-wilayah/rt/create":        {"POST": manajemenWilayahHandler.CreateRt},
 	"/manajemen-wilayah/rt/options":       {"GET": manajemenWilayahHandler.OptionsRt},
+	"/manajemen-wilayah/rt/delete/:rt_id": {"DELETE": manajemenWilayahHandler.DeleteRT},
+
+	"/manajemen-pejabat/create":     {"POST": manajemenPejabatHandler.CreatePejabat},
+	"/manajemen-pejabat/detail/:id": {"GET": manajemenPejabatHandler.DetailPejabat},
+	"/manajemen-pejabat/update/:id": {"PUT": manajemenPejabatHandler.UpdatePejabat},
+	"/manajemen-pejabat/delete/:id": {"DELETE": manajemenPejabatHandler.DeletePejabat},
+	"/manajemen-pejabat/list":       {"GET": manajemenPejabatHandler.GetListPejabat},
 
 	"/manajemen-pengguna/role/options":     {"GET": manajemenPenggunaHandler.OptionsRole},
 	"/manajemen-pengguna/responden/create": {"POST": manajemenPenggunaHandler.CreateResponden},
@@ -112,45 +128,72 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 			utils.LogErrors(message)
 		}
 	}()
+
 	path := req.GetPath()
 	method := req.GetMethod()
 
+	// Validasi token
 	success, mess, code, userLogin, newToken := ValidasiToken(ctx, req)
 	if !success {
 		utils.LogErrors(mess)
-		return utils.SetResponseData([]byte{}, success, mess, code, nil, newToken), nil
+		return utils.SetResponseData([]byte{}, success, mess, code, nil, ""), nil
 	}
 
-	// Cek apakah handler sesuai dengan path dan method HTTP
-	handler, ok := grpcMap[path][method]
+	// Cek path tersedia
+	methodMap, ok := grpcMap[path]
 	if !ok {
-		message := "Terjadi kesalahan saat mencari grpc path method"
+		message := "Path grpc tidak ditemukan"
 		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
+		return utils.SetResponseData([]byte{}, false, message, http.StatusNotFound, nil, ""), nil
 	}
 
-	// reqs
+	// Cek method tersedia
+	handler, ok := methodMap[method]
+	if !ok {
+		message := "Method grpc tidak ditemukan"
+		utils.LogErrors(message)
+		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
+	}
+
+	// Parsing request body
 	var reqs map[string]interface{}
-	if err := json.Unmarshal(req.Data, &reqs); err != nil {
-		message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
-		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
+	if len(req.Data) > 0 {
+		if err := json.Unmarshal(req.Data, &reqs); err != nil {
+			message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
+			utils.LogErrors(message)
+			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
+		}
 	}
 
-	// slug
+	// Parsing slug
 	var slug map[string]interface{}
-	if err := json.Unmarshal(req.Slug, &slug); err != nil {
-		message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
-		utils.LogErrors(message)
-		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, newToken), nil
+	if len(req.Slug) > 0 {
+		if err := json.Unmarshal(req.Slug, &slug); err != nil {
+			message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
+			utils.LogErrors(message)
+			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
+		}
 	}
 
-	// mengambil param dan meneruskan
+	// Parsing query param
 	paramString := string(req.Param)
-	queryValues, _ := url.ParseQuery(paramString)
+	queryValues, err := url.ParseQuery(paramString)
+	if err != nil {
+		message := "Terjadi kesalahan saat parsing query param : " + err.Error()
+		utils.LogErrors(message)
+		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
+	}
 
-	// Panggil handler yang sesuai
-	return handler(ctx, reqs, userLogin, queryValues, slug)
+	response, err := handler(ctx, reqs, userLogin, queryValues, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	if response != nil && newToken != "" {
+		response.Token = newToken
+	}
+
+	return response, nil
 }
 
 func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int, models.JwtCustomClaims, string) {
@@ -200,13 +243,13 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		})
 
 		if err != nil {
+			fmt.Println(err.Error())
 			if req.GetIsSecure() {
 				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
 			}
 			return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 		}
 
-		// isi userData lengkap termasuk expired
 		userData = models.JwtCustomClaims{
 			ID:    int64(claims.ID),
 			Name:  claims.Name,
@@ -217,7 +260,6 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 			},
 		}
 
-		// cek sisa waktu expired
 		if claims.ExpiresAt != nil {
 			remaining := claims.ExpiresAt.Time.Sub(time.Now())
 

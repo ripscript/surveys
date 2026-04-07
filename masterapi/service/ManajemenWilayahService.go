@@ -12,18 +12,20 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
 type ManajemenWilayahService interface {
+	CreateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKecamatanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListKecamatan(req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKecamatanOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteKecamatan(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
+	CreateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKelurahanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListKelurahan(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -42,6 +44,7 @@ type ManajemenWilayahService interface {
 	GetListRt(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	CreateRt(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRtOptions(param url.Values) (*pb.ProxyResponse, error)
+	DeleteRT(slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenWilayahService struct {
@@ -54,6 +57,52 @@ func NewManajemenWilayahService(
 	return &manajemenWilayahService{
 		manajemenWilayahRepo,
 	}
+}
+
+func (service *manajemenWilayahService) CreateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload payloads.CreateKecamatanPayload
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		customErrorMsg := utils.FormatValidationError(err)
+		return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+	}
+
+	kecamatanByName, err := service.manajemenWilayahRepo.GetKecamatanByNameToLower(payload.NamaKecamatan)
+	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if kecamatanByName != nil {
+		err := errors.New("Nama kecamatan sudah digunakan")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	slug := utils.StringToSlug(payload.NamaKecamatan, "-")
+
+	kecamatan := models.Kecamatan{
+		SubDistrictName: payload.NamaKecamatan,
+		SubDistrictSlug: slug,
+		KodeWilayah:     payload.KodeWilayah,
+		Lat:             payload.Lat,
+		Long:            payload.Long,
+	}
+
+	createData, err := service.manajemenWilayahRepo.CreateKecamatan(kecamatan)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(createData, "Berhasil menambahkan kecamatan")
 }
 
 func (service *manajemenWilayahService) GetKecamatanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -103,27 +152,27 @@ func (service *manajemenWilayahService) UpdateKecamatan(usr models.JwtCustomClai
 
 	newSlug := getKecamatanById.SubDistrictSlug
 
-	if getKecamatanById.SubDistrictName != payload.NamaKecamatan {
-		getKecamatanByName, err := service.manajemenWilayahRepo.GetKecamatanByName(payload.NamaKecamatan)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
+	// if getKecamatanById.SubDistrictName != payload.NamaKecamatan {
+	// 	getKecamatanByName, err := service.manajemenWilayahRepo.GetKecamatanByName(payload.NamaKecamatan)
+	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+	// 		return utils.SendError(err, http.StatusInternalServerError)
+	// 	}
 
-		if getKecamatanByName != nil {
-			err := errors.New("Nama kecamatan sudah digunakan")
-			return utils.SendError(err, http.StatusBadRequest)
-		}
+	// 	if getKecamatanByName != nil {
+	// 		err := errors.New("Nama kecamatan sudah digunakan")
+	// 		return utils.SendError(err, http.StatusBadRequest)
+	// 	}
 
-		newSlug = utils.StringToSlug(payload.NamaKecamatan, "-")
-		getKecamatanBySlug, err := service.manajemenWilayahRepo.GetKecamatanBySlug(newSlug)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
+	// 	newSlug = utils.StringToSlug(payload.NamaKecamatan, "-")
+	// 	getKecamatanBySlug, err := service.manajemenWilayahRepo.GetKecamatanBySlug(newSlug)
+	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+	// 		return utils.SendError(err, http.StatusInternalServerError)
+	// 	}
 
-		if getKecamatanBySlug != nil && getKecamatanBySlug.ID != Id {
-			newSlug = utils.StringToSlug(payload.NamaKecamatan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
-		}
-	}
+	// 	if getKecamatanBySlug != nil && getKecamatanBySlug.ID != Id {
+	// 		newSlug = utils.StringToSlug(payload.NamaKecamatan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
+	// 	}
+	// }
 
 	var data = models.Kecamatan{
 		ID: getKecamatanById.ID,
@@ -269,6 +318,63 @@ func (service *manajemenWilayahService) DeleteKecamatan(slug map[string]interfac
 	return utils.SendData(nil, "Berhasil menghapus kecamatan")
 }
 
+func (service *manajemenWilayahService) CreateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload payloads.CreateKelurahanPayload
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		customErrorMsg := utils.FormatValidationError(err)
+		return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+	}
+
+	kecamatan, err := service.manajemenWilayahRepo.GetKecamatanByID(payload.Kecamatan)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			err := errors.New("Kecamatan tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	kelurahanByName, err := service.manajemenWilayahRepo.GetKelurahanByNameToLower(payload.NamaKelurahan)
+	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if kelurahanByName != nil {
+		err := errors.New("Nama kelurahan sudah digunakan")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	slug := utils.StringToSlug(payload.NamaKelurahan, "-")
+
+	kelurahan := models.Kelurahan{
+		SubDistrictId:     kecamatan.ID,
+		VillageName:       payload.NamaKelurahan,
+		VillageNameSlug:   slug,
+		VillagePostalCode: payload.KodePos,
+		KodeWilayah:       payload.KodeWilayah,
+		Lat:               payload.Lat,
+		Long:              payload.Long,
+	}
+
+	createData, err := service.manajemenWilayahRepo.CreateKelurahan(kelurahan)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(createData, "Berhasil menambahkan kelurahan")
+}
+
 func (service *manajemenWilayahService) GetKelurahanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	StrId := slug["kelurahan_id"]
@@ -316,27 +422,27 @@ func (service *manajemenWilayahService) UpdateKelurahan(usr models.JwtCustomClai
 
 	newSlug := getKelurahanById.VillageNameSlug
 
-	if getKelurahanById.VillageName != payload.NamaKelurahan {
-		getKelurahanByName, err := service.manajemenWilayahRepo.GetKelurahanByName(payload.NamaKelurahan)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
+	// if getKelurahanById.VillageName != payload.NamaKelurahan {
+	// 	getKelurahanByName, err := service.manajemenWilayahRepo.GetKelurahanByName(payload.NamaKelurahan)
+	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+	// 		return utils.SendError(err, http.StatusInternalServerError)
+	// 	}
 
-		if getKelurahanByName != nil {
-			err := errors.New("Nama kelurahan sudah digunakan")
-			return utils.SendError(err, http.StatusBadRequest)
-		}
+	// 	if getKelurahanByName != nil {
+	// 		err := errors.New("Nama kelurahan sudah digunakan")
+	// 		return utils.SendError(err, http.StatusBadRequest)
+	// 	}
 
-		newSlug = utils.StringToSlug(payload.NamaKelurahan, "-")
-		getKelurahanBySlug, err := service.manajemenWilayahRepo.GetKelurahanBySlug(newSlug)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
+	// 	newSlug = utils.StringToSlug(payload.NamaKelurahan, "-")
+	// 	getKelurahanBySlug, err := service.manajemenWilayahRepo.GetKelurahanBySlug(newSlug)
+	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+	// 		return utils.SendError(err, http.StatusInternalServerError)
+	// 	}
 
-		if getKelurahanBySlug != nil && getKelurahanBySlug.ID != Id {
-			newSlug = utils.StringToSlug(payload.NamaKelurahan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
-		}
-	}
+	// 	if getKelurahanBySlug != nil && getKelurahanBySlug.ID != Id {
+	// 		newSlug = utils.StringToSlug(payload.NamaKelurahan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
+	// 	}
+	// }
 
 	var data = models.Kelurahan{
 		ID:            getKelurahanById.ID,
@@ -684,7 +790,7 @@ func (service *manajemenWilayahService) CreateRw(usr models.JwtCustomClaims, req
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	return utils.SendData(dataCreate, "Berhasil create data")
+	return utils.SendData(dataCreate, "Berhasil menambahkan rw")
 }
 
 func (s *manajemenWilayahService) GetRwOptions(param url.Values) (*pb.ProxyResponse, error) {
@@ -782,7 +888,7 @@ func (service *manajemenWilayahService) GetRtDetail(slug map[string]interface{})
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
-	data, err := service.manajemenWilayahRepo.GetRtByID(int(Id))
+	data, err := service.manajemenWilayahRepo.GetRtByID(Id)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -810,7 +916,7 @@ func (service *manajemenWilayahService) UpdateRt(usr models.JwtCustomClaims, req
 	// 	return utils.SendError(err, http.StatusBadRequest)
 	// }
 
-	getRtById, err := service.manajemenWilayahRepo.GetRtByID(int(Id))
+	getRtById, err := service.manajemenWilayahRepo.GetRtByID(Id)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			err := errors.New("Data rt tidak ditemukan")
@@ -958,7 +1064,7 @@ func (service *manajemenWilayahService) CreateRt(usr models.JwtCustomClaims, req
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	return utils.SendData(dataCreate, "Berhasil create data")
+	return utils.SendData(dataCreate, "Berhasil menambahkan rt")
 }
 
 func (s *manajemenWilayahService) GetRtOptions(param url.Values) (*pb.ProxyResponse, error) {
@@ -1020,4 +1126,35 @@ func (s *manajemenWilayahService) GetRtOptions(param url.Values) (*pb.ProxyRespo
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi rt")
+}
+
+func (service *manajemenWilayahService) DeleteRT(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	StrId := slug["rt_id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	getRtById, err := service.manajemenWilayahRepo.GetRtByID(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	isRTUsed, err := service.manajemenWilayahRepo.IsRtUsed(getRtById.ID)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isRTUsed {
+		err := errors.New("Data tidak dapat dihapus karena masih digunakan oleh data lain.")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	err = service.manajemenWilayahRepo.DeleteRtById(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus rt")
 }
