@@ -6,6 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type ExportUsers struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 type UpdateRespondent struct {
 	Id          int       `json:"id"`
 	Name        string    `json:"name"`
@@ -13,6 +18,17 @@ type UpdateRespondent struct {
 	Email       string    `json:"email"`
 	RoleID      int       `json:"role"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type CreateRespondent struct {
+	Id          int       `json:"id"`
+	Name        string    `json:"name"`
+	PhoneNumber string    `json:"phone_number"`
+	Email       string    `json:"email"`
+	RoleID      int       `json:"role"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	BlkId       int       `json:"blk_id"`
 }
 
 type UpdateRespondents struct {
@@ -31,6 +47,26 @@ type UpdateRespondents struct {
 	RT           string    `json:"rt"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+type CreateRespondents struct {
+	Id           int       `json:"id"`
+	NIK          string    `json:"nik"`
+	Name         string    `json:"name"`
+	TempatLahir  string    `json:"place_of_birth"`
+	TanggalLahir string    `json:"date_of_birth"`
+	Alamat       string    `json:"address"`
+	PhoneNumber  string    `json:"phone_number"`
+	Email        string    `json:"email"`
+	RoleID       int       `json:"role"`
+	Kecamatan    *int      `gorm:"column:kecamatan_id" json:"-"`
+	Kelurahan    *int      `gorm:"column:kelurahan_id" json:"-"`
+	RW           *int      `gorm:"column:rw_id" json:"-"`
+	RT           *int      `gorm:"column:rt_id" json:"-"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	BlkId        int       `json:"blk_id"`
+}
+
 type DeleteRespondent struct {
 	Id        int       `json:"id"`
 	DeletedAt time.Time `json:"updated_at"`
@@ -61,6 +97,16 @@ type Respondents struct {
 	Kelurahan string `gorm:"-"`
 	Rw        string `gorm:"-"`
 	Rt        string `gorm:"-"`
+}
+
+type RespondentBlock struct {
+	No          int    `gorm:"-" json:"no"`
+	ID          int    `gorm:"primaryKey"`
+	Email       string `gorm:"column:email"`
+	Name        string `gorm:"column:name"`
+	PhoneNumber string `gorm:"column:phone_number"`
+	NIK         string `gorm:"column:nik"`
+	IsBlocked   string `json:"-"`
 }
 
 type RawRespondents struct {
@@ -108,6 +154,14 @@ type Rt struct {
 	NamaRt string `json:"namaRt"`
 }
 
+func (u *RespondentBlock) TableName() string {
+	return "respondents"
+}
+
+func (u *ExportUsers) TableName() string {
+	return "respondents"
+}
+
 func (u *RawRespondents) TableName() string {
 	return "respondents"
 }
@@ -120,7 +174,15 @@ func (u *UpdateRespondent) TableName() string {
 	return "respondents"
 }
 
+func (u *CreateRespondent) TableName() string {
+	return "respondents"
+}
+
 func (u *UpdateRespondents) TableName() string {
+	return "respondents"
+}
+
+func (u *CreateRespondents) TableName() string {
 	return "respondents"
 }
 

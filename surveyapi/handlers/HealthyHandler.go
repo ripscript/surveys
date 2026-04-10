@@ -22,5 +22,5 @@ func Healthy(ctx context.Context, req map[string]interface{}, usr models.JwtCust
 	var success bool = true
 	var message string = "Service SurveyApi Is Healthy"
 	var code int = int(http.StatusOK)
-	return utils.SetResponseData(data, success, message, code, nil), nil
+	return utils.SetResponseData(data, success, message, code, nil, ""), nil
 }

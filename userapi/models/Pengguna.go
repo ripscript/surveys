@@ -23,6 +23,7 @@ type Respondent struct {
 	ID          int            `gorm:"primaryKey"`
 	RoleID      int            `gorm:"column:role_id"`
 	Email       string         `gorm:"column:email"`
+	Name        string         `gorm:"column:name"`
 	Username    string         `gorm:"column:username"`
 	NIK         string         `gorm:"column:nik"`
 	KecamatanID *int           `gorm:"column:kecamatan_id"`
@@ -63,8 +64,24 @@ type PejabatWilayah struct {
 	StatusJabat int `gorm:"column:status_jabat"`
 }
 
+type StoreUsers struct {
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	EmailToken   string `json:"emailToken"`
+	RespondentId int    `json:"respondentId"`
+	Nik          string `json:"nik"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 func (PejabatWilayah) TableName() string {
 	return "pejabat__wilayahs"
+}
+
+func (StoreUsers) TableName() string {
+	return "users"
 }
 
 func (User) TableName() string {

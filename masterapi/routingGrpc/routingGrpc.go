@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -154,6 +155,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
+	if req.GetIsSecure() {
+		normalizedPath := NormalizePath(path)
+		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+		if !allowed {
+			message := "Anda tidak memiliki hak akses"
+			utils.LogErrors(message)
+			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+		}
+	}
 
 	// Parsing request body
 	var reqs map[string]interface{}
@@ -243,7 +253,6 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		})
 
 		if err != nil {
-			fmt.Println(err.Error())
 			if req.GetIsSecure() {
 				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
 			}
@@ -261,15 +270,11 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		}
 
 		if claims.ExpiresAt != nil {
-			remaining := claims.ExpiresAt.Time.Sub(time.Now())
-
-			if remaining > 0 && remaining < 30*time.Minute {
-				refreshedToken, err := GenerateJWTToken(userData)
-				if err != nil {
-					utils.LogErrors("Gagal generate token baru: " + err.Error())
-				} else {
-					newToken = refreshedToken
-				}
+			refreshedToken, err := GenerateJWTToken(userData)
+			if err != nil {
+				utils.LogErrors("Gagal generate token baru: " + err.Error())
+			} else {
+				newToken = refreshedToken
 			}
 		}
 
@@ -309,6 +314,23 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return encryptedToken, nil
+}
+
+func NormalizePath(path string) string {
+	re := regexp.MustCompile(`/\d+`)
+	return re.ReplaceAllString(path, "/:id")
+}
+
+func CheckPermission(roleID int, path string, method string) bool {
+	var count int64
+
+	dbSlave.Table("menu_permissions mp").
+		Joins("JOIN menus m ON m.id = mp.menu_id").
+		Where("mp.role_id = ?", roleID).
+		Where("m.endpoint = ?", path).
+		Where("m.method = ?", method).
+		Count(&count)
+
+	return count > 0
 }

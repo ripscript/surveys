@@ -20,7 +20,7 @@ func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
 	if errs != nil {
 		message := "Terjadi Kesalahan : " + errs.Error()
 		LogErrors(message)
-		return SetResponseData(data, false, message, 500, errs), errs
+		return SetResponseData(data, false, message, 500, errs, ""), errs
 	}
 	var message string
 	if len(messages) > 0 {
@@ -28,16 +28,16 @@ func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
 	} else {
 		message = "Berhasil"
 	}
-	return SetResponseData(data, true, message, 200, nil), nil
+	return SetResponseData(data, true, message, 200, nil, ""), nil
 }
 
 func SendError(err error, code int) (*pb.ProxyResponse, error) {
 	if err.Error() != "" {
 		message := err.Error()
-		return SetResponseData(nil, false, message, code, nil), nil
+		return SetResponseData(nil, false, message, code, nil, ""), nil
 	}
 	message := "Terjadi kesalahan "
-	return SetResponseData(nil, false, message, code, nil), nil
+	return SetResponseData(nil, false, message, code, nil, ""), nil
 }
 
 func GeneralRecover() {

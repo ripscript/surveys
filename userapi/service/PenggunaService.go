@@ -82,9 +82,9 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 
 	claims := &models.JwtCustomClaims{
 		ID:    int64(storedUser.ID),
-		Name:  storedUser.Name,
+		Name:  respondent.Name,
 		Email: requestEmail,
-		Role:  storedUser.Role,
+		Role:  respondent.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 		},
@@ -97,7 +97,7 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		return utils.SendError(errors.New("gagal membuat token"), http.StatusBadRequest)
 	}
 
-	storedUser.LastLogin = time.Now().In(utils.TimeNow())
+	storedUser.LastLogin = utils.TimeNow()
 	// service.penggunaRepo.EditLastLog(storedUser)
 
 	return utils.SendData(encryptedToken, "Login berhasil")

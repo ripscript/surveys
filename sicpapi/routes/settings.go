@@ -69,7 +69,7 @@ func HandleFunc(c echo.Context, service string) error {
 
 	var payloadBytes []byte
 
-	if service == "DOCAPI" || service == "WEBCHAT" || service == "TRX" {
+	if service == "DOCAPI" || service == "WEBCHAT" || service == "TRX" || service == "USERAPI" {
 		file, err := c.FormFile("file")
 		if err == nil {
 			payload := make(map[string]interface{})
