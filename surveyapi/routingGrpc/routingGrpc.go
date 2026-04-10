@@ -45,6 +45,7 @@ var (
 	)
 	manajemenAlurService service.ManajemenAlurService = service.NewManajemenAlurService(
 		manajemenAlurRepo,
+		templateFormulirPertanyaanRepo,
 	)
 )
 
@@ -71,6 +72,7 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/template/ucapan/update/:template_ucapan_id": {"PUT": templateUcapanHandler.UpdateTemplateUcapan},
 	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": templateUcapanHandler.DeleteTemplateUcapan},
 	"/template/ucapan/list":                       {"GET": templateUcapanHandler.GetListTemplateUcapan},
+	"/template/ucapan/options":                    {"GET": templateUcapanHandler.GetUcapanOptions},
 
 	"/template/formulir-pertanyaan/create":                                       {"POST": templateFormulirPertanyaanHandler.CreateTemplateFormulirPertanyaan},
 	"/template/formulir-pertanyaan/detail/:template_formulir_pertanyaan_code":    {"GET": templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan},
@@ -80,8 +82,16 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/template/formulir-pertanyaan/list":                                         {"GET": templateFormulirPertanyaanHandler.GetListTemplateFormulirPertanyaan},
 	"/template/formulir-pertanyaan/question-type-options":                        {"GET": templateFormulirPertanyaanHandler.GetQuestionTypeOptions},
 	"/template/formulir-pertanyaan/options":                                      {"GET": templateFormulirPertanyaanHandler.GetFormulirPertanyaanOptions},
+	"/template/formulir-pertanyaan/pertanyaan-options/:form_code":                {"GET": templateFormulirPertanyaanHandler.GetPertanyaanOptions},
+	"/template/formulir-pertanyaan/detail-pertanyaan/:id":                        {"GET": templateFormulirPertanyaanHandler.DetailPertanyaan},
+	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id":       {"GET": templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId},
 
-	"/manajemen-alur/create": {"POST": manajemenAlurHandler.CreateManajemenAlur},
+	"/manajemen-alur/create":              {"POST": manajemenAlurHandler.CreateManajemenAlur},
+	"/manajemen-alur/detail/:code":        {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
+	"/manajemen-alur/update/:code":        {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
+	"/manajemen-alur/delete/:code":        {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
+	"/manajemen-alur/list":                {"GET": manajemenAlurHandler.GetListManajemenAlur},
+	"/manajemen-alur/preview-index/:code": {"GET": manajemenAlurHandler.FlowPreviewIndex},
 }
 
 // Metode untuk menangani permintaan yang masuk

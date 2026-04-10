@@ -1,5 +1,7 @@
 package payloads
 
+import "backend/surveyapi/enums"
+
 type TemplateFormPayload struct {
 	Title             string `json:"title" validate:"required,max=191"`
 	Description       string `json:"description" validate:"required"`
@@ -56,4 +58,27 @@ type FormulirPertanyaanOptionsPayload struct {
 	Page  int      `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
 	Limit int      `form:"limit" query:"limit"` // Jumlah data per halaman
 	IDs   []string `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+}
+
+type PertanyaanOptionsPayload struct {
+	Q          string   `form:"q" query:"q"`         // Kata kunci pencarian
+	Page       int      `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit      int      `form:"limit" query:"limit"` // Jumlah data per halaman
+	IDs        []string `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	ExcludeIDs []string `json:"exclude_ids"`
+	Type       *string  `form:"type" query:"type"` // Tipe pertanyaan (misal: multiple_choice, text, dll.)
+}
+
+type UcapanOptionsPayload struct {
+	Q     string                    `form:"q" query:"q"`         // Kata kunci pencarian
+	Page  int                       `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit int                       `form:"limit" query:"limit"` // Jumlah data per halaman
+	IDs   []string                  `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	Type  *enums.TypeTemplateUcapan `form:"type" query:"type"`   // Tipe template ucapan (opening/closing)
+}
+
+type MultipleChoiceOptionsPayload struct {
+	Q     string `form:"q" query:"q"`         // Kata kunci pencarian
+	Page  int    `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit int    `form:"limit" query:"limit"` // Jumlah data per halaman
 }

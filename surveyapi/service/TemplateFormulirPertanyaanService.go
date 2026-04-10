@@ -28,6 +28,9 @@ type TemplateFormulirPertanyaanService interface {
 	GetListTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetQuestionTypeOptions(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetFormulirPertanyaanOptions(param url.Values) (*pb.ProxyResponse, error)
+	GetPertanyaanOptions(param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DetailPertanyaan(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetMultipleChoiceOptionByFormFieldId(param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type templateFormulirPertanyaanService struct {
@@ -688,4 +691,165 @@ func (s *templateFormulirPertanyaanService) GetFormulirPertanyaanOptions(param u
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi formulir pertanyaan")
+}
+
+func (s *templateFormulirPertanyaanService) GetPertanyaanOptions(param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	codeStr := slug["form_code"]
+	code, ok := codeStr.(string)
+	if !ok {
+		return utils.SendError(errors.New("Kode template formulir pertanyaan tidak valid"), http.StatusBadRequest)
+	}
+
+	_, err := s.templateFormulirPertanyaanRepo.GetFormByCode(code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return utils.SendError(errors.New("Template formulir pertanyaan tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var formulirPertanyaanIDs []string
+	if len(param["id[]"]) > 0 {
+		formulirPertanyaanIDs = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		formulirPertanyaanIDs = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, formuliPertanyaanID := range formulirPertanyaanIDs {
+		parsedIDs = append(parsedIDs, formuliPertanyaanID)
+	}
+
+	var excludePertanyaanIDs []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludePertanyaanIDs = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludePertanyaanIDs = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludePertanyaanIDs {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	typeQuestionStr := param.Get("type")
+
+	if typeQuestionStr != "" && !enums.QuestionType(param.Get("type")).IsQuestionTypeValid() {
+		return utils.SendError(errors.New("Tipe pertanyaan tidak valid"), http.StatusBadRequest)
+	}
+
+	_req := payloads.PertanyaanOptionsPayload{
+		Q:          param.Get("q"),
+		Page:       page,
+		Limit:      limit,
+		IDs:        parsedIDs,
+		ExcludeIDs: parsedExcludeIDs,
+		Type:       &typeQuestionStr,
+	}
+
+	data, totalData, err := s.templateFormulirPertanyaanRepo.GetPertanyaanOptionsByFormCode(_req, code)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.FormFieldOptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi Pertanyaan pada template formulir")
+}
+
+func (s *templateFormulirPertanyaanService) DetailPertanyaan(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	StrId := slug["id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	data, err := s.templateFormulirPertanyaanRepo.GetPertanyaanById(int(Id))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return utils.SendError(errors.New("Pertanyaan tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data, "Berhasil mendapatkan detail pertanyaan")
+}
+
+func (s *templateFormulirPertanyaanService) GetMultipleChoiceOptionByFormFieldId(param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	StrId := slug["form_field_id"]
+	Id, err := utils.ToInt64(StrId)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	isQuestionExists, err := s.templateFormulirPertanyaanRepo.IsQuestionExistsById(int(Id))
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	if !isQuestionExists {
+		return utils.SendError(errors.New("Pertanyaan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	_req := payloads.MultipleChoiceOptionsPayload{
+		Q:     param.Get("q"),
+		Page:  page,
+		Limit: limit,
+	}
+
+	data, totalData, err := s.templateFormulirPertanyaanRepo.GetMultipleChoiceOptions(_req, Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mendapatkan opsi pilihan ganda")
 }

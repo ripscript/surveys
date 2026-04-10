@@ -17,6 +17,9 @@ type TemplateFormulirPertanyaanHandler interface {
 	GetListTemplateFormulirPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetQuestionTypeOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetFormulirPertanyaanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetPertanyaanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DetailPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetMultipleChoiceOptionByFormFieldId(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type templateFormulirPertanyaanHandler struct {
@@ -61,4 +64,16 @@ func (handler *templateFormulirPertanyaanHandler) GetQuestionTypeOptions(ctx con
 
 func (handler *templateFormulirPertanyaanHandler) GetFormulirPertanyaanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.templateFormulirPertanyaanService.GetFormulirPertanyaanOptions(param)
+}
+
+func (handler *templateFormulirPertanyaanHandler) GetPertanyaanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.templateFormulirPertanyaanService.GetPertanyaanOptions(param, slug)
+}
+
+func (handler *templateFormulirPertanyaanHandler) DetailPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.templateFormulirPertanyaanService.DetailPertanyaan(usr, slug)
+}
+
+func (handler *templateFormulirPertanyaanHandler) GetMultipleChoiceOptionByFormFieldId(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.templateFormulirPertanyaanService.GetMultipleChoiceOptionByFormFieldId(param, slug)
 }

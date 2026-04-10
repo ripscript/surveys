@@ -31,3 +31,20 @@ func (t QuestionType) IsQuestionTypeValid() bool {
 	}
 	return false
 }
+
+func QuestionTypeToString(qt QuestionType) string {
+	switch qt {
+	case LONG_ANSWER:
+		return "long-answer"
+	case NUMBER:
+		return "number"
+	case MULTIPLE_CHOICES:
+		return "multiple-choices"
+	case IMAGE_TEMPLATE:
+		return "image-template"
+	case MAPS:
+		return "maps"
+	default:
+		return ""
+	}
+}

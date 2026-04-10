@@ -15,6 +15,7 @@ type TemplateUcapanHandler interface {
 	UpdateTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetUcapanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type templateUcapanHandler struct {
@@ -51,4 +52,8 @@ func (handler *templateUcapanHandler) DeleteTemplateUcapan(ctx context.Context, 
 
 func (handler *templateUcapanHandler) GetListTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.templateUcapanService.GetListTemplateUcapan(usr, req, slug)
+}
+
+func (handler *templateUcapanHandler) GetUcapanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.templateUcapanService.GetUcapanOptions(param)
 }

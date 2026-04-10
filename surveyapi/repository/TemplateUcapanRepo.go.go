@@ -18,6 +18,7 @@ type TemplateUcapanRepo interface {
 	UpdateTemplateUcapan(templateUcapan models.GeneralTemplate) (*models.GeneralTemplate, error)
 	DeleteTemplateUcapan(id int) error
 	GetListTemplateUcapan(req payloads.DatatablePayload) ([]models.GeneralTemplateDatatableResponse, int64, error)
+	GetTemplateUcapanOption(req payloads.UcapanOptionsPayload) ([]response.OptionItem, int64, error)
 }
 
 type templateUcapanRepo struct {
@@ -218,6 +219,59 @@ func (repository *templateUcapanRepo) GetListTemplateUcapan(req payloads.Datatab
 	// Fitur Pagination
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *templateUcapanRepo) GetTemplateUcapanOption(req payloads.UcapanOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("general_templates").
+		Select(`
+			general_templates.id AS id, 
+			general_templates.name AS label
+		`).
+		Where("general_templates.deleted_at IS NULL")
+
+	if len(req.IDs) > 0 {
+		db = db.Where("general_templates.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("general_templates.name ILIKE ?", searchTerm)
+	}
+
+	if req.Type != nil && *req.Type != "" {
+		db = db.Where("general_templates.type = ?", *req.Type)
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("general_templates.id asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
 	}

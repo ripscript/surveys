@@ -36,3 +36,14 @@ type EnumOption struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+type FormFieldOptionsResponse struct {
+	Options []FormFieldOptionItem `json:"options"`
+	Meta    PaginationMeta        `json:"meta"`
+}
+
+type FormFieldOptionItem struct {
+	ID    *int64  `form:"id"`
+	Label *string `form:"label"`
+	Type  *string `form:"type"`
+}

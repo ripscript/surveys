@@ -7,9 +7,9 @@ import (
 type FlowField struct {
 	ID                int       `gorm:"primaryKey" json:"id"`
 	FormFieldId       int       `gorm:"column:form_field_id" json:"form_field_id"`
-	FormAnswerFieldId int       `gorm:"column:form_answer_field_id" json:"form_answer_field_id"`
+	FormAnswerFieldId *int      `gorm:"column:form_answer_field_id" json:"form_answer_field_id"`
 	ChildId           int       `gorm:"column:child_id" json:"child_id"`
-	SectionId         int       `gorm:"column:section_id" json:"section_id"`
+	SectionId         *int      `gorm:"column:section_id" json:"section_id"`
 	CreatedAt         time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt         time.Time `gorm:"column:updated_at" json:"updated_at"`
 	FlowDetailId      int       `gorm:"column:flow_detail_id" json:"flow_detail_id"`

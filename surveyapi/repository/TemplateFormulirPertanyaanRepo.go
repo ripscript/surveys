@@ -28,6 +28,11 @@ type TemplateFormulirPertanyaanRepo interface {
 	DeleteFormTransactionByCode(code string) error
 	GetListTemplateFormulirPertanyaan(req payloads.DatatablePayload) ([]models.FormDatatableResponse, int64, error)
 	GetFormulirPertanyaanOptions(req payloads.FormulirPertanyaanOptionsPayload) ([]response.StringOptionItem, int64, error)
+	GetPertanyaanOptionsByFormCode(req payloads.PertanyaanOptionsPayload, formCode string) ([]response.FormFieldOptionItem, int64, error)
+	GetPertanyaanById(id int) (*models.FormFieldWithOption, error)
+	IsQuestionExistsById(id int) (bool, error)
+	IsQuestionOptionsExistById(id int) (bool, error)
+	GetMultipleChoiceOptions(req payloads.MultipleChoiceOptionsPayload, form_field_id int64) ([]response.OptionItem, int64, error)
 }
 
 type templateFormulirPertanyaanRepo struct {
@@ -480,6 +485,174 @@ func (repository *templateFormulirPertanyaanRepo) GetFormulirPertanyaanOptions(r
 	}
 
 	db = db.Order("forms.id asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) GetPertanyaanOptionsByFormCode(req payloads.PertanyaanOptionsPayload, formCode string) ([]response.FormFieldOptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.FormFieldOptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("form_fields").
+		Joins("JOIN forms ON forms.id = form_fields.form_id").
+		Where("forms.code = ?", formCode).
+		Select(`
+			form_fields.id AS id, 
+			form_fields.question AS label,
+			form_fields.template AS type
+		`).
+		Where("form_fields.deleted_at IS NULL")
+
+	if req.Type != nil && *req.Type != "" {
+		db = db.Where("form_fields.template = ?", *req.Type)
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("form_fields.id NOT IN ?", req.ExcludeIDs)
+	}
+
+	if len(req.IDs) > 0 {
+		db = db.Where("form_fields.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("form_fields.question ILIKE ?", searchTerm)
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("form_fields.sequence asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) GetPertanyaanById(id int) (*models.FormFieldWithOption, error) {
+	defer utils.GeneralRecover()
+
+	var data models.FormFieldWithOption
+	db := repository.dbSlave
+
+	err := db.Select("form_fields.*").
+		Where("form_fields.id = ?", id).
+		First(&data.FormField).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if data.Template == "multiple-choices" {
+		err = db.Select("form_answer_fields.*").
+			Where("form_answer_fields.form_field_id = ?", data.ID).
+			Order("form_answer_fields.sequence ASC").
+			Find(&data.T_Options).Error
+
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		data.T_Options = make([]models.FormAnswerField, 0)
+	}
+
+	return &data, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) IsQuestionExistsById(id int) (bool, error) {
+	defer utils.GeneralRecover()
+
+	var count int64
+	db := repository.dbSlave
+
+	err := db.Model(&models.FormField{}).
+		Where("form_fields.id = ?", id).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) IsQuestionOptionsExistById(id int) (bool, error) {
+	defer utils.GeneralRecover()
+
+	var count int64
+	db := repository.dbSlave
+
+	err := db.Model(&models.FormAnswerField{}).
+		Where("form_answer_fields.id = ?", id).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) GetMultipleChoiceOptions(req payloads.MultipleChoiceOptionsPayload, form_field_id int64) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("form_answer_fields").
+		Joins("JOIN form_fields ON form_fields.id = form_answer_fields.form_field_id").
+		Select(`
+			form_answer_fields.id AS id, 
+			form_answer_fields.option AS label
+		`).
+		Where("form_answer_fields.form_field_id = ?", form_field_id)
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("form_answer_fields.option ILIKE ?", searchTerm)
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("form_answer_fields.sequence asc")
 
 	limit := req.Limit
 	if limit <= 0 {

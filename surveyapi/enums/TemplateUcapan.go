@@ -14,3 +14,7 @@ func (t TypeTemplateUcapan) IsValid() bool {
 	}
 	return false
 }
+
+func StringToTypeTemplateUcapan(s string) TypeTemplateUcapan {
+	return TypeTemplateUcapan(s)
+}

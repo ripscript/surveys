@@ -180,6 +180,7 @@ func SetupRoutes(e *echo.Echo) {
 	templateUcapanGroup.PUT("/update/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	templateUcapanGroup.DELETE("/delete/:template_ucapan_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	templateUcapanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateUcapanGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	templateFormulirPertanyaanGroup := templateGroup.Group("/formulir-pertanyaan")
 	templateFormulirPertanyaanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -190,8 +191,15 @@ func SetupRoutes(e *echo.Echo) {
 	templateFormulirPertanyaanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	templateFormulirPertanyaanGroup.GET("/question-type-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	templateFormulirPertanyaanGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/pertanyaan-options/:form_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/detail-pertanyaan/:id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	templateFormulirPertanyaanGroup.GET("/multiple-choice-options/:form_field_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	manajemenAlurGroup := e.Group("/manajemen-alur")
 	manajemenAlurGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-
+	manajemenAlurGroup.GET("/detail/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.PUT("/update/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.DELETE("/delete/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

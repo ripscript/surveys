@@ -24,6 +24,7 @@ type TemplateUcapanService interface {
 	UpdateTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteTemplateUcapan(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetUcapanOptions(param url.Values) (*pb.ProxyResponse, error)
 }
 
 type templateUcapanService struct {
@@ -295,4 +296,65 @@ func (service *templateUcapanService) GetListTemplateUcapan(usr models.JwtCustom
 	}
 
 	return utils.SendData(result, "Berhasil mengambil list template ucapan")
+}
+
+func (service *templateUcapanService) GetUcapanOptions(param url.Values) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var formulirPertanyaanIDs []string
+	if len(param["id[]"]) > 0 {
+		formulirPertanyaanIDs = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		formulirPertanyaanIDs = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, formuliPertanyaanID := range formulirPertanyaanIDs {
+		parsedIDs = append(parsedIDs, formuliPertanyaanID)
+	}
+
+	typeTemplateStr := param.Get("type")
+	if typeTemplateStr != "" && !enums.TypeTemplateUcapan(typeTemplateStr).IsValid() {
+		return utils.SendError(errors.New("Tipe template ucapan tidak valid"), http.StatusBadRequest)
+	}
+
+	typeTemplate := enums.StringToTypeTemplateUcapan(typeTemplateStr)
+
+	_req := payloads.UcapanOptionsPayload{
+		Q:     param.Get("q"),
+		Page:  page,
+		Limit: limit,
+		IDs:   parsedIDs,
+		Type:  &typeTemplate,
+	}
+
+	data, totalData, err := service.templateUcapanRepo.GetTemplateUcapanOption(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi Template Ucapan")
 }
