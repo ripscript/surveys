@@ -42,18 +42,19 @@ func (u *DataRwDetail) TableName() string {
 }
 
 type RwDatatableResponse struct {
-	ID              int64      `json:"id"`
-	KodeWilayah     *string    `json:"kode_wilayah"`
-	SubDistrictName string     `json:"sub_district_name"`
-	SubDistrictId   int64      `json:"sub_district_id"`
-	VillageName     string     `json:"village_name"`
-	VillageId       int64      `json:"village_id"`
-	NamaRw          string     `json:"nama_rw"`
-	NamaPejabat     *string    `json:"nama_pejabat"`
-	PeriodeAwal     *time.Time `json:"periode_awal"`
-	PeriodeAkhir    *time.Time `json:"periode_akhir"`
-	Lat             *string    `json:"lat"`
-	Long            *string    `json:"long"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              int64          `json:"id"`
+	KodeWilayah     *string        `json:"kode_wilayah"`
+	SubDistrictName string         `json:"sub_district_name"`
+	SubDistrictId   int64          `json:"sub_district_id"`
+	VillageName     string         `json:"village_name"`
+	VillageId       int64          `json:"village_id"`
+	NamaRw          string         `json:"nama_rw"`
+	NamaPejabat     *string        `json:"nama_pejabat"`
+	PeriodeAwal     *time.Time     `json:"periode_awal"`
+	PeriodeAkhir    *time.Time     `json:"periode_akhir"`
+	Lat             *string        `json:"lat"`
+	Long            *string        `json:"long"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }

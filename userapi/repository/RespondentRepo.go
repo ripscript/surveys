@@ -21,6 +21,7 @@ type RespondentRepo interface {
 	UpdateUsers(id int, updateData models.UpdateRespondents) error
 	BeginTx() *gorm.DB
 	StoreUsers(tx *gorm.DB, data models.CreateRespondents) error
+	GetRespondenById(id int) (*models.RawRespondents, error)
 }
 
 type respondentRepo struct {
@@ -192,4 +193,18 @@ func (r *respondentRepo) StoreUsers(tx *gorm.DB, data models.CreateRespondents) 
 	}
 
 	return nil
+}
+
+func (r *respondentRepo) GetRespondenById(id int) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	db := r.dbSlave
+
+	var responden models.RawRespondents
+	err := db.Where("id = ?", id).Where("deleted_at IS NULL").First(&responden).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &responden, nil
 }
