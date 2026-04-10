@@ -15,8 +15,8 @@ type Kelurahan struct {
 	KodeWilayah       *string        `json:"kode_wilayah" gorm:"type:varchar(191);"`
 	Lat               *string        `json:"lat" gorm:"type:varchar(191);"`
 	Long              *string        `json:"long" gorm:"type:varchar(191);"`
-	CreatedAt         time.Time      `json:"created_at" gorm:"type:timestamp;default:now()"`
-	UpdatedAt         time.Time      `json:"updated_at" gorm:"type:timestamp;default:now()"`
+	CreatedAt         time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt         time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
@@ -44,16 +44,17 @@ func (u *KelurahanDetail) TableName() string {
 }
 
 type KelurahanDatatableResponse struct {
-	ID              int64      `json:"id"`
-	SubDistrictName string     `json:"sub_district_name"`
-	SubDistrictId   int64      `json:"sub_district_id"`
-	KodeWilayah     *string    `json:"kode_wilayah"`
-	VillageName     string     `json:"village_name"`
-	NamaPejabat     *string    `json:"nama_pejabat"`
-	PeriodeAwal     *time.Time `json:"periode_awal"`
-	PeriodeAkhir    *time.Time `json:"periode_akhir"`
-	Lat             *string    `json:"lat"`
-	Long            *string    `json:"long"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              int64          `json:"id"`
+	SubDistrictName string         `json:"sub_district_name"`
+	SubDistrictId   int64          `json:"sub_district_id"`
+	KodeWilayah     *string        `json:"kode_wilayah"`
+	VillageName     string         `json:"village_name"`
+	NamaPejabat     *string        `json:"nama_pejabat"`
+	PeriodeAwal     *time.Time     `json:"periode_awal"`
+	PeriodeAkhir    *time.Time     `json:"periode_akhir"`
+	Lat             *string        `json:"lat"`
+	Long            *string        `json:"long"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }

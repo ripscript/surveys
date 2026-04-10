@@ -18,6 +18,7 @@ type RespondentService interface {
 	GetDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRespondent(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -131,4 +132,18 @@ func (service *respondentService) UpdateRespondent(slug map[string]interface{}, 
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 	return utils.SendData("Data Berhasil Diperbarui")
+}
+
+func (service *respondentService) GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	id := slug["id"].(string)
+	idInt, err := utils.ToInt64(id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	detailRespondent, err := service.respondentRepo.GetRespondenById(int(idInt))
+	if err != nil {
+		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
+	}
+	return utils.SendData(detailRespondent)
 }

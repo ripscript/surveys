@@ -1,10 +1,26 @@
 package payloads
 
+type CreateKecamatanPayload struct {
+	NamaKecamatan string  `json:"nama_kecamatan" validate:"required"`
+	KodeWilayah   *string `json:"kode_wilayah" validate:"omitempty"`
+	Lat           *string `json:"lat" validate:"omitempty"`
+	Long          *string `json:"long" validate:"omitempty"`
+}
+
 type UpdateKecamatanPayload struct {
 	NamaKecamatan string  `json:"nama_kecamatan"`
 	KodeWilayah   *string `json:"kode_wilayah"`
 	Lat           *string `json:"lat"`
 	Long          *string `json:"long"`
+}
+
+type CreateKelurahanPayload struct {
+	Kecamatan     int     `json:"kecamatan_id" validate:"required"`
+	NamaKelurahan string  `json:"nama_kelurahan" validate:"required"`
+	KodePos       *string `json:"kode_pos" validate:"omitempty"`
+	KodeWilayah   *string `json:"kode_wilayah" validate:"omitempty"`
+	Lat           *string `json:"lat" validate:"omitempty"`
+	Long          *string `json:"long" validate:"omitempty"`
 }
 
 type UpdateKelurahanPayload struct {
