@@ -3,6 +3,9 @@ package repository
 import (
 	"backend/userapi/models"
 	"backend/userapi/utils"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -10,10 +13,14 @@ import (
 )
 
 type RespondentRepo interface {
+	GetKecamatanByName(kecamatan string) (models.KecamatanOptions, error)
+	GetKelurahanByName(kelurahan string) (models.KelurahanOptions, error)
 	GetRespondent(offset int, limit int, param url.Values) ([]models.Respondents, int64, error)
 	GetDetailRespondent(id int) (models.Respondents, error)
 	DeleteUsers(deletedUsers models.DeleteRespondent) error
 	UpdateUsers(id int, updateData models.UpdateRespondents) error
+	BeginTx() *gorm.DB
+	StoreUsers(tx *gorm.DB, data models.CreateRespondents) error
 }
 
 type respondentRepo struct {
@@ -27,6 +34,42 @@ func NewRespondentRepo(dbSlave, dbMaster *gorm.DB) *respondentRepo {
 		dbSlave,
 		dbMaster,
 	}
+}
+
+func (r *respondentRepo) GetKecamatanByName(kecamatan string) (models.KecamatanOptions, error) {
+	defer utils.GeneralRecover()
+	var data models.KecamatanOptions
+	db := r.dbSlave
+	kecamatan = strings.TrimSpace(kecamatan)
+	kecamatan = strings.ToLower(kecamatan)
+	err := db.Where("LOWER(sub_district_name) LIKE ?", "%"+kecamatan+"%").First(&data).Error
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return data, fmt.Errorf("Data Kecamatan Tidak Di Temukan")
+		} else {
+			return data, err
+		}
+	}
+
+	return data, nil
+}
+
+func (r *respondentRepo) GetKelurahanByName(kelurahan string) (models.KelurahanOptions, error) {
+	defer utils.GeneralRecover()
+	var data models.KelurahanOptions
+	db := r.dbSlave
+	kelurahan = strings.TrimSpace(kelurahan)
+	kelurahan = strings.ToLower(kelurahan)
+	err := db.Where("LOWER(village_name) LIKE ?", "%"+kelurahan+"%").First(&data).Error
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return data, fmt.Errorf("Data Kelurahan Tidak Di Temukan")
+		} else {
+			return data, err
+		}
+	}
+
+	return data, nil
 }
 
 func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) ([]models.Respondents, int64, error) {
@@ -102,6 +145,48 @@ func (r *respondentRepo) UpdateUsers(id int, updateData models.UpdateRespondents
 	var modelsUpdate models.UpdateRespondents
 	db := r.dbMaster
 	err := db.Model(modelsUpdate).Where("id = ?", id).Updates(updateData).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *respondentRepo) BeginTx() *gorm.DB {
+	defer utils.GeneralRecover()
+	return r.dbMaster.Begin()
+}
+
+func (r *respondentRepo) StoreUsers(tx *gorm.DB, data models.CreateRespondents) error {
+	defer utils.GeneralRecover()
+
+	err := tx.Create(&data).Error
+	if err != nil {
+		return err
+	}
+
+	hashedPassword, err := utils.HashPassword("lacirw123")
+	if err != nil {
+		return err
+	}
+
+	randomBytes := make([]byte, 48)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return err
+	}
+
+	var dataUsers models.StoreUsers
+	dataUsers.FirstName = data.Name
+	dataUsers.LastName = strings.ReplaceAll(strings.ToLower(data.Name), " ", "-")
+	dataUsers.Email = data.Email
+	dataUsers.Password = hashedPassword
+	dataUsers.EmailToken = base64.URLEncoding.EncodeToString(randomBytes)
+	dataUsers.RespondentId = data.Id
+	dataUsers.Nik = data.NIK
+	dataUsers.CreatedAt = utils.TimeNow()
+	dataUsers.UpdatedAt = utils.TimeNow()
+
+	err = tx.Create(&dataUsers).Error
 	if err != nil {
 		return err
 	}

@@ -6,31 +6,122 @@ import (
 	"backend/userapi/payloads"
 	"backend/userapi/repository"
 	"backend/userapi/utils"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
+
+	excelize "github.com/xuri/excelize/v2"
 )
 
 type RespondentService interface {
+	CreateRespondent(req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
 	GetRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRespondent(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetExampleImport() (*pb.ProxyResponse, error)
+	ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
 	respondentRepo repository.RespondentRepo
+	usersRepo      repository.UsersRepo
 }
 
 func NewRespondentService(
 	respondentRepo repository.RespondentRepo,
+	usersRepo repository.UsersRepo,
 
 ) RespondentService {
 	return &respondentService{
 		respondentRepo,
+		usersRepo,
 	}
+}
+
+func (service *respondentService) CreateRespondent(req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	payload := payloads.CreateRespondent{}
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	tx := service.respondentRepo.BeginTx()
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, dataPengguna := range payload.Respondent {
+		dataRespondent := models.CreateRespondents{}
+
+		err := utils.DynamicBind(dataPengguna, &dataRespondent)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		dataRespondent.CreatedAt = utils.TimeNow()
+		dataRespondent.UpdatedAt = utils.TimeNow()
+		dataRespondent.BlkId = 1
+
+		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(dataRespondent.Email)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(dataRespondent.PhoneNumber)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		checkNikRespondent, checkNikUsers, err := service.usersRepo.CheckNik(dataRespondent.NIK)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("email %s sudah digunakan", dataRespondent.Email), http.StatusBadRequest)
+		}
+
+		if checkNikRespondent != 0 || checkNikUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("NIK %s sudah digunakan", dataRespondent.NIK), http.StatusBadRequest)
+		}
+
+		if checkPhoneNumberRespondent != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("nomor telepon %s sudah digunakan", dataRespondent.PhoneNumber), http.StatusBadRequest)
+		}
+
+		err = service.respondentRepo.StoreUsers(tx, dataRespondent)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData("Semua data berhasil disimpan")
 }
 
 func (service *respondentService) GetRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error) {
@@ -125,10 +216,198 @@ func (service *respondentService) UpdateRespondent(slug map[string]interface{}, 
 	}
 	updateData.Id = int(idInt)
 	updateData.UpdatedAt = time.Now()
-	return utils.SendData(updateData)
+
 	err = service.respondentRepo.UpdateUsers(int(idInt), updateData)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 	return utils.SendData("Data Berhasil Diperbarui")
+}
+
+func (service *respondentService) GetExampleImport() (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filePath := "./storage/template/Template_Import_Responden.xlsx"
+	fileBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return utils.SendError(err, http.StatusNotFound)
+	}
+
+	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *respondentService) ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	tx := service.respondentRepo.BeginTx()
+	var file string
+	var fileExtension string
+	if req["file"] != nil {
+		file = req["file"].(string)
+	} else {
+		return utils.SendError(fmt.Errorf("File Tidak Boleh Kosong"), http.StatusBadRequest)
+	}
+	if req["file_extension"] != nil {
+		fileExtension = req["file_extension"].(string)
+	}
+
+	if fileExtension != "xlsx" && fileExtension != ".xlsx" {
+		return utils.SendError(fmt.Errorf("Format File Tidak Valid"), http.StatusBadRequest)
+	}
+
+	result, err := service.readDataInExcel(file)
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	for _, dataResult := range result {
+		payload := payloads.ImportRespondents{}
+		err = utils.DynamicBind(dataResult, &payload)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		data := models.CreateRespondents{}
+		err = utils.DynamicBind(payload, &data)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(data.Email)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("email %s sudah digunakan", data.Email), http.StatusBadRequest)
+		}
+
+		checkNikRespondent, checkNikUsers, err := service.usersRepo.CheckNik(data.NIK)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if checkNikRespondent != 0 || checkNikUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("NIK %s sudah digunakan", data.NIK), http.StatusBadRequest)
+		}
+
+		checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(data.PhoneNumber)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if checkPhoneNumberRespondent != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("nomor telepon %s sudah digunakan", data.PhoneNumber), http.StatusBadRequest)
+		}
+
+		data.CreatedAt = utils.TimeNow()
+		data.UpdatedAt = utils.TimeNow()
+		var role int
+
+		kecamatan, err := service.respondentRepo.GetKecamatanByName(payload.Kecamatan)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		kelurahan, err := service.respondentRepo.GetKelurahanByName(payload.Kelurahan)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		data.Kelurahan = &kelurahan.ID
+		data.Kecamatan = &kecamatan.ID
+		data.BlkId = 1
+
+		switch payload.Role {
+		case "rt":
+			role = 2
+		case "rw":
+			role = 3
+		case "lurah":
+			role = 4
+		default:
+			role = 5
+		}
+
+		data.RoleID = role
+
+		err = service.respondentRepo.StoreUsers(tx, data)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	return utils.SendData("Data Berhasil Disimpan")
+}
+
+func (service *respondentService) readDataInExcel(file string) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	fileBytes, err := base64.StdEncoding.DecodeString(file)
+	if err != nil {
+		return result, err
+	}
+
+	tempFile := "temp_import.xlsx"
+	err = os.WriteFile(tempFile, fileBytes, 0644)
+	if err != nil {
+		return result, err
+	}
+	defer os.Remove(tempFile)
+
+	f, err := excelize.OpenFile(tempFile)
+	if err != nil {
+		return result, err
+	}
+
+	sheetName := f.GetSheetName(0)
+
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		return result, err
+	}
+
+	for i, row := range rows {
+		if i == 0 {
+			continue
+		}
+		data := map[string]interface{}{
+			"nik":             getColumn(row, 0),
+			"name":            getColumn(row, 1),
+			"place_of_birth":  getColumn(row, 2),
+			"date_of_birth":   getColumn(row, 3),
+			"address":         getColumn(row, 4),
+			"phone_number":    getColumn(row, 5),
+			"email":           getColumn(row, 6),
+			"roleString":      getColumn(row, 7),
+			"kecamatan":       getColumn(row, 8),
+			"kelurahan":       getColumn(row, 9),
+			"rw":              getColumn(row, 10),
+			"rt":              getColumn(row, 11),
+			"start_sk_period": getColumn(row, 12),
+			"end_sk_period":   getColumn(row, 13),
+		}
+
+		result = append(result, data)
+	}
+	return result, nil
+}
+
+func getColumn(row []string, index int) string {
+	if len(row) > index {
+		return row[index]
+	}
+	return ""
 }

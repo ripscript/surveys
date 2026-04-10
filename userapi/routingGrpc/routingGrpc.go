@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,10 +33,11 @@ var (
 )
 
 var (
-	penggunaRepo   repository.PenggunaRepo   = repository.NewPenggunaRepo(dbSlave, dbMaster)
-	regionRepo     repository.RegionRepo     = repository.NewRegionRepo(dbSlave, dbMaster)
-	respondentRepo repository.RespondentRepo = repository.NewRespondentRepo(dbSlave, dbMaster)
-	usersRepo      repository.UsersRepo      = repository.NewUsersRepo(dbSlave, dbMaster)
+	penggunaRepo    repository.PenggunaRepo    = repository.NewPenggunaRepo(dbSlave, dbMaster)
+	regionRepo      repository.RegionRepo      = repository.NewRegionRepo(dbSlave, dbMaster)
+	respondentRepo  repository.RespondentRepo  = repository.NewRespondentRepo(dbSlave, dbMaster)
+	usersRepo       repository.UsersRepo       = repository.NewUsersRepo(dbSlave, dbMaster)
+	usersBlokirRepo repository.UsersBlokirRepo = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -47,9 +49,13 @@ var (
 	)
 	respondentService service.RespondentService = service.NewRespondentService(
 		respondentRepo,
+		usersRepo,
 	)
 	usersService service.UsersService = service.NewUsersService(
 		usersRepo,
+	)
+	usersBlokirService service.UsersBlokirService = service.NewUsersBlokirService(
+		usersBlokirRepo,
 	)
 )
 
@@ -66,6 +72,9 @@ var (
 	usersHandler handlers.UsersHandler = handlers.NewUsersHandler(
 		usersService,
 	)
+	usersBlokirHandler handlers.UsersBlokirHandler = handlers.NewUsersBlokirHandler(
+		usersBlokirService,
+	)
 )
 
 // ROUTING GRPC
@@ -80,13 +89,18 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/rt/options":        {"GET": regionHandler.RtOptions},
 
 	// Respondent Management
-	"/respondent":     {"GET": respondentHandler.GetRespondent},
-	"/respondent/:id": {"GET": respondentHandler.GetDetailRespondent, "DELETE": respondentHandler.DeleteRespondent, "PUT": respondentHandler.UpdateRespondent},
+	"/respondent":        {"GET": respondentHandler.GetRespondent, "POST": respondentHandler.CreateRespondent},
+	"/respondent/import": {"GET": respondentHandler.GetExampleImport, "POST": respondentHandler.ImportRespondent},
+	"/respondent/:id":    {"GET": respondentHandler.GetDetailRespondent, "DELETE": respondentHandler.DeleteRespondent, "PUT": respondentHandler.UpdateRespondent},
 
 	// Users Management
-	"/users":              {"GET": usersHandler.GetUsers},
+	"/users":              {"GET": usersHandler.GetUsers, "POST": usersHandler.CreateUsers},
+	"/users/export":       {"GET": usersHandler.UserExport},
 	"/reset/password/:id": {"PUT": usersHandler.ResetPassword},
 	"/users/:id":          {"GET": usersHandler.GetDetailUsers, "PUT": usersHandler.UpdateUsers, "DELETE": usersHandler.DeleteUsers},
+
+	"/users/blokir":     {"GET": usersBlokirHandler.GetListdata},
+	"/users/blokir/:id": {"PUT": usersBlokirHandler.OpenBlokir},
 }
 
 // Metode untuk menangani permintaan yang masuk
@@ -122,6 +136,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		message := "Method grpc tidak ditemukan"
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
+	}
+	if req.GetIsSecure() {
+		normalizedPath := NormalizePath(path)
+		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+		if !allowed {
+			message := "Anda tidak memiliki hak akses"
+			utils.LogErrors(message)
+			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+		}
 	}
 
 	// Parsing request body
@@ -229,15 +252,11 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		}
 
 		if claims.ExpiresAt != nil {
-			remaining := claims.ExpiresAt.Time.Sub(time.Now())
-
-			if remaining > 0 && remaining < 30*time.Minute {
-				refreshedToken, err := GenerateJWTToken(userData)
-				if err != nil {
-					utils.LogErrors("Gagal generate token baru: " + err.Error())
-				} else {
-					newToken = refreshedToken
-				}
+			refreshedToken, err := GenerateJWTToken(userData)
+			if err != nil {
+				utils.LogErrors("Gagal generate token baru: " + err.Error())
+			} else {
+				newToken = refreshedToken
 			}
 		}
 
@@ -277,6 +296,23 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return encryptedToken, nil
+}
+
+func NormalizePath(path string) string {
+	re := regexp.MustCompile(`/\d+`)
+	return re.ReplaceAllString(path, "/:id")
+}
+
+func CheckPermission(roleID int, path string, method string) bool {
+	var count int64
+
+	dbSlave.Table("menu_permissions mp").
+		Joins("JOIN menus m ON m.id = mp.menu_id").
+		Where("mp.role_id = ?", roleID).
+		Where("m.endpoint = ?", path).
+		Where("m.method = ?", method).
+		Count(&count)
+
+	return count > 0
 }

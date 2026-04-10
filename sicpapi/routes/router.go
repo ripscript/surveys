@@ -101,15 +101,24 @@ func SetupRoutes(e *echo.Echo) {
 
 	// Responden Management
 	e.GET("/respondent", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.POST("/respondent", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.POST("/respondent/import", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.GET("/respondent/import", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.DELETE("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	// Users Management
 	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.POST("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.DELETE("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.GET("/users/export", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
+	// Users Blokir Management
+	e.GET("/users/blokir", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.PUT("/users/blokir/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	e.PUT("/reset/password/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 

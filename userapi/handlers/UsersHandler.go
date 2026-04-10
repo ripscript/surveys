@@ -14,6 +14,8 @@ type UsersHandler interface {
 	UpdateUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ResetPassword(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UserExport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	CreateUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type usersHandler struct {
@@ -45,4 +47,12 @@ func (handler *usersHandler) DeleteUsers(ctx context.Context, req map[string]int
 
 func (handler *usersHandler) ResetPassword(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.usersService.ResetPassword(slug)
+}
+
+func (handler *usersHandler) UserExport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.usersService.UserExport()
+}
+
+func (handler *usersHandler) CreateUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.usersService.CreateUsers(req, usr)
 }

@@ -3,6 +3,8 @@ package repository
 import (
 	"backend/userapi/models"
 	"backend/userapi/utils"
+	"crypto/rand"
+	"encoding/base64"
 	"net/url"
 	"strings"
 	"time"
@@ -16,6 +18,11 @@ type UsersRepo interface {
 	UpdateUsers(id int, updateData models.UpdateRespondent) error
 	DeleteUsers(deletedUsers models.DeleteRespondent) error
 	ResetPasswordUsers(id int) error
+	UserExport() ([]models.ExportUsers, error)
+	StoreUsers(data models.CreateRespondent) error
+	CheckEmail(email string) (int64, int64, error)
+	CheckPhoneNumber(phoneNumber string) (int64, error)
+	CheckNik(nik string) (int64, int64, error)
 }
 
 type usersRepo struct {
@@ -163,4 +170,108 @@ func (r *usersRepo) ResetPasswordUsers(id int) error {
 	}
 
 	return nil
+}
+
+func (r *usersRepo) UserExport() ([]models.ExportUsers, error) {
+	defer utils.GeneralRecover()
+	var users []models.ExportUsers
+	db := r.dbSlave
+
+	err := db.Where("role_id = ? AND deleted_at IS NUlL", 8).Find(&users).Error
+	if err != nil {
+		return users, err
+	}
+
+	return users, nil
+}
+
+func (r *usersRepo) CheckEmail(email string) (int64, int64, error) {
+	defer utils.GeneralRecover()
+	var countRespondent int64
+	var countUsers int64
+	db := r.dbSlave
+
+	err := db.Model(models.Respondent{}).Where("email = ?", email).Count(&countRespondent).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	err = db.Model(models.Users{}).Where("email = ?", email).Count(&countUsers).Error
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return countRespondent, countUsers, nil
+}
+
+func (r *usersRepo) CheckPhoneNumber(phoneNumber string) (int64, error) {
+	defer utils.GeneralRecover()
+	var countRespondent int64
+	db := r.dbSlave
+
+	err := db.Model(models.Respondent{}).Where("phone_number = ?", phoneNumber).Count(&countRespondent).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return countRespondent, nil
+}
+
+func (r *usersRepo) CheckNik(nik string) (int64, int64, error) {
+	defer utils.GeneralRecover()
+	var countRespondent int64
+	var countUsers int64
+	db := r.dbSlave
+
+	err := db.Model(models.Respondent{}).Where("nik = ?", nik).Count(&countRespondent).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	err = db.Model(models.Users{}).Where("nik = ?", nik).Count(&countUsers).Error
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return countRespondent, countUsers, nil
+}
+
+func (r *usersRepo) StoreUsers(data models.CreateRespondent) error {
+	defer utils.GeneralRecover()
+	db := r.dbMaster
+	tx := db.Begin()
+
+	err := tx.Create(&data).Error
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	hashedPassword, err := utils.HashPassword("lacirw123")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	randomBytes := make([]byte, 48)
+	if _, err := rand.Read(randomBytes); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	var dataUsers models.StoreUsers
+	dataUsers.FirstName = data.Name
+	dataUsers.LastName = strings.ReplaceAll(strings.ToLower(data.Name), " ", "-")
+	dataUsers.Email = data.Email
+	dataUsers.Password = hashedPassword
+	dataUsers.EmailToken = base64.URLEncoding.EncodeToString(randomBytes)
+	dataUsers.RespondentId = data.Id
+	dataUsers.CreatedAt = utils.TimeNow()
+	dataUsers.UpdatedAt = utils.TimeNow()
+
+	err = tx.Create(&dataUsers).Error
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }

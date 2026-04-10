@@ -2,6 +2,9 @@ package main
 
 import (
 	pb "backend/siccore/pb"
+	"backend/userapi/configs"
+	"backend/userapi/databases/migrations"
+	"backend/userapi/databases/seeders"
 	"backend/userapi/routingGrpc"
 	"backend/userapi/utils"
 	"context"
@@ -25,47 +28,54 @@ func main() {
 			utils.LogErrors(message)
 		}
 	}()
-
-	// Load environment variables from .env file
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("Error loading .env file :" + err.Error())
 	}
-
-	// Middleware untuk logging ke file app.log
 	logFile, err := os.Create("logs/app.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logFile.Close()
 
-	// Middleware untuk menangani error dan logging ke file error.log
-	errorFile, err := os.Create("errors/error.log")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer errorFile.Close()
-
+	migrateFlag := flag.Bool("migrate", false, "Jalankan migrasi database")
+	seederFlag := flag.Bool("seeder", false, "Jalankan seeder database")
 	flag.Parse()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
+	if *migrateFlag {
+		fmt.Println("Masuk Create Database")
+		db := configs.SetupDatabaseMasterConnection()
+		if err := migrations.Migrate(db); err != nil {
+			log.Fatal("Gagal melakukan migrasi:", err)
+		}
+		log.Println("Migrasi berhasil")
+	} else if *seederFlag {
+		db := configs.SetupDatabaseMasterConnection()
+		if err := seeders.Seed(db); err != nil {
+			log.Fatal("Gagal melakukan seeder:", err)
+		}
+		log.Println("Seeder berhasil")
+	} else {
 
-	listener, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8081"
+		}
 
-	s := grpc.NewServer()
+		listener, err := net.Listen("tcp", ":"+port)
+		if err != nil {
+			log.Fatalf("Failed to listen: %v", err)
+		}
 
-	// LIST GRPC HANDLER
-	grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
-	pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
+		s := grpc.NewServer()
 
-	log.Println("gRPC server is running...")
-	if err := s.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		// LIST GRPC HANDLER
+		grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
+		pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
+
+		log.Println("gRPC server is running...")
+		if err := s.Serve(listener); err != nil {
+			log.Fatalf("Failed to serve: %v", err)
+		}
 	}
 }
 
