@@ -25,6 +25,7 @@ func (u *FlowDetail) TableName() string {
 
 type FlowDetailDatatableResponse struct {
 	Id            int       `json:"id"`
+	FlowCode      string    `json:"flow_code"`
 	FlowName      string    `json:"flow_name"`
 	FormName      string    `json:"form_name"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -37,14 +38,41 @@ type FlowDetailDatatableResponse struct {
 }
 
 type FlowPreview struct {
-	FlowName   string             `json:"flow_name"`
-	HasSection bool               `json:"has_section"`
-	Sections   FlowPreviewSection `json:"sections"`
+	FlowName   string               `json:"flow_name"`
+	FlowCode   string               `json:"flow_code"`
+	HasSection bool                 `json:"has_section"`
+	Sections   []FlowPreviewSection `json:"sections"`
 }
 
 type FlowPreviewSection struct {
-	SectionId              int     `json:"section_id"`
+	SectionId              int     `json:"-"`
+	SectionCode            *string `json:"section_code"`
 	SectionName            *string `json:"section_name"`
 	TotalRequiredQuestions int     `json:"total_required_questions"`
 	TotalOptionalQuestions int     `json:"total_optional_questions"`
+}
+
+type RawNodeData struct {
+	FlowFieldId       int
+	Sequence          int
+	FormFieldId       int
+	Template          string  // Dari form_fields.template
+	Label             string  // Dari form_fields.question
+	IsRequired        bool    // Dari form_fields.required
+	ImageQuantity     *string // Dari form_fields.image_quantity (varchar)
+	SectionId         *int
+	SectionName       *string // Dari flow__sections.name
+	GroupId           *int
+	GroupName         *string // Dari flow_groups.name
+	ChildId           int
+	GroupChildId      int
+	Breakdown         bool
+	IsAdvancedOption  bool
+	FormAnswerFieldId *int
+}
+
+type SurveyMetaContent struct {
+	ID      int
+	Title   string
+	Content string
 }

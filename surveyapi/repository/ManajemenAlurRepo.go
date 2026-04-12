@@ -34,6 +34,10 @@ type ManajemenAlurRepo interface {
 
 	DeleteAlurByID(detailID int) error
 	GetListAlur(req payloads.DatatablePayload) ([]models.FlowDetailDatatableResponse, int64, error)
+	GetPreviewSectionByFlowDetailId(detailID int, statusSection string) ([]models.FlowPreviewSection, error)
+
+	GetRawNodesForPreview(detailID int, sectionID int) ([]models.RawNodeData, error)
+	GetAnswerOptionsByQuestionIDList(questionIDs []int) ([]models.FormAnswerField, error)
 }
 
 type manajemenAlurRepo struct {
@@ -207,6 +211,7 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 	db := repository.dbSlave.Table("flow_details").
 		Select(`
 			flow_details.id,
+			flow_details.code AS flow_code,
 			flow_details.name AS flow_name,
 			forms.title AS form_name,
 			flow_details.created_at,
@@ -288,11 +293,91 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 	return data, totalData, nil
 }
 
-// func (repositry *manajemenAlurRepo) GetSectionByFlowId(detailID int) ([]models.FlowSection, error) {
-// 	var flowDetail models.FlowDetail
-// 	err := repositry.dbSlave.Where("id = ?", detailID).First(&flowDetail).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int, statusSection string) ([]models.FlowPreviewSection, error) {
+	defer utils.GeneralRecover()
+	var sections []models.FlowPreviewSection
 
-// }
+	// Base query yang sama-sama digunakan
+	db := repositry.dbSlave.Table("flow_fields").
+		Where("flow_fields.flow_detail_id = ?", detailID).
+		Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id")
+
+	if statusSection == "1" {
+		err := db.Select(`
+				flow__sections.id AS section_id,
+                flow__sections.name AS section_name,
+                COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+                COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions
+            `).
+			Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
+			Group("flow__sections.id, flow__sections.name").
+			Order("flow__sections.id ASC").
+			Find(&sections).Error
+
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := db.Select(`
+				 0 AS section_id,
+                NULL AS section_name,
+                COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+                COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions
+            `).
+			Find(&sections).Error
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return sections, nil
+}
+
+func (repository *manajemenAlurRepo) GetRawNodesForPreview(detailID int, sectionID int) ([]models.RawNodeData, error) {
+	defer utils.GeneralRecover()
+	var data []models.RawNodeData
+
+	query := repository.dbSlave.Table("flow_fields").
+		Select(`
+			flow_fields.id AS flow_field_id,
+			flow_fields.sequence,
+			flow_fields.form_field_id,
+			form_fields.template,
+			form_fields.question AS label,
+			form_fields.required AS is_required,
+			form_fields.image_quantity,
+			flow_fields.section_id,
+			flow__sections.name AS section_name,
+			flow_fields.group_id,
+			flow_groups.name AS group_name,
+			flow_fields.child_id,
+			flow_fields.group_child_id,
+			flow_fields.breakdown,
+			flow_fields.is_advanced_option,
+			flow_fields.form_answer_field_id
+		`).
+		Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id").
+		Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
+		Joins("LEFT JOIN flow_groups ON flow_groups.id = flow_fields.group_id").
+		Where("flow_fields.flow_detail_id = ?", detailID)
+
+	// Jika sectionID == 0, query ini akan diabaikan (artinya menarik semua data tanpa memandang section)
+	if sectionID != 0 {
+		query = query.Where("flow_fields.section_id = ?", sectionID)
+	}
+
+	// Urutkan berdasarkan sequence untuk merakit array soal secara berurutan
+	err := query.Order("flow_fields.sequence ASC, flow_fields.id ASC").Find(&data).Error
+	return data, err
+}
+
+func (repository *manajemenAlurRepo) GetAnswerOptionsByQuestionIDList(questionIDs []int) ([]models.FormAnswerField, error) {
+	var options []models.FormAnswerField
+	if len(questionIDs) == 0 {
+		return options, nil
+	}
+	// 'sequence' pada form_answer_fields digunakan untuk mengurutkan A, B, C, dst.
+	err := repository.dbSlave.Where("form_field_id IN ?", questionIDs).Order("sequence ASC").Find(&options).Error
+	return options, err
+}

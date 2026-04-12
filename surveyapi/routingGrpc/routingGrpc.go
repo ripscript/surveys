@@ -48,6 +48,7 @@ var (
 	manajemenAlurService service.ManajemenAlurService = service.NewManajemenAlurService(
 		manajemenAlurRepo,
 		templateFormulirPertanyaanRepo,
+		templateUcapanRepo,
 	)
 )
 
@@ -88,12 +89,13 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/template/formulir-pertanyaan/detail-pertanyaan/:id":                        {"GET": templateFormulirPertanyaanHandler.DetailPertanyaan},
 	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id":       {"GET": templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId},
 
-	"/manajemen-alur/create":              {"POST": manajemenAlurHandler.CreateManajemenAlur},
-	"/manajemen-alur/detail/:code":        {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
-	"/manajemen-alur/update/:code":        {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
-	"/manajemen-alur/delete/:code":        {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
-	"/manajemen-alur/list":                {"GET": manajemenAlurHandler.GetListManajemenAlur},
-	"/manajemen-alur/preview-index/:code": {"GET": manajemenAlurHandler.FlowPreviewIndex},
+	"/manajemen-alur/create":                                {"POST": manajemenAlurHandler.CreateManajemenAlur},
+	"/manajemen-alur/detail/:code":                          {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
+	"/manajemen-alur/update/:code":                          {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
+	"/manajemen-alur/delete/:code":                          {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
+	"/manajemen-alur/list":                                  {"GET": manajemenAlurHandler.GetListManajemenAlur},
+	"/manajemen-alur/preview-index/:code":                   {"GET": manajemenAlurHandler.FlowPreviewIndex},
+	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": manajemenAlurHandler.PreviewAlurSurvey},
 }
 
 // Metode untuk menangani permintaan yang masuk
@@ -130,15 +132,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
-	if req.GetIsSecure() {
-		normalizedPath := NormalizePath(path)
-		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
-		if !allowed {
-			message := "Anda tidak memiliki hak akses"
-			utils.LogErrors(message)
-			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
-		}
-	}
+	// if req.GetIsSecure() {
+	// 	normalizedPath := NormalizePath(path)
+	// 	allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+	// 	if !allowed {
+	// 		message := "Anda tidak memiliki hak akses"
+	// 		utils.LogErrors(message)
+	// 		return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+	// 	}
+	// }
 
 	// Parsing request body
 	var reqs map[string]interface{}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"backend/surveyapi/models"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -207,4 +208,73 @@ func GenerateShortHash() string {
 	bytes := make([]byte, 4)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+func StringToBool(data string) bool {
+	lowerData := strings.ToLower(data)
+	return lowerData == "true" || lowerData == "1" || lowerData == "yes"
+}
+
+func IntToBool(data int) bool {
+	return data != 0
+}
+
+func BoolToInt(data bool) int {
+	if data {
+		return 1
+	}
+	return 0
+}
+
+func GetTimeGreeting() string {
+	var currentTime time.Time
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		currentTime = time.Now()
+	} else {
+		currentTime = time.Now().In(location)
+	}
+
+	hour := currentTime.Hour()
+
+	switch {
+	case hour >= 5 && hour < 11:
+		return "pagi"
+	case hour >= 11 && hour < 15:
+		return "siang"
+	case hour >= 15 && hour < 18:
+		return "sore"
+	default:
+		return "malam"
+	}
+}
+
+func ReplaceStringRespondentVariable(input string, respondent *models.DetailRespondent) string {
+
+	if respondent == nil || respondent.ID == 0 {
+		return input
+	}
+
+	makeStr := input
+	if strings.Contains(makeStr, "(Nama Responden)") {
+		makeStr = strings.ReplaceAll(makeStr, "(Nama Responden)", respondent.Name)
+	}
+
+	if strings.Contains(makeStr, "(Kontak Responden)") {
+		makeStr = strings.ReplaceAll(makeStr, "(Kontak Responden)", respondent.PhoneNumber)
+	}
+
+	if strings.Contains(makeStr, "(Email Responden)") {
+		makeStr = strings.ReplaceAll(makeStr, "(Email Responden)", respondent.Email)
+	}
+
+	if strings.Contains(makeStr, "(Waktu Pembuka)") {
+		makeStr = strings.ReplaceAll(makeStr, "(Waktu Pembuka)", GetTimeGreeting())
+	}
+	if strings.Contains(makeStr, "(Wilayah Responden)") {
+		makeStr = strings.ReplaceAll(makeStr, "(Wilayah Responden)", "Kecamatan "+respondent.Kecamatan+" - Kelurahan "+respondent.Kelurahan+" - RW "+respondent.RW+" - RT "+respondent.RT)
+	}
+
+	return makeStr
 }
