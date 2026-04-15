@@ -409,7 +409,7 @@ func PermissionSeed(db *gorm.DB) error {
 	RoleWalikotaId := roleIDs.Walikota
 
 	MenuPermission := []models.MenuPermission{
-		// ManajemenUserPermission
+		// Manajemen User Permission
 		{
 			MenuID:       ManajemenUserID,
 			RoleID:       RolePublicId,
