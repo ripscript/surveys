@@ -12,5 +12,10 @@ func Seed(db *gorm.DB) error {
 		return err
 	}
 
+	err = PermissionSeed(db)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

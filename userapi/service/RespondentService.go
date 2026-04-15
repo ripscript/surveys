@@ -27,6 +27,7 @@ type RespondentService interface {
 	GetExampleImport() (*pb.ProxyResponse, error)
 	ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyorOption() (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -425,4 +426,15 @@ func (service *respondentService) GetRawDetailRespondent(slug map[string]interfa
 		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
 	}
 	return utils.SendData(detailRespondent)
+}
+
+func (service *respondentService) SurveyorOption() (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	data, err := service.respondentRepo.SurveyorOption()
+	if err != nil {
+		return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data Surveyor"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data)
 }

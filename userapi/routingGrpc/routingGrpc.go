@@ -77,34 +77,71 @@ var (
 	)
 )
 
+// && Key Menu && \\
+// template
+// manajemen-alur
+// survey
+// dashboard
+// pengaturan
+// laporan
+// monitoring
+// admin
+// formulir-pertanyaan
+// ucapan
+// list-survey
+// hasil
+// manajemen-pengguna
+// manajemen-wilayah
+// manajemen-cms
+// manajemen-artikel
+// rating
+// statistik
+// aktifitas-survey
+// profil-saya
+// keluar
+// manajemen-responden
+// manajemen-user
+// manajemen-blokir
+// manajemen-wilayah-child
+// manajemen-pejabat
+// artikel
+// promote
+// kategori
+
 // ROUTING GRPC
-// Definisikan pemetaan fungsi handler dengan path dan metode HTTP
-var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error){
-	"/userapi/healthy":   {"GET": handlers.Healthy},
-	"/login":             {"POST": penggunaHandler.Login},
-	"/logout":            {"POST": penggunaHandler.Logout},
-	"/kecamatan/options": {"GET": regionHandler.KecamatanOptions},
-	"/kelurahan/options": {"GET": regionHandler.KelurahansOptions},
-	"/rw/options":        {"GET": regionHandler.RwOptions},
-	"/rt/options":        {"GET": regionHandler.RtOptions},
-
-	// Respondent Management
-	"/respondent":         {"GET": respondentHandler.GetRespondent, "POST": respondentHandler.CreateRespondent},
-	"/respondent/import":  {"GET": respondentHandler.GetExampleImport, "POST": respondentHandler.ImportRespondent},
-	"/respondent/:id":     {"GET": respondentHandler.GetDetailRespondent, "DELETE": respondentHandler.DeleteRespondent, "PUT": respondentHandler.UpdateRespondent},
-	"/respondent/raw/:id": {"GET": respondentHandler.GetRawDetailRespondent},
-
-	// Users Management
-	"/users":              {"GET": usersHandler.GetUsers, "POST": usersHandler.CreateUsers},
-	"/users/export":       {"GET": usersHandler.UserExport},
-	"/reset/password/:id": {"PUT": usersHandler.ResetPassword},
-	"/users/:id":          {"GET": usersHandler.GetDetailUsers, "PUT": usersHandler.UpdateUsers, "DELETE": usersHandler.DeleteUsers},
-
-	"/users/blokir":     {"GET": usersBlokirHandler.GetListdata},
-	"/users/blokir/:id": {"PUT": usersBlokirHandler.OpenBlokir},
+type RouteConfig struct {
+	Handler func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error)
+	MenuKey string
 }
 
-// Metode untuk menangani permintaan yang masuk
+// Definisikan pemetaan fungsi handler dengan path dan metode HTTP
+var grpcMap = map[string]map[string]RouteConfig{
+	// Public / No Permission
+	"/userapi/healthy": {"GET": {Handler: handlers.Healthy, MenuKey: ""}},
+	"/login":           {"POST": {Handler: penggunaHandler.Login, MenuKey: ""}},
+	"/logout":          {"POST": {Handler: penggunaHandler.Logout, MenuKey: ""}},
+	// Region
+	"/kecamatan/options": {"GET": {Handler: regionHandler.KecamatanOptions, MenuKey: ""}},
+	"/kelurahan/options": {"GET": {Handler: regionHandler.KelurahansOptions, MenuKey: ""}},
+	"/rw/options":        {"GET": {Handler: regionHandler.RwOptions, MenuKey: ""}},
+	"/rt/options":        {"GET": {Handler: regionHandler.RtOptions, MenuKey: ""}},
+	// Respondent
+	"/respondent":         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "respondent"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "respondent"}},
+	"/respondent/import":  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "respondent"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "respondent"}},
+	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "respondent"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "respondent"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "respondent"}},
+	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "respondent"}},
+	// Users
+	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "manajemen-user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "manajemen-user"}},
+	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "manajemen-user"}},
+	"/users/:id":          {"GET": {Handler: usersHandler.GetDetailUsers, MenuKey: "manajemen-user"}, "PUT": {Handler: usersHandler.UpdateUsers, MenuKey: "manajemen-user"}, "DELETE": {Handler: usersHandler.DeleteUsers, MenuKey: "manajemen-user"}},
+	"/reset/password/:id": {"PUT": {Handler: usersHandler.ResetPassword, MenuKey: "manajemen-user"}},
+	// Users Blokir
+	"/users/blokir":     {"GET": {Handler: usersBlokirHandler.GetListdata, MenuKey: "manajemen-user"}},
+	"/users/blokir/:id": {"PUT": {Handler: usersBlokirHandler.OpenBlokir, MenuKey: "manajemen-user"}},
+	// Surveyor
+	"/surveyor/options": {"GET": {Handler: respondentHandler.SurveyorOption, MenuKey: ""}},
+}
+
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -116,72 +153,60 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	path := req.GetPath()
 	method := req.GetMethod()
 
-	// Validasi token
 	success, mess, code, userLogin, newToken := ValidasiToken(ctx, req)
 	if !success {
 		utils.LogErrors(mess)
 		return utils.SetResponseData([]byte{}, success, mess, code, nil, ""), nil
 	}
 
-	// Cek path tersedia
 	methodMap, ok := grpcMap[path]
 	if !ok {
 		message := "Path grpc tidak ditemukan"
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusNotFound, nil, ""), nil
 	}
 
-	// Cek method tersedia
-	handler, ok := methodMap[method]
+	routeConfig, ok := methodMap[method]
 	if !ok {
 		message := "Method grpc tidak ditemukan"
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
+
+	handler := routeConfig.Handler
+	menuKey := routeConfig.MenuKey
+
 	if req.GetIsSecure() {
-		normalizedPath := NormalizePath(path)
-		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+		allowed := CheckPermission(int(userLogin.Role), menuKey, method)
 		if !allowed {
 			message := "Anda tidak memiliki hak akses"
-			utils.LogErrors(message)
 			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
 		}
 	}
 
-	// Parsing request body
 	var reqs map[string]interface{}
 	if len(req.Data) > 0 {
 		if err := json.Unmarshal(req.Data, &reqs); err != nil {
 			message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
-			utils.LogErrors(message)
 			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 		}
 	}
-
-	// Parsing slug
 	var slug map[string]interface{}
 	if len(req.Slug) > 0 {
 		if err := json.Unmarshal(req.Slug, &slug); err != nil {
 			message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
-			utils.LogErrors(message)
 			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 		}
 	}
 
-	// Parsing query param
 	paramString := string(req.Param)
 	queryValues, err := url.ParseQuery(paramString)
 	if err != nil {
 		message := "Terjadi kesalahan saat parsing query param : " + err.Error()
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 	}
-
 	response, err := handler(ctx, reqs, userLogin, queryValues, slug)
 	if err != nil {
 		return nil, err
 	}
-
 	if response != nil && newToken != "" {
 		response.Token = newToken
 	}
@@ -305,15 +330,49 @@ func NormalizePath(path string) string {
 	return re.ReplaceAllString(path, "/:id")
 }
 
-func CheckPermission(roleID int, path string, method string) bool {
+func methodToAction(method string) string {
+	switch method {
+	case "GET":
+		return "view"
+	case "POST":
+		return "create"
+	case "PUT", "PATCH":
+		return "update"
+	case "DELETE":
+		return "delete"
+	default:
+		return ""
+	}
+}
+func CheckPermission(roleID int, menuKey string, method string) bool {
+	if menuKey == "" {
+		return true
+	}
+
+	action := methodToAction(method)
+	if action == "" {
+		return false
+	}
+
 	var count int64
 
-	dbSlave.Table("menu_permissions mp").
+	query := dbSlave.Table("menu_permissions mp").
 		Joins("JOIN menus m ON m.id = mp.menu_id").
 		Where("mp.role_id = ?", roleID).
-		Where("m.endpoint = ?", path).
-		Where("m.method = ?", method).
-		Count(&count)
+		Where("m.key = ?", menuKey)
+
+	switch action {
+	case "view":
+		query = query.Where("mp.view_action = ?", true)
+	case "create":
+		query = query.Where("mp.create_action = ?", true)
+	case "update":
+		query = query.Where("mp.update_action = ?", true)
+	case "delete":
+		query = query.Where("mp.delete_action = ?", true)
+	}
+
+	query.Count(&count)
 
 	return count > 0
 }
