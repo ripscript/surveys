@@ -533,7 +533,7 @@ func TranslateError(err validator.FieldError) string {
 	case "gt":
 		return fmt.Sprintf("%s harus lebih besar dari 0.", field)
 	case "oneof":
-		return fmt.Sprintf("%s nilainya tidak valid. Harus salah satu dari: %s.", field, err.Param())
+		return fmt.Sprintf("%s nilainya tidak valid. Harus salah satu dari: %s.", field, strings.ReplaceAll(err.Param(), " ", ", "))
 
 	// Error dari Custom Business Rules (Section & Group Structure)
 	case "required_with_has_section":

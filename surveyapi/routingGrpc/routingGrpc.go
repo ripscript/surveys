@@ -36,6 +36,9 @@ var (
 	templateUcapanRepo             repository.TemplateUcapanRepo             = repository.NewTemplateUcapanRepo(dbSlave, dbMaster)
 	templateFormulirPertanyaanRepo repository.TemplateFormulirPertanyaanRepo = repository.NewTemplateFormulirPertanyaanRepo(dbSlave, dbMaster)
 	manajemenAlurRepo              repository.ManajemenAlurRepo              = repository.NewManajemenAlurRepo(dbSlave, dbMaster)
+	surveyRepo                     repository.SurveyRepo                     = repository.NewSurveyRepo(dbSlave, dbMaster)
+	wilayahRepo                    repository.WilayahRepo                    = repository.NewWilayahRepo(dbSlave, dbMaster)
+	userRepo                       repository.UserRepo                       = repository.NewUserRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -50,6 +53,14 @@ var (
 		templateFormulirPertanyaanRepo,
 		templateUcapanRepo,
 	)
+	surveyService service.SurveyService = service.NewSurveyService(
+		manajemenAlurRepo,
+		templateFormulirPertanyaanRepo,
+		templateUcapanRepo,
+		surveyRepo,
+		wilayahRepo,
+		userRepo,
+	)
 )
 
 var (
@@ -61,6 +72,10 @@ var (
 	)
 	manajemenAlurHandler handlers.ManajemenAlurHandler = handlers.NewManajemenAlurHandler(
 		manajemenAlurService,
+	)
+	surveyHandler handlers.SurveyHandler = handlers.NewSurveyHandler(
+		manajemenAlurService,
+		surveyService,
 	)
 )
 
@@ -96,6 +111,10 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/manajemen-alur/list":                                  {"GET": manajemenAlurHandler.GetListManajemenAlur},
 	"/manajemen-alur/preview-index/:code":                   {"GET": manajemenAlurHandler.FlowPreviewIndex},
 	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": manajemenAlurHandler.PreviewAlurSurvey},
+
+	"/survey/create":          {"POST": surveyHandler.CreateSurvey},
+	"/survey/periode-options": {"GET": surveyHandler.OptionsPeriodeSurvey},
+	"/survey/list":            {"GET": surveyHandler.GetListSurvey},
 }
 
 // Metode untuk menangani permintaan yang masuk

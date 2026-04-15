@@ -155,15 +155,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
-	if req.GetIsSecure() {
-		normalizedPath := NormalizePath(path)
-		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
-		if !allowed {
-			message := "Anda tidak memiliki hak akses"
-			utils.LogErrors(message)
-			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
-		}
-	}
+	// if req.GetIsSecure() {
+	// 	normalizedPath := NormalizePath(path)
+	// 	allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+	// 	if !allowed {
+	// 		message := "Anda tidak memiliki hak akses"
+	// 		utils.LogErrors(message)
+	// 		return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+	// 	}
+	// }
 
 	// Parsing request body
 	var reqs map[string]interface{}
