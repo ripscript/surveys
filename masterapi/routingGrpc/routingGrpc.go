@@ -69,12 +69,43 @@ var (
 	)
 )
 
+// && Key Menu && \\
+// template
+// manajemen-alur
+// survey
+// dashboard
+// pengaturan
+// laporan
+// monitoring
+// admin
+// formulir-pertanyaan
+// ucapan
+// list-survey
+// hasil
+// manajemen-pengguna
+// manajemen-wilayah
+// manajemen-cms
+// manajemen-artikel
+// rating
+// statistik
+// aktifitas-survey
+// profil-saya
+// keluar
+// manajemen-responden
+// manajemen-user
+// manajemen-blokir
+// manajemen-wilayah-child
+// manajemen-pejabat
+// artikel
+// promote
+// kategori
+
+// ROUTING GRPC
 type RouteConfig struct {
 	Handler func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error)
 	MenuKey string
 }
 
-// ROUTING GRPC
 // Definisikan pemetaan fungsi handler dengan path dan metode HTTP
 var grpcMap = map[string]map[string]RouteConfig{
 
