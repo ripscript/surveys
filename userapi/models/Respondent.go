@@ -154,6 +154,15 @@ type Rt struct {
 	NamaRt string `json:"namaRt"`
 }
 
+type Surveyor struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (u *Surveyor) TableName() string {
+	return "respondents"
+}
+
 func (u *RespondentBlock) TableName() string {
 	return "respondents"
 }

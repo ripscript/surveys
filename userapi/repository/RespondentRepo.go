@@ -22,6 +22,7 @@ type RespondentRepo interface {
 	BeginTx() *gorm.DB
 	StoreUsers(tx *gorm.DB, data models.CreateRespondents) error
 	GetRespondenById(id int) (*models.RawRespondents, error)
+	SurveyorOption() ([]models.Surveyor, error)
 }
 
 type respondentRepo struct {
@@ -207,4 +208,19 @@ func (r *respondentRepo) GetRespondenById(id int) (*models.RawRespondents, error
 	}
 
 	return &responden, nil
+}
+
+func (r *respondentRepo) SurveyorOption() ([]models.Surveyor, error) {
+	defer utils.GeneralRecover()
+	var data []models.Surveyor
+	db := r.dbSlave
+
+	err := db.Where("role_id = ?", 8).Find(&data).Error
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return nil, err
+		}
+	}
+
+	return data, nil
 }

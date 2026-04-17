@@ -256,10 +256,11 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		}
 
 		userData = models.JwtCustomClaims{
-			ID:    int64(claims.ID),
-			Name:  claims.Name,
-			Email: claims.Email,
-			Role:  claims.Role,
+			ID:           int64(claims.ID),
+			RespondentID: claims.RespondentID,
+			Name:         claims.Name,
+			Email:        claims.Email,
+			Role:         claims.Role,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: claims.ExpiresAt,
 			},
@@ -295,10 +296,11 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 	}
 
 	claims := models.JwtCustomClaims{
-		ID:    int64(user.ID),
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
+		RespondentID: user.RespondentID,
+		ID:           int64(user.ID),
+		Name:         user.Name,
+		Email:        user.Email,
+		Role:         user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiredAt,
 		},

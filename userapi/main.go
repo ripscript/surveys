@@ -40,7 +40,6 @@ func main() {
 	migrateFlag := flag.Bool("migrate", false, "Jalankan migrasi database")
 	seederFlag := flag.Bool("seeder", false, "Jalankan seeder database")
 	flag.Parse()
-
 	if *migrateFlag {
 		fmt.Println("Masuk Create Database")
 		db := configs.SetupDatabaseMasterConnection()

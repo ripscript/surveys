@@ -89,17 +89,15 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/docapi/healthy", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 
 	// Core Route API
-
 	// USERAPI AUTH
 	e.POST("/login", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.POST("/logout", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
+	e.PUT("/reset/password/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// USERAPI Service
 	e.GET("/kecamatan/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/kelurahan/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/rw/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/rt/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
 	// Responden Management
 	e.GET("/respondent", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.POST("/respondent", func(c echo.Context) error { return HandleFunc(c, userapiService) })
@@ -109,7 +107,6 @@ func SetupRoutes(e *echo.Echo) {
 	e.DELETE("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/respondent/raw/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
 	// Users Management
 	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.POST("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
@@ -117,12 +114,11 @@ func SetupRoutes(e *echo.Echo) {
 	e.PUT("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.DELETE("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/users/export", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
 	// Users Blokir Management
 	e.GET("/users/blokir", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/users/blokir/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
-	e.PUT("/reset/password/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	// Surveyor
+	e.GET("/surveyor/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })

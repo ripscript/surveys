@@ -5,11 +5,8 @@ import "time"
 type Menu struct {
 	ID        int    `json:"id" gorm:"primaryKey;autoIncrement"`
 	MenuName  string `json:"menu_name" gorm:"type:varchar(255);not null"`
-	Key       string `json:"key"`
-	Endpoint  string `json:"Endpoint"`
+	Key       string `json:"key" gorm:"uniqueIndex"`
 	Icon      string `json:"icon"`
-	Path      string `json:"path" gorm:"type:varchar(255)"`
-	Method    string `json:"method" gorm:"type:varchar(10)"`
 	ParentID  *int   `json:"parent_id" gorm:"default:null"`
 	Parent    *Menu  `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"`
 	Children  []Menu `gorm:"foreignKey:ParentID"`
@@ -22,14 +19,65 @@ type Menu struct {
 }
 
 type MenuPermission struct {
-	ID        int        `json:"id" gorm:"primaryKey;autoIncrement"`
-	MenuID    int        `gorm:"uniqueIndex:idx_role_menu"`
-	Menu      Menu       `gorm:"foreignKey:MenuID;constraint:OnDelete:CASCADE;"`
-	RoleID    int        `gorm:"uniqueIndex:idx_role_menu"`
-	CreatedBy uint       `json:"created_by"`
-	UpdatedBy uint       `json:"updated_by"`
-	DeletedBy *uint      `json:"deleted_by"`
-	CreatedAt time.Time  `json:"created_at" gorm:"type:timestamp;default:now()"`
-	UpdatedAt time.Time  `json:"updated_at" gorm:"type:timestamp;default:now()"`
-	DeletedAt *time.Time `json:"deleted_at" gorm:"type:timestamp"`
+	ID           int  `json:"id" gorm:"primaryKey;autoIncrement"`
+	MenuID       int  `gorm:"uniqueIndex:idx_role_menu"`
+	Menu         Menu `gorm:"foreignKey:MenuID;constraint:OnDelete:CASCADE;"`
+	RoleID       int  `gorm:"uniqueIndex:idx_role_menu"`
+	ViewAction   bool `json:"view_action"`
+	CreateAction bool `json:"create_action"`
+	UpdateAction bool `json:"update_action"`
+	DeleteAction bool `json:"delete_action"`
+}
+
+type Role struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (Role) TableName() string {
+	return "role"
+}
+
+type MenuIDs struct {
+	Template              int
+	ManajemenAlur         int
+	Survey                int
+	Dashboard             int
+	Pengaturan            int
+	Laporan               int
+	Monitoring            int
+	Admin                 int
+	FormulirPertanyaan    int
+	Ucapan                int
+	ListSurvey            int
+	Hasil                 int
+	ManajemenPengguna     int
+	ManajemenWilayah      int
+	ManajemenCMS          int
+	ManajemenArtikel      int
+	Rating                int
+	Statistik             int
+	AktifitasSurvey       int
+	ProfilSaya            int
+	Keluar                int
+	ManajemenResponden    int
+	ManajemenUser         int
+	ManajemenBlokir       int
+	ManajemenWilayahChild int
+	ManajemenPejabat      int
+	Artikel               int
+	Promote               int
+	Kategori              int
+}
+
+type RoleIDs struct {
+	Public   int
+	Rt       int
+	Rw       int
+	Lurah    int
+	Camat    int
+	Pemkot   int
+	Admin    int
+	Surveyor int
+	Walikota int
 }
