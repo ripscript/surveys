@@ -155,15 +155,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
-	if req.GetIsSecure() {
-		normalizedPath := NormalizePath(path)
-		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
-		if !allowed {
-			message := "Anda tidak memiliki hak akses"
-			utils.LogErrors(message)
-			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
-		}
-	}
+	// if req.GetIsSecure() {
+	// 	normalizedPath := NormalizePath(path)
+	// 	allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+	// 	if !allowed {
+	// 		message := "Anda tidak memiliki hak akses"
+	// 		utils.LogErrors(message)
+	// 		return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+	// 	}
+	// }
 
 	// Parsing request body
 	var reqs map[string]interface{}
@@ -258,12 +258,12 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 			}
 			return true, "Tervalidasi", int(http.StatusOK), userData, newToken
 		}
-
 		userData = models.JwtCustomClaims{
-			ID:    int64(claims.ID),
-			Name:  claims.Name,
-			Email: claims.Email,
-			Role:  claims.Role,
+			ID:           int64(claims.ID),
+			RespondentID: claims.RespondentID,
+			Name:         claims.Name,
+			Email:        claims.Email,
+			Role:         claims.Role,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: claims.ExpiresAt,
 			},
@@ -299,10 +299,11 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 	}
 
 	claims := models.JwtCustomClaims{
-		ID:    int64(user.ID),
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
+		RespondentID: user.RespondentID,
+		ID:           int64(user.ID),
+		Name:         user.Name,
+		Email:        user.Email,
+		Role:         user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiredAt,
 		},

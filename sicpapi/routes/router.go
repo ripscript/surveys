@@ -207,4 +207,10 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenAlurGroup.DELETE("/delete/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	manajemenAlurGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	manajemenAlurGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.GET("/preview-alur/:flow_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	surveyGroup := e.Group("/survey")
+	surveyGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/periode-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

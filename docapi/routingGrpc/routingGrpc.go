@@ -194,11 +194,15 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		}
 
 		// Dapatkan klaim dari token
-		userData := models.JwtCustomClaims{
-			ID:    int64(claims.ID),
-			Name:  claims.Name,
-			Email: claims.Email,
-			Role:  claims.Role,
+		userData = models.JwtCustomClaims{
+			ID:           int64(claims.ID),
+			RespondentID: claims.RespondentID,
+			Name:         claims.Name,
+			Email:        claims.Email,
+			Role:         claims.Role,
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: claims.ExpiresAt,
+			},
 		}
 
 		if err != nil {

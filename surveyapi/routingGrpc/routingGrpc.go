@@ -36,6 +36,9 @@ var (
 	templateUcapanRepo             repository.TemplateUcapanRepo             = repository.NewTemplateUcapanRepo(dbSlave, dbMaster)
 	templateFormulirPertanyaanRepo repository.TemplateFormulirPertanyaanRepo = repository.NewTemplateFormulirPertanyaanRepo(dbSlave, dbMaster)
 	manajemenAlurRepo              repository.ManajemenAlurRepo              = repository.NewManajemenAlurRepo(dbSlave, dbMaster)
+	surveyRepo                     repository.SurveyRepo                     = repository.NewSurveyRepo(dbSlave, dbMaster)
+	wilayahRepo                    repository.WilayahRepo                    = repository.NewWilayahRepo(dbSlave, dbMaster)
+	userRepo                       repository.UserRepo                       = repository.NewUserRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -48,6 +51,15 @@ var (
 	manajemenAlurService service.ManajemenAlurService = service.NewManajemenAlurService(
 		manajemenAlurRepo,
 		templateFormulirPertanyaanRepo,
+		templateUcapanRepo,
+	)
+	surveyService service.SurveyService = service.NewSurveyService(
+		manajemenAlurRepo,
+		templateFormulirPertanyaanRepo,
+		templateUcapanRepo,
+		surveyRepo,
+		wilayahRepo,
+		userRepo,
 	)
 )
 
@@ -60,6 +72,10 @@ var (
 	)
 	manajemenAlurHandler handlers.ManajemenAlurHandler = handlers.NewManajemenAlurHandler(
 		manajemenAlurService,
+	)
+	surveyHandler handlers.SurveyHandler = handlers.NewSurveyHandler(
+		manajemenAlurService,
+		surveyService,
 	)
 )
 
@@ -88,12 +104,17 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/template/formulir-pertanyaan/detail-pertanyaan/:id":                        {"GET": templateFormulirPertanyaanHandler.DetailPertanyaan},
 	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id":       {"GET": templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId},
 
-	"/manajemen-alur/create":              {"POST": manajemenAlurHandler.CreateManajemenAlur},
-	"/manajemen-alur/detail/:code":        {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
-	"/manajemen-alur/update/:code":        {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
-	"/manajemen-alur/delete/:code":        {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
-	"/manajemen-alur/list":                {"GET": manajemenAlurHandler.GetListManajemenAlur},
-	"/manajemen-alur/preview-index/:code": {"GET": manajemenAlurHandler.FlowPreviewIndex},
+	"/manajemen-alur/create":                                {"POST": manajemenAlurHandler.CreateManajemenAlur},
+	"/manajemen-alur/detail/:code":                          {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
+	"/manajemen-alur/update/:code":                          {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
+	"/manajemen-alur/delete/:code":                          {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
+	"/manajemen-alur/list":                                  {"GET": manajemenAlurHandler.GetListManajemenAlur},
+	"/manajemen-alur/preview-index/:code":                   {"GET": manajemenAlurHandler.FlowPreviewIndex},
+	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": manajemenAlurHandler.PreviewAlurSurvey},
+
+	"/survey/create":          {"POST": surveyHandler.CreateSurvey},
+	"/survey/periode-options": {"GET": surveyHandler.OptionsPeriodeSurvey},
+	"/survey/list":            {"GET": surveyHandler.GetListSurvey},
 }
 
 // Metode untuk menangani permintaan yang masuk
@@ -130,15 +151,15 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
-	if req.GetIsSecure() {
-		normalizedPath := NormalizePath(path)
-		allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
-		if !allowed {
-			message := "Anda tidak memiliki hak akses"
-			utils.LogErrors(message)
-			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
-		}
-	}
+	// if req.GetIsSecure() {
+	// 	normalizedPath := NormalizePath(path)
+	// 	allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
+	// 	if !allowed {
+	// 		message := "Anda tidak memiliki hak akses"
+	// 		utils.LogErrors(message)
+	// 		return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+	// 	}
+	// }
 
 	// Parsing request body
 	var reqs map[string]interface{}
@@ -235,10 +256,11 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 		}
 
 		userData = models.JwtCustomClaims{
-			ID:    int64(claims.ID),
-			Name:  claims.Name,
-			Email: claims.Email,
-			Role:  claims.Role,
+			ID:           int64(claims.ID),
+			RespondentID: claims.RespondentID,
+			Name:         claims.Name,
+			Email:        claims.Email,
+			Role:         claims.Role,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: claims.ExpiresAt,
 			},
@@ -274,10 +296,11 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 	}
 
 	claims := models.JwtCustomClaims{
-		ID:    int64(user.ID),
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
+		RespondentID: user.RespondentID,
+		ID:           int64(user.ID),
+		Name:         user.Name,
+		Email:        user.Email,
+		Role:         user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiredAt,
 		},

@@ -81,10 +81,11 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 	}
 
 	claims := &models.JwtCustomClaims{
-		ID:    int64(storedUser.ID),
-		Name:  respondent.Name,
-		Email: requestEmail,
-		Role:  respondent.RoleID,
+		ID:           int64(storedUser.ID),
+		RespondentID: int64(respondent.ID),
+		Name:         respondent.Name,
+		Email:        requestEmail,
+		Role:         respondent.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 		},

@@ -561,7 +561,6 @@ func (s *templateFormulirPertanyaanService) GetQuestionTypeOptions(usr models.Jw
 		limit = 1000
 	}
 
-	// 1. Definisikan sumber data dari Enum
 	allOptions := []response.EnumOption{
 		{ID: string(enums.LONG_ANSWER), Name: "Teks"},
 		{ID: string(enums.NUMBER), Name: "Angka"},
@@ -570,7 +569,6 @@ func (s *templateFormulirPertanyaanService) GetQuestionTypeOptions(usr models.Jw
 		{ID: string(enums.MAPS), Name: "Lokasi"},
 	}
 
-	// 2. Filter berdasarkan ID (jika ada input dari param id/id[])
 	var rawIDs []string
 	if len(param["id[]"]) > 0 {
 		rawIDs = param["id[]"]
@@ -593,13 +591,11 @@ func (s *templateFormulirPertanyaanService) GetQuestionTypeOptions(usr models.Jw
 		filteredOptions = allOptions
 	}
 
-	// 3. Filter berdasarkan pencarian kata kunci (q)
 	q := strings.ToLower(param.Get("q"))
 	fmt.Println(q)
 	var searchedOptions []response.EnumOption
 	if q != "" {
 		for _, opt := range filteredOptions {
-			// Mencari kecocokan pada Nama atau ID
 			if strings.Contains(strings.ToLower(opt.Name), q) || strings.Contains(strings.ToLower(opt.ID), q) {
 				searchedOptions = append(searchedOptions, opt)
 			}
@@ -608,7 +604,6 @@ func (s *templateFormulirPertanyaanService) GetQuestionTypeOptions(usr models.Jw
 		searchedOptions = filteredOptions
 	}
 
-	// 4. Pagination (In-Memory)
 	totalData := int64(len(searchedOptions))
 	startIndex := (page - 1) * limit
 	endIndex := startIndex + limit
@@ -623,7 +618,6 @@ func (s *templateFormulirPertanyaanService) GetQuestionTypeOptions(usr models.Jw
 		paginatedOptions = []response.EnumOption{}
 	}
 
-	// 6. Hitung status hasMore dan bentuk Response
 	currentTotalLoaded := startIndex + len(paginatedOptions)
 	hasMore := int64(currentTotalLoaded) < totalData
 
