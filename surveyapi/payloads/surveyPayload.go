@@ -16,3 +16,12 @@ type SurveyRequest struct {
 	RW                       int64                   `json:"rw_id"`
 	Surveyor                 []int64                 `json:"surveyor_ids"`
 }
+
+type SurveyDatatablePayload struct {
+	Search        string `json:"search"`
+	Page          int    `json:"page"`
+	Limit         int    `json:"limit"`
+	OrderBy       string `json:"order_by"`
+	OrderDir      string `json:"order_dir"`
+	SurveyDiikuti bool   `json:"survey_diikuti"`
+}

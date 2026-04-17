@@ -38,5 +38,5 @@ func (handler *surveyHandler) OptionsPeriodeSurvey(ctx context.Context, req map[
 }
 
 func (handler *surveyHandler) GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.surveyService.GetListSurvey(usr, req, slug)
+	return handler.surveyService.GetListSurvey(ctx, usr, req, slug)
 }

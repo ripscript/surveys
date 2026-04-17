@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
@@ -26,7 +27,7 @@ import (
 type SurveyService interface {
 	OptionsPeriodeSurvey(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	CreateSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListSurvey(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -355,10 +356,10 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 	return utils.SendData(nil, "Survey berhasil dibuat!")
 }
 
-func (service *surveyService) GetListSurvey(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *surveyService) GetListSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
+	var payload payloads.SurveyDatatablePayload
 	err := utils.DynamicBind(req, &payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusBadRequest)
@@ -371,7 +372,13 @@ func (service *surveyService) GetListSurvey(usr models.JwtCustomClaims, req map[
 		payload.Limit = 25
 	}
 
-	data, totalData, err := service.surveyRepo.GetListSurvey(payload)
+	spew.Dump(usr.RespondentID)
+	userLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.surveyRepo.GetListSurvey(userLogin, payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}

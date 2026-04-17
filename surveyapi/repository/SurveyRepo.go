@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
 	"backend/surveyapi/utils"
+	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
@@ -15,7 +17,7 @@ type SurveyRepo interface {
 	CreateSurvey(survey models.Survey) (*models.Survey, error)
 	AssignSurveyorToSurvey(surveyorId int64, surveyId int64) (*models.SurveySurveyor, error)
 	AssignWilayahToSurvey(surveyWilayah models.SurveyWilayah) (*models.SurveyWilayah, error)
-	GetListSurvey(req payloads.DatatablePayload) ([]models.SurveyDatatableResponse, int64, error)
+	GetListSurvey(userLogin *models.Respondent, req payloads.SurveyDatatablePayload) ([]models.SurveyDatatableResponse, int64, error)
 }
 
 type surveyRepo struct {
@@ -97,28 +99,34 @@ func (repository *surveyRepo) IsSurveyExistsByNameLower(name string) (bool, erro
 	return count > 0, nil
 }
 
-func (repository *surveyRepo) GetListSurvey(req payloads.DatatablePayload) ([]models.SurveyDatatableResponse, int64, error) {
+func (repository *surveyRepo) GetListSurvey(userLogin *models.Respondent, req payloads.SurveyDatatablePayload) ([]models.SurveyDatatableResponse, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.SurveyDatatableResponse
 	var totalData int64
 
 	db := repository.dbSlave.Table("surveys").
-		Select(`
-			surveys.id,
-			surveys.name AS survey_name,
-			surveys.start_date,
-			surveys.end_date,
-			flow_details.name AS flow_name,
-			surveys.created_at,
-			surveys.updated_at,
-			surveys.created_by,
-			users.first_name AS created_by_name,
-			(SELECT COUNT(*) FROM survey_respondents WHERE survey_respondents.survey_id = surveys.id) AS total_responden,
-			surveys.status,
-			surveys.approval_survey
-		`).
 		Joins("LEFT JOIN users ON users.id = surveys.created_by").
 		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id")
+
+	if req.SurveyDiikuti {
+		if userLogin.RoleId != nil {
+			if *userLogin.RoleId != int64(enums.ROLE_ADMIN) {
+				if *userLogin.RoleId == int64(enums.ROLE_KECAMATAN) {
+					tingkatWilayahStr := fmt.Sprintf("%d", enums.KECAMATAN)
+					db = db.Where(`EXISTS (
+						SELECT 1 FROM survey_wilayahs 
+						WHERE survey_wilayahs.survey_id = surveys.id 
+						AND survey_wilayahs.tingkat_wilayah = ? 
+						AND survey_wilayahs.kecamatan_id = ?
+					)`, tingkatWilayahStr, userLogin.KecamatanId)
+				} else {
+					db = db.Where("1 = 0")
+				}
+			}
+		}
+	} else {
+		db = db.Where("surveys.created_by = ?", userLogin.ID)
+	}
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -147,7 +155,7 @@ func (repository *surveyRepo) GetListSurvey(req payloads.DatatablePayload) ([]mo
 			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr, searchStr, searchStr)
 		} else {
 			db = db.Where(`
-			surveys.name ILIKE ? OR
+				surveys.name ILIKE ? OR
 				flow_details.name ILIKE ? OR
 				users.first_name ILIKE ?
 			`, searchTerm, searchTerm, searchTerm)
@@ -158,6 +166,21 @@ func (repository *surveyRepo) GetListSurvey(req payloads.DatatablePayload) ([]mo
 	if err != nil {
 		return nil, 0, err
 	}
+
+	db = db.Select(`
+		surveys.id,
+		surveys.name AS survey_name,
+		surveys.start_date,
+		surveys.end_date,
+		flow_details.name AS flow_name,
+		surveys.created_at,
+		surveys.updated_at,
+		surveys.created_by,
+		users.first_name AS created_by_name,
+		(SELECT COUNT(id) FROM survey_respondents WHERE survey_respondents.survey_id = surveys.id) AS total_responden,
+		surveys.status,
+		surveys.approval_survey
+	`)
 
 	if req.OrderBy != "" {
 		finalOrderBy := "surveys.created_at"
@@ -177,7 +200,7 @@ func (repository *surveyRepo) GetListSurvey(req payloads.DatatablePayload) ([]mo
 			"approval_survey": "surveys.approval_survey",
 		}
 
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
 			finalOrderBy = mappedCol
 		}
 
@@ -190,7 +213,6 @@ func (repository *surveyRepo) GetListSurvey(req payloads.DatatablePayload) ([]mo
 		db = db.Order("surveys.created_at desc")
 	}
 
-	// Fitur Pagination
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
