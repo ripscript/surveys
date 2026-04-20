@@ -403,6 +403,9 @@ func PermissionSeed(db *gorm.DB) error {
 	CategoryID := menuIDs.Kategori
 	ListSurveyID := menuIDs.ListSurvey
 	HasilSurvey := menuIDs.Hasil
+	ManajemenAlur := menuIDs.ManajemenAlur
+	FormulirPertanyaan := menuIDs.FormulirPertanyaan
+	Ucapan := menuIDs.Ucapan
 
 	// Mapping Role Id By Name
 	RolePublicId := roleIDs.Public
@@ -416,6 +419,225 @@ func PermissionSeed(db *gorm.DB) error {
 	RoleWalikotaId := roleIDs.Walikota
 
 	MenuPermission := []models.MenuPermission{
+		// Manajemen Ucapan
+		{
+			MenuID:       Ucapan,
+			RoleID:       RolePublicId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleRtId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleRwId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleLurahId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleCamatId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RolePemkotId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleAdminId,
+			ViewAction:   true,
+			CreateAction: true,
+			UpdateAction: true,
+			DeleteAction: true,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleSurveyorId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       Ucapan,
+			RoleID:       RoleWalikotaId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		// Manajemen Formulir Pertanyaan
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RolePublicId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleRtId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleRwId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleLurahId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleCamatId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RolePemkotId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleAdminId,
+			ViewAction:   true,
+			CreateAction: true,
+			UpdateAction: true,
+			DeleteAction: true,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleSurveyorId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       FormulirPertanyaan,
+			RoleID:       RoleWalikotaId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		// Manajemen Alur
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RolePublicId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleRtId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleRwId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleLurahId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleCamatId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RolePemkotId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleAdminId,
+			ViewAction:   true,
+			CreateAction: true,
+			UpdateAction: true,
+			DeleteAction: true,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleSurveyorId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenAlur,
+			RoleID:       RoleWalikotaId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
 		// Manajemen Hasil Survey
 		{
 			MenuID:       HasilSurvey,
@@ -493,7 +715,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RolePublicId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
@@ -501,7 +723,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RoleRtId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
@@ -509,7 +731,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RoleRwId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
@@ -533,7 +755,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RolePemkotId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
@@ -549,7 +771,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
@@ -557,7 +779,7 @@ func PermissionSeed(db *gorm.DB) error {
 		{
 			MenuID:       ListSurveyID,
 			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
+			ViewAction:   true,
 			CreateAction: false,
 			UpdateAction: false,
 			DeleteAction: false,
