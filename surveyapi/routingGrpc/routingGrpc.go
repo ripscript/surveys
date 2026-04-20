@@ -79,47 +79,176 @@ var (
 	)
 )
 
+// && Key Menu && \\
+// template
+// manajemen-alur
+// survey
+// dashboard
+// pengaturan
+// laporan
+// monitoring
+// admin
+// formulir-pertanyaan
+// ucapan
+// list-survey
+// hasil
+// manajemen-pengguna
+// manajemen-wilayah
+// manajemen-cms
+// manajemen-artikel
+// rating
+// statistik
+// aktifitas-survey
+// profil-saya
+// keluar
+// manajemen-responden
+// manajemen-user
+// manajemen-blokir
+// manajemen-wilayah-child
+// manajemen-pejabat
+// artikel
+// promote
+// kategori
+
 // ROUTING GRPC
-// Definisikan pemetaan fungsi handler dengan path dan metode HTTP
-var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error){
-	"/surveyapi/healthy": {"GET": handlers.Healthy},
-
-	"/template/ucapan/detail/:template_ucapan_id": {"GET": templateUcapanHandler.GetTemplateUcapanDetail},
-	"/template/ucapan/variable-options":           {"GET": templateUcapanHandler.OptionsVariableTemplateUcapan},
-	"/template/ucapan/create":                     {"POST": templateUcapanHandler.CreateTemplateUcapan},
-	"/template/ucapan/update/:template_ucapan_id": {"PUT": templateUcapanHandler.UpdateTemplateUcapan},
-	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": templateUcapanHandler.DeleteTemplateUcapan},
-	"/template/ucapan/list":                       {"GET": templateUcapanHandler.GetListTemplateUcapan},
-	"/template/ucapan/options":                    {"GET": templateUcapanHandler.GetUcapanOptions},
-
-	"/template/formulir-pertanyaan/create":                                       {"POST": templateFormulirPertanyaanHandler.CreateTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/detail/:template_formulir_pertanyaan_code":    {"GET": templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code":    {"PUT": templateFormulirPertanyaanHandler.UpdateTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/duplicate/:template_formulir_pertanyaan_code": {"POST": templateFormulirPertanyaanHandler.DuplicateTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code":    {"DELETE": templateFormulirPertanyaanHandler.DeleteTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/list":                                         {"GET": templateFormulirPertanyaanHandler.GetListTemplateFormulirPertanyaan},
-	"/template/formulir-pertanyaan/question-type-options":                        {"GET": templateFormulirPertanyaanHandler.GetQuestionTypeOptions},
-	"/template/formulir-pertanyaan/options":                                      {"GET": templateFormulirPertanyaanHandler.GetFormulirPertanyaanOptions},
-	"/template/formulir-pertanyaan/pertanyaan-options/:form_code":                {"GET": templateFormulirPertanyaanHandler.GetPertanyaanOptions},
-	"/template/formulir-pertanyaan/detail-pertanyaan/:id":                        {"GET": templateFormulirPertanyaanHandler.DetailPertanyaan},
-	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id":       {"GET": templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId},
-
-	"/manajemen-alur/create":                                {"POST": manajemenAlurHandler.CreateManajemenAlur},
-	"/manajemen-alur/detail/:code":                          {"GET": manajemenAlurHandler.GetDetailManajemenAlur},
-	"/manajemen-alur/update/:code":                          {"PUT": manajemenAlurHandler.UpdateManajemenAlur},
-	"/manajemen-alur/delete/:code":                          {"DELETE": manajemenAlurHandler.DeleteManajemenAlur},
-	"/manajemen-alur/list":                                  {"GET": manajemenAlurHandler.GetListManajemenAlur},
-	"/manajemen-alur/preview-index/:code":                   {"GET": manajemenAlurHandler.FlowPreviewIndex},
-	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": manajemenAlurHandler.PreviewAlurSurvey},
-
-	"/survey/create":          {"POST": surveyHandler.CreateSurvey},
-	"/survey/periode-options": {"GET": surveyHandler.OptionsPeriodeSurvey},
-	"/survey/list":            {"GET": surveyHandler.GetListSurvey},
-	"/survey/approval/:code":  {"POST": surveyHandler.ApprovalSurvey},
-	"/survey-wilayah/list":    {"GET": surveyHandler.AvailableSurveyWilayah},
+type RouteConfig struct {
+	Handler func(context.Context, map[string]interface{}, models.JwtCustomClaims, url.Values, map[string]interface{}) (*pb.ProxyResponse, error)
+	MenuKey string
 }
 
-// Metode untuk menangani permintaan yang masuk
+// Definisikan pemetaan fungsi handler dengan path dan metode HTTP
+var grpcMap = map[string]map[string]RouteConfig{
+	"/surveyapi/healthy": {"GET": {
+		Handler: handlers.Healthy,
+		MenuKey: "",
+	}},
+
+	"/template/ucapan/detail/:template_ucapan_id": {"GET": {
+		Handler: templateUcapanHandler.GetTemplateUcapanDetail,
+		MenuKey: "ucapan",
+	}},
+
+	"/template/ucapan/variable-options": {"GET": {
+		Handler: templateUcapanHandler.OptionsVariableTemplateUcapan,
+		MenuKey: "ucapan",
+	}},
+	"/template/ucapan/create": {"POST": {
+		Handler: templateUcapanHandler.CreateTemplateUcapan,
+		MenuKey: "ucapan",
+	}},
+	"/template/ucapan/update/:template_ucapan_id": {"PUT": {
+		Handler: templateUcapanHandler.UpdateTemplateUcapan,
+		MenuKey: "ucapan",
+	}},
+	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": {
+		Handler: templateUcapanHandler.DeleteTemplateUcapan,
+		MenuKey: "ucapan",
+	}},
+	"/template/ucapan/list": {"GET": {
+		Handler: templateUcapanHandler.GetListTemplateUcapan,
+		MenuKey: "ucapan",
+	}},
+	"/template/ucapan/options": {"GET": {
+		Handler: templateUcapanHandler.GetUcapanOptions,
+		MenuKey: "ucapan",
+	}},
+
+	"/template/formulir-pertanyaan/create": {"POST": {
+		Handler: templateFormulirPertanyaanHandler.CreateTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/detail/:template_formulir_pertanyaan_code": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code": {"PUT": {
+		Handler: templateFormulirPertanyaanHandler.UpdateTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/duplicate/:template_formulir_pertanyaan_code": {"POST": {
+		Handler: templateFormulirPertanyaanHandler.DuplicateTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code": {"DELETE": {
+		Handler: templateFormulirPertanyaanHandler.DeleteTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/list": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetListTemplateFormulirPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/question-type-options": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetQuestionTypeOptions,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/options": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetFormulirPertanyaanOptions,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/pertanyaan-options/:form_code": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetPertanyaanOptions,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/detail-pertanyaan/:id": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.DetailPertanyaan,
+		MenuKey: "formulir-pertanyaan",
+	}},
+	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id": {"GET": {
+		Handler: templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId,
+		MenuKey: "formulir-pertanyaan",
+	}},
+
+	"/manajemen-alur/create": {"POST": {
+		Handler: manajemenAlurHandler.CreateManajemenAlur,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/detail/:code": {"GET": {
+		Handler: manajemenAlurHandler.GetDetailManajemenAlur,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/update/:code": {"PUT": {
+		Handler: manajemenAlurHandler.UpdateManajemenAlur,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/delete/:code": {"DELETE": {
+		Handler: manajemenAlurHandler.DeleteManajemenAlur,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/list": {"GET": {
+		Handler: manajemenAlurHandler.GetListManajemenAlur,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/preview-index/:code": {"GET": {
+		Handler: manajemenAlurHandler.FlowPreviewIndex,
+		MenuKey: "manajemen-alur",
+	}},
+	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": {
+		Handler: manajemenAlurHandler.PreviewAlurSurvey,
+		MenuKey: "manajemen-alur",
+	}},
+
+	"/survey/create": {"POST": {
+		Handler: surveyHandler.CreateSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/periode-options": {"GET": {
+		Handler: surveyHandler.OptionsPeriodeSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/list": {"GET": {
+		Handler: surveyHandler.GetListSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/approval/:code": {"POST": {
+		Handler: surveyHandler.ApprovalSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey-wilayah/list": {"GET": {
+		Handler: surveyHandler.AvailableSurveyWilayah,
+		MenuKey: "list-survey",
+	}},
+}
+
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -131,72 +260,60 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	path := req.GetPath()
 	method := req.GetMethod()
 
-	// Validasi token
 	success, mess, code, userLogin, newToken := ValidasiToken(ctx, req)
 	if !success {
 		utils.LogErrors(mess)
 		return utils.SetResponseData([]byte{}, success, mess, code, nil, ""), nil
 	}
 
-	// Cek path tersedia
 	methodMap, ok := grpcMap[path]
 	if !ok {
 		message := "Path grpc tidak ditemukan"
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusNotFound, nil, ""), nil
 	}
 
-	// Cek method tersedia
-	handler, ok := methodMap[method]
+	routeConfig, ok := methodMap[method]
 	if !ok {
 		message := "Method grpc tidak ditemukan"
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusMethodNotAllowed, nil, ""), nil
 	}
-	// if req.GetIsSecure() {
-	// 	normalizedPath := NormalizePath(path)
-	// 	allowed := CheckPermission(int(userLogin.Role), normalizedPath, method)
-	// 	if !allowed {
-	// 		message := "Anda tidak memiliki hak akses"
-	// 		utils.LogErrors(message)
-	// 		return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
-	// 	}
-	// }
 
-	// Parsing request body
+	handler := routeConfig.Handler
+	menuKey := routeConfig.MenuKey
+
+	if req.GetIsSecure() {
+		allowed := CheckPermission(int(userLogin.Role), menuKey, method)
+		if !allowed {
+			message := "Anda tidak memiliki hak akses"
+			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
+		}
+	}
+
 	var reqs map[string]interface{}
 	if len(req.Data) > 0 {
 		if err := json.Unmarshal(req.Data, &reqs); err != nil {
 			message := "Terjadi kesalahan saat unmarshal request data : " + err.Error()
-			utils.LogErrors(message)
 			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 		}
 	}
-
-	// Parsing slug
 	var slug map[string]interface{}
 	if len(req.Slug) > 0 {
 		if err := json.Unmarshal(req.Slug, &slug); err != nil {
 			message := "Terjadi kesalahan saat unmarshal slug : " + err.Error()
-			utils.LogErrors(message)
 			return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 		}
 	}
 
-	// Parsing query param
 	paramString := string(req.Param)
 	queryValues, err := url.ParseQuery(paramString)
 	if err != nil {
 		message := "Terjadi kesalahan saat parsing query param : " + err.Error()
-		utils.LogErrors(message)
 		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 	}
-
 	response, err := handler(ctx, reqs, userLogin, queryValues, slug)
 	if err != nil {
 		return nil, err
 	}
-
 	if response != nil && newToken != "" {
 		response.Token = newToken
 	}
@@ -322,15 +439,49 @@ func NormalizePath(path string) string {
 	return re.ReplaceAllString(path, "/:id")
 }
 
-func CheckPermission(roleID int, path string, method string) bool {
+func methodToAction(method string) string {
+	switch method {
+	case "GET":
+		return "view"
+	case "POST":
+		return "create"
+	case "PUT", "PATCH":
+		return "update"
+	case "DELETE":
+		return "delete"
+	default:
+		return ""
+	}
+}
+func CheckPermission(roleID int, menuKey string, method string) bool {
+	if menuKey == "" {
+		return true
+	}
+
+	action := methodToAction(method)
+	if action == "" {
+		return false
+	}
+
 	var count int64
 
-	dbSlave.Table("menu_permissions mp").
+	query := dbSlave.Table("menu_permissions mp").
 		Joins("JOIN menus m ON m.id = mp.menu_id").
 		Where("mp.role_id = ?", roleID).
-		Where("m.endpoint = ?", path).
-		Where("m.method = ?", method).
-		Count(&count)
+		Where("m.key = ?", menuKey)
+
+	switch action {
+	case "view":
+		query = query.Where("mp.view_action = ?", true)
+	case "create":
+		query = query.Where("mp.create_action = ?", true)
+	case "update":
+		query = query.Where("mp.update_action = ?", true)
+	case "delete":
+		query = query.Where("mp.delete_action = ?", true)
+	}
+
+	query.Count(&count)
 
 	return count > 0
 }

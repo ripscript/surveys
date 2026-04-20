@@ -6,10 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +37,7 @@ func (repository *userRepo) GetRespondentById(ctx context.Context, id int64) (*m
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/respondent/raw/:id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
+		fmt.Println(err.Error())
 		return nil, errors.New("Gagal mendapatkan data surveyor dari UserAPI")
 	}
 
