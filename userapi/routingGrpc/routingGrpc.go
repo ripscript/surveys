@@ -126,10 +126,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/rw/options":        {"GET": {Handler: regionHandler.RwOptions, MenuKey: ""}},
 	"/rt/options":        {"GET": {Handler: regionHandler.RtOptions, MenuKey: ""}},
 	// Respondent
-	"/respondent":         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "respondent"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "respondent"}},
-	"/respondent/import":  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "respondent"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "respondent"}},
-	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "respondent"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "respondent"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "respondent"}},
-	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "respondent"}},
+	"/respondent":         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "manajemen-responden"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "manajemen-responden"}},
+	"/respondent/import":  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "manajemen-responden"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "manajemen-responden"}},
+	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "manajemen-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "manajemen-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "respondent"}},
+	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "manajemen-responden"}},
 	// Users
 	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "manajemen-user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "manajemen-user"}},
 	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "manajemen-user"}},

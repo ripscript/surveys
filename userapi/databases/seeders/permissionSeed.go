@@ -406,6 +406,7 @@ func PermissionSeed(db *gorm.DB) error {
 	ManajemenAlur := menuIDs.ManajemenAlur
 	FormulirPertanyaan := menuIDs.FormulirPertanyaan
 	Ucapan := menuIDs.Ucapan
+	ManajemenRespondent := menuIDs.ManajemenResponden
 
 	// Mapping Role Id By Name
 	RolePublicId := roleIDs.Public
@@ -419,6 +420,79 @@ func PermissionSeed(db *gorm.DB) error {
 	RoleWalikotaId := roleIDs.Walikota
 
 	MenuPermission := []models.MenuPermission{
+		// Manajemen Responden
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RolePublicId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleRtId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleRwId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleLurahId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleCamatId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RolePemkotId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleAdminId,
+			ViewAction:   true,
+			CreateAction: true,
+			UpdateAction: true,
+			DeleteAction: true,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleSurveyorId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
+		{
+			MenuID:       ManajemenRespondent,
+			RoleID:       RoleWalikotaId,
+			ViewAction:   false,
+			CreateAction: false,
+			UpdateAction: false,
+			DeleteAction: false,
+		},
 		// Manajemen Ucapan
 		{
 			MenuID:       Ucapan,
