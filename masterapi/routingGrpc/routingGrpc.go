@@ -111,9 +111,6 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/manajemen-pejabat/delete/:id": {"DELETE": manajemenPejabatHandler.DeletePejabat},
 	"/manajemen-pejabat/list":       {"GET": manajemenPejabatHandler.GetListPejabat},
 
-	"/manajemen-pengguna/role/options":     {"GET": manajemenPenggunaHandler.OptionsRole},
-	"/manajemen-pengguna/responden/create": {"POST": manajemenPenggunaHandler.CreateResponden},
-
 	"/manajemen-artikel/kategori/create":     {"POST": manajemenArtikelHandler.CreateKategoriArtikel},
 	"/manajemen-artikel/kategori/update/:id": {"PUT": manajemenArtikelHandler.UpdateKategoriArtikel},
 	"/manajemen-artikel/kategori/delete/:id": {"DELETE": manajemenArtikelHandler.DeleteKategoriArtikel},

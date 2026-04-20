@@ -68,25 +68,25 @@ type KecamatanOptionsPayload struct {
 }
 
 type KelurahanOptionsPayload struct {
-	Q           string  `form:"q" query:"q"`                       // Kata kunci pencarian
-	Page        int     `form:"page" query:"page"`                 // Halaman saat ini (untuk lazy load)
-	Limit       int     `form:"limit" query:"limit"`               // Jumlah data per halaman
-	IDs         []int64 `form:"id[]" query:"id[]"`                 // Bypass untuk mengambil ID spesifik (misal saat edit data)
-	KecamatanId int     `form:"kecamatan_id" query:"kecamatan_id"` // Filter berdasarkan kecamatan
+	Q            string  `form:"q" query:"q"`                           // Kata kunci pencarian
+	Page         int     `form:"page" query:"page"`                     // Halaman saat ini (untuk lazy load)
+	Limit        int     `form:"limit" query:"limit"`                   // Jumlah data per halaman
+	IDs          []int64 `form:"id[]" query:"id[]"`                     // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	KecamatanIds []int64 `form:"kecamatan_id[]" query:"kecamatan_id[]"` // Filter berdasarkan kecamatan
 }
 
 type RwOptionsPayload struct {
-	Q           string  `form:"q" query:"q"`                       // Kata kunci pencarian
-	Page        int     `form:"page" query:"page"`                 // Halaman saat ini (untuk lazy load)
-	Limit       int     `form:"limit" query:"limit"`               // Jumlah data per halaman
-	IDs         []int64 `form:"id[]" query:"id[]"`                 // Bypass untuk mengambil ID spesifik (misal saat edit data)
-	KelurahanId int     `form:"kelurahan_id" query:"kelurahan_id"` // Filter berdasarkan kelurahan
+	Q            string  `form:"q" query:"q"`                           // Kata kunci pencarian
+	Page         int     `form:"page" query:"page"`                     // Halaman saat ini (untuk lazy load)
+	Limit        int     `form:"limit" query:"limit"`                   // Jumlah data per halaman
+	IDs          []int64 `form:"id[]" query:"id[]"`                     // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	KelurahanIds []int64 `form:"kelurahan_id[]" query:"kelurahan_id[]"` // Filter berdasarkan kelurahan
 }
 
 type RtOptionsPayload struct {
-	Q     string  `form:"q" query:"q"`         // Kata kunci pencarian
-	Page  int     `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
-	Limit int     `form:"limit" query:"limit"` // Jumlah data per halaman
-	IDs   []int64 `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
-	RwId  int     `form:"rw_id" query:"rw_id"` // Filter berdasarkan rw
+	Q     string  `form:"q" query:"q"`             // Kata kunci pencarian
+	Page  int     `form:"page" query:"page"`       // Halaman saat ini (untuk lazy load)
+	Limit int     `form:"limit" query:"limit"`     // Jumlah data per halaman
+	IDs   []int64 `form:"id[]" query:"id[]"`       // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	RwIds []int64 `form:"rw_id[]" query:"rw_id[]"` // Filter berdasarkan rw
 }

@@ -25,3 +25,17 @@ type SurveyDatatablePayload struct {
 	OrderDir      string `json:"order_dir"`
 	SurveyDiikuti bool   `json:"survey_diikuti"`
 }
+
+type ApprovalSurveyRequest struct {
+	Notes  *string `json:"notes"`
+	Action string  `json:"action" validate:"required,oneof=approved rejected"`
+}
+
+type SurveyWilayahDatatablePayload struct {
+	Search       string `json:"search"`
+	Page         int    `json:"page"`
+	Limit        int    `json:"limit"`
+	OrderBy      string `json:"order_by"`
+	OrderDir     string `json:"order_dir"`
+	StatusSurvey string `json:"status_survey" validate:"omitempty,oneof=upcoming ongoing finished"`
+}

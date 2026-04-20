@@ -9,7 +9,6 @@ import (
 )
 
 type ManajemenPenggunaHandler interface {
-	OptionsRole(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	CreateResponden(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
@@ -23,10 +22,6 @@ func NewManajemenPenggunaHandler(
 	return &manajemenPenggunaHandler{
 		manajemenPenggunaService,
 	}
-}
-
-func (handler *manajemenPenggunaHandler) OptionsRole(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenPenggunaService.GetRoleOptions(param)
 }
 
 func (handler *manajemenPenggunaHandler) CreateResponden(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
@@ -28,6 +27,9 @@ type SurveyService interface {
 	OptionsPeriodeSurvey(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	CreateSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ApprovalSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	AvailableSurveyWilayah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -279,8 +281,8 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 
 	approvalStatus := "non_approval"
 
-	if usr.Role == 5 {
-		approvalStatus = "waiting"
+	if usr.Role == int(enums.ROLE_KECAMATAN) {
+		approvalStatus = string(enums.STATUS_APPROVAL_SURVEY_WAITING)
 	}
 
 	typeSurvey := strconv.FormatInt(enums.PeriodeSurveyToInt64(payload.TanggalPelaksanaanSurvey), 10)
@@ -372,13 +374,12 @@ func (service *surveyService) GetListSurvey(ctx context.Context, usr models.JwtC
 		payload.Limit = 25
 	}
 
-	spew.Dump(usr.RespondentID)
-	userLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
 	if err != nil {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusInternalServerError)
 	}
 
-	data, totalData, err := service.surveyRepo.GetListSurvey(userLogin, payload)
+	data, totalData, err := service.surveyRepo.GetListSurvey(usr, respondentLogin, payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -402,8 +403,8 @@ func (service *surveyService) GetListSurvey(ctx context.Context, usr models.JwtC
 
 		data[i].SurveyCode = surveyCode
 
-		if data[i].Approval == "waiting" {
-			if usr.Role == 7 {
+		if data[i].Approval == string(enums.STATUS_APPROVAL_SURVEY_WAITING) {
+			if usr.Role == int(enums.ROLE_ADMIN) {
 				data[i].PosibleApproval = true
 			}
 		}
@@ -445,4 +446,143 @@ func (service *surveyService) GetListSurvey(ctx context.Context, usr models.JwtC
 	}
 
 	return utils.SendData(result, "Berhasil mengambil list survey")
+}
+
+func (service *surveyService) ApprovalSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	if usr.Role != int(enums.ROLE_ADMIN) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusForbidden)
+	}
+
+	var payload payloads.ApprovalSurveyRequest
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	if payload.Action == string(enums.STATUS_APPROVAL_SURVEY_REJECTED) {
+		if payload.Notes == nil {
+			return utils.SendError(errors.New("Alasan penolakan harus diisi"), http.StatusBadRequest)
+		}
+
+		if strings.TrimSpace(*payload.Notes) == "" {
+			return utils.SendError(errors.New("Alasan penolakan harus diisi"), http.StatusBadRequest)
+		}
+	}
+
+	codeStr := slug["code"]
+	code, ok := codeStr.(string)
+	if !ok {
+		return utils.SendError(errors.New("Survey tidak valid"), http.StatusBadRequest)
+	}
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	decodedIDs, err := h.DecodeWithError(code)
+	if err != nil || len(decodedIDs) == 0 {
+		return utils.SendError(errors.New("Survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyId := decodedIDs[0]
+
+	surveyData, err := service.surveyRepo.GetSurveyById(int64(surveyId))
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if surveyData.ApprovalSurvey != string(enums.STATUS_APPROVAL_SURVEY_WAITING) {
+		return utils.SendError(errors.New("Survey sudah tidak dalam status menunggu approval"), http.StatusBadRequest)
+	}
+
+	switch payload.Action {
+	case string(enums.STATUS_APPROVAL_SURVEY_APPROVED):
+		surveyData.ApprovalSurvey = string(enums.STATUS_APPROVAL_SURVEY_APPROVED)
+	case string(enums.STATUS_APPROVAL_SURVEY_REJECTED):
+		surveyData.ApprovalSurvey = string(enums.STATUS_APPROVAL_SURVEY_REJECTED)
+		surveyData.AlasanReject = payload.Notes
+	}
+
+	err = service.surveyRepo.UpdateSurvey(surveyData)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mengupdate status approval survey"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Status survey berhasil diubah")
+}
+
+func (service *surveyService) AvailableSurveyWilayah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload payloads.SurveyWilayahDatatablePayload
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	if payload.Page <= 0 {
+		payload.Page = 1
+	}
+	if payload.Limit <= 0 {
+		payload.Limit = 25
+	}
+
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.surveyRepo.GetListSurveyWilayah(usr, respondentLogin, payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	showingFrom := (payload.Page-1)*payload.Limit + 1
+	showingTo := showingFrom + len(data) - 1
+
+	if totalData == 0 {
+		showingFrom = 0
+		showingTo = 0
+	}
+
+	result := map[string]interface{}{
+		"data": data,
+		"meta": map[string]interface{}{
+			"total_entries": totalData,
+			"current_page":  payload.Page,
+			"per_page":      payload.Limit,
+			"showing_from":  showingFrom,
+			"showing_to":    showingTo,
+		},
+	}
+
+	return utils.SendData(result, "Survey wilayah berhasil diambil")
 }

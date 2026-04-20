@@ -18,7 +18,7 @@ type Survey struct {
 	CreatedBy      int64     `gorm:"column:created_by" json:"created_by"`
 	Deskripsi      string    `gorm:"column:deskripsi;type:text" json:"deskripsi"`
 	ApprovalSurvey string    `gorm:"column:approval_survey;type:varchar(255)" json:"approval_survey"`
-	AlasanReject   string    `gorm:"column:alasan_reject;type:text" json:"alasan_reject"`
+	AlasanReject   *string   `gorm:"column:alasan_reject;type:text" json:"alasan_reject"`
 }
 
 func (u *Survey) TableName() string {
@@ -43,4 +43,22 @@ type SurveyDatatableResponse struct {
 	PosibleUpdate   bool      `json:"posible_update" gorm:"column:posible_update"`
 	PosibleDelete   bool      `json:"posible_delete" gorm:"column:posible_delete"`
 	PosibleApproval bool      `json:"posible_approval" gorm:"column:posible_approval"`
+}
+
+type SurveyWilayahDatatableResponse struct {
+	ID             int       `json:"id" gorm:"column:id"`
+	SurveyCode     string    `json:"survey_code" gorm:"column:survey_code"`
+	SurveyName     string    `json:"survey_name" gorm:"column:survey_name"`
+	SurveyDimulai  time.Time `json:"start_date" gorm:"column:start_date"`
+	SurveyBerakhir time.Time `json:"end_date" gorm:"column:end_date"`
+	CreatedAt      time.Time `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"column:updated_at"`
+	CreatedBy      int       `json:"-" gorm:"column:created_by"`
+	CreatedByName  string    `json:"created_by_name" gorm:"column:created_by_name"`
+	IsMyOwn        bool      `json:"is_my_own"`
+	Status         string    `json:"status" gorm:"column:status"`
+	Approval       string    `json:"approval_survey" gorm:"column:approval_survey"`
+	PosibleDetail  bool      `json:"posible_detail"`
+	PosibleProcess bool      `json:"posible_process"`
+	PosibleHistory bool      `json:"posible_history"`
 }

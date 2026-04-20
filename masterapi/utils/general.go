@@ -518,3 +518,7 @@ func StringToSlug(s string, separator string) string {
 	slug = strings.Trim(slug, separator)
 	return slug
 }
+
+func StringToPointer(s string) *string {
+	return &s
+}

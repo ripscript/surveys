@@ -4,20 +4,16 @@ import (
 	"backend/masterapi/models"
 	"backend/masterapi/payloads"
 	"backend/masterapi/repository"
-	"backend/masterapi/response"
 	"backend/masterapi/utils"
 	"backend/siccore/pb"
 	"errors"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
 
 type ManajemenPenggunaService interface {
-	GetRoleOptions(param url.Values) (*pb.ProxyResponse, error)
 	CreateResponden(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
@@ -31,67 +27,6 @@ func NewManajemenPenggunaService(
 	return &manajemenPenggunaService{
 		manajemenPenggunaRepo,
 	}
-}
-
-func (s *manajemenPenggunaService) GetRoleOptions(param url.Values) (*pb.ProxyResponse, error) {
-	defer utils.GeneralRecover()
-
-	page, err := strconv.Atoi(param.Get("page"))
-	if err != nil || page <= 0 {
-		page = 1
-	}
-
-	limit, err := strconv.Atoi(param.Get("limit"))
-	if err != nil || limit <= 0 {
-		limit = 1000
-	}
-
-	var rawIDs []string
-	if len(param["id[]"]) > 0 {
-		rawIDs = param["id[]"]
-	} else if len(param["id"]) > 0 {
-		rawIDs = param["id"]
-	}
-
-	var parsedIDs []int64
-	for _, rawID := range rawIDs {
-		if id, err := strconv.ParseInt(rawID, 10, 64); err == nil {
-			parsedIDs = append(parsedIDs, id)
-		}
-	}
-
-	rwId, err := strconv.Atoi(param.Get("rw_id"))
-	if err != nil || rwId <= 0 {
-		rwId = 0
-	}
-
-	_req := payloads.RtOptionsPayload{
-		Q:     param.Get("q"),
-		Page:  page,
-		Limit: limit,
-		IDs:   parsedIDs,
-		RwId:  rwId,
-	}
-
-	data, totalData, err := s.manajemenPenggunaRepo.GetRoleOptions(_req)
-	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
-	}
-
-	currentTotalLoaded := (page-1)*limit + len(data)
-	hasMore := int64(currentTotalLoaded) < totalData
-
-	responseData := response.OptionsResponse{
-		Options: data,
-		Meta: response.PaginationMeta{
-			CurrentPage: page,
-			PerPage:     limit,
-			Total:       totalData,
-			HasMore:     hasMore,
-		},
-	}
-
-	return utils.SendData(responseData, "Berhasil mengambil opsi role")
 }
 
 func (service *manajemenPenggunaService) CreateResponden(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {

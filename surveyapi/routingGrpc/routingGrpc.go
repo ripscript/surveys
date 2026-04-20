@@ -115,6 +115,8 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/survey/create":          {"POST": surveyHandler.CreateSurvey},
 	"/survey/periode-options": {"GET": surveyHandler.OptionsPeriodeSurvey},
 	"/survey/list":            {"GET": surveyHandler.GetListSurvey},
+	"/survey/approval/:code":  {"POST": surveyHandler.ApprovalSurvey},
+	"/survey-wilayah/list":    {"GET": surveyHandler.AvailableSurveyWilayah},
 }
 
 // Metode untuk menangani permintaan yang masuk

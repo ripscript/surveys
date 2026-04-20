@@ -512,14 +512,12 @@ func (repository *manajemenWilayahRepo) GetKelurahanOptions(req payloads.Kelurah
         `).
 		Where("kelurahans.deleted_at IS NULL")
 
-	if req.KecamatanId != 0 {
-		db = db.Where("kelurahans.sub_district_id = ?", req.KecamatanId)
+	if len(req.KecamatanIds) > 0 {
+		db = db.Where("kelurahans.sub_district_id IN ?", req.KecamatanIds)
 	}
 
 	if len(req.IDs) > 0 {
 		db = db.Where("kelurahans.id IN ?", req.IDs)
-		err := db.Find(&data).Error
-		return data, int64(len(data)), err
 	}
 
 	if req.Q != "" {
@@ -774,27 +772,42 @@ func (repository *manajemenWilayahRepo) GetRwOptions(req payloads.RwOptionsPaylo
 	var data []response.OptionItem
 	var totalData int64
 
+	selectClause := `
+		data__rws.id AS id, 
+		data__rws.nama_rw AS label
+	`
+
+	if len(req.KelurahanIds) > 1 {
+		selectClause = `
+			data__rws.id AS id, 
+			CONCAT(data__rws.nama_rw, ' - ', kelurahans.village_name) AS label
+		`
+	}
+
 	db := repository.dbSlave.Table("data__rws").
-		Select(`
-            data__rws.id AS id, 
-            data__rws.nama_rw AS label
-        `).
+		Select(selectClause).
 		Where("data__rws.deleted_at IS NULL")
 
-	if req.KelurahanId != 0 {
-		db = db.Where("data__rws.kelurahan_id = ?", req.KelurahanId)
+	if len(req.KelurahanIds) > 1 {
+		db = db.Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id AND kelurahans.deleted_at IS NULL")
+	}
+
+	if len(req.KelurahanIds) > 0 {
+		db = db.Where("data__rws.kelurahan_id IN ?", req.KelurahanIds)
 	}
 
 	if len(req.IDs) > 0 {
 		db = db.Where("data__rws.id IN ?", req.IDs)
-		err := db.Find(&data).Error
-		return data, int64(len(data)), err
 	}
 
 	if req.Q != "" {
 		searchTerm := "%" + req.Q + "%"
 
-		db = db.Where("data__rws.nama_rw ILIKE ?", searchTerm)
+		if len(req.KelurahanIds) > 1 {
+			db = db.Where("data__rws.nama_rw ILIKE ? OR kelurahans.village_name ILIKE ?", searchTerm, searchTerm)
+		} else {
+			db = db.Where("data__rws.nama_rw ILIKE ?", searchTerm)
+		}
 	}
 
 	err := db.Count(&totalData).Error
@@ -1069,26 +1082,44 @@ func (repository *manajemenWilayahRepo) GetRtOptions(req payloads.RtOptionsPaylo
 	var data []response.OptionItem
 	var totalData int64
 
-	db := repository.dbSlave.Table("data__rts").
-		Select(`
-            data__rts.id AS id, 
-            data__rts.nama_rt AS label
-        `)
+	selectClause := `
+		data__rts.id AS id, 
+		data__rts.nama_rt AS label
+	`
 
-	if req.RwId != 0 {
-		db = db.Where("data__rts.rw_id = ?", req.RwId)
+	if len(req.RwIds) > 1 {
+		selectClause = `
+			data__rts.id AS id, 
+			CONCAT(data__rts.nama_rt, ' - ', data__rws.nama_rw, ' - ', kelurahans.village_name) AS label
+		`
+	}
+
+	db := repository.dbSlave.Table("data__rts").
+		Select(selectClause).
+		Where("data__rts.deleted_at IS NULL")
+
+	if len(req.RwIds) > 1 {
+		db = db.Joins("LEFT JOIN data__rws ON data__rts.rw_id = data__rws.id AND data__rws.deleted_at IS NULL").
+			Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id AND kelurahans.deleted_at IS NULL")
+	}
+
+	if len(req.RwIds) > 0 {
+		db = db.Where("data__rts.rw_id IN ?", req.RwIds)
 	}
 
 	if len(req.IDs) > 0 {
 		db = db.Where("data__rts.id IN ?", req.IDs)
-		err := db.Find(&data).Error
-		return data, int64(len(data)), err
 	}
 
 	if req.Q != "" {
 		searchTerm := "%" + req.Q + "%"
 
-		db = db.Where("data__rts.nama_rt ILIKE ?", searchTerm)
+		if len(req.RwIds) > 1 {
+			db = db.Where("data__rts.nama_rt ILIKE ? OR data__rws.nama_rw ILIKE ? OR kelurahans.village_name ILIKE ?", searchTerm, searchTerm, searchTerm)
+		} else {
+			db = db.Where("data__rts.nama_rt ILIKE ?", searchTerm)
+		}
+
 	}
 
 	err := db.Count(&totalData).Error

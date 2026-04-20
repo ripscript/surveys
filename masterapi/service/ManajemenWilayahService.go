@@ -546,17 +546,31 @@ func (s *manajemenWilayahService) GetKelurahanOptions(param url.Values) (*pb.Pro
 		}
 	}
 
+	var rawKecamatanIDs []string
+	if len(param["kecamatan_id[]"]) > 0 {
+		rawKecamatanIDs = param["kecamatan_id[]"]
+	} else if len(param["kecamatan_id"]) > 0 {
+		rawKecamatanIDs = param["kecamatan_id"]
+	}
+
+	var parsedKecamatanIDs []int64
+	for _, rawID := range rawKecamatanIDs {
+		if id, err := strconv.ParseInt(rawID, 10, 64); err == nil {
+			parsedKecamatanIDs = append(parsedKecamatanIDs, id)
+		}
+	}
+
 	kecamatanId, err := strconv.Atoi(param.Get("kecamatan_id"))
 	if err != nil || kecamatanId <= 0 {
 		kecamatanId = 0
 	}
 
 	_req := payloads.KelurahanOptionsPayload{
-		Q:           param.Get("q"),
-		Page:        page,
-		Limit:       limit,
-		IDs:         parsedIDs,
-		KecamatanId: kecamatanId,
+		Q:            param.Get("q"),
+		Page:         page,
+		Limit:        limit,
+		IDs:          parsedIDs,
+		KecamatanIds: parsedKecamatanIDs,
 	}
 
 	data, totalData, err := s.manajemenWilayahRepo.GetKelurahanOptions(_req)
@@ -820,17 +834,26 @@ func (s *manajemenWilayahService) GetRwOptions(param url.Values) (*pb.ProxyRespo
 		}
 	}
 
-	kelurahanId, err := strconv.Atoi(param.Get("kelurahan_id"))
-	if err != nil || kelurahanId <= 0 {
-		kelurahanId = 0
+	var rawKelurahanIDs []string
+	if len(param["kelurahan_id[]"]) > 0 {
+		rawKelurahanIDs = param["kelurahan_id[]"]
+	} else if len(param["kelurahan_id"]) > 0 {
+		rawKelurahanIDs = param["kelurahan_id"]
+	}
+
+	var parsedKelurahanIDs []int64
+	for _, rawID := range rawKelurahanIDs {
+		if id, err := strconv.ParseInt(rawID, 10, 64); err == nil {
+			parsedKelurahanIDs = append(parsedKelurahanIDs, id)
+		}
 	}
 
 	_req := payloads.RwOptionsPayload{
-		Q:           param.Get("q"),
-		Page:        page,
-		Limit:       limit,
-		IDs:         parsedIDs,
-		KelurahanId: kelurahanId,
+		Q:            param.Get("q"),
+		Page:         page,
+		Limit:        limit,
+		IDs:          parsedIDs,
+		KelurahanIds: parsedKelurahanIDs,
 	}
 
 	data, totalData, err := s.manajemenWilayahRepo.GetRwOptions(_req)
@@ -1094,9 +1117,18 @@ func (s *manajemenWilayahService) GetRtOptions(param url.Values) (*pb.ProxyRespo
 		}
 	}
 
-	rwId, err := strconv.Atoi(param.Get("rw_id"))
-	if err != nil || rwId <= 0 {
-		rwId = 0
+	var rawRwIDs []string
+	if len(param["rw_id[]"]) > 0 {
+		rawRwIDs = param["rw_id[]"]
+	} else if len(param["rw_id"]) > 0 {
+		rawRwIDs = param["rw_id"]
+	}
+
+	var parsedRwIDs []int64
+	for _, rawID := range rawRwIDs {
+		if id, err := strconv.ParseInt(rawID, 10, 64); err == nil {
+			parsedRwIDs = append(parsedRwIDs, id)
+		}
 	}
 
 	_req := payloads.RtOptionsPayload{
@@ -1104,7 +1136,7 @@ func (s *manajemenWilayahService) GetRtOptions(param url.Values) (*pb.ProxyRespo
 		Page:  page,
 		Limit: limit,
 		IDs:   parsedIDs,
-		RwId:  rwId,
+		RwIds: parsedRwIDs,
 	}
 
 	data, totalData, err := s.manajemenWilayahRepo.GetRtOptions(_req)
