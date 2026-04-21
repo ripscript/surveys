@@ -63,7 +63,6 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			tx.Rollback()
 		}
 	}()
-
 	for _, dataPengguna := range payload.Respondent {
 		dataRespondent := models.CreateRespondents{}
 
@@ -76,6 +75,42 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 		dataRespondent.CreatedAt = utils.TimeNow()
 		dataRespondent.UpdatedAt = utils.TimeNow()
 		dataRespondent.BlkId = 1
+		if dataPengguna.Kecamatan != "" {
+			int64Kecamatan, err := utils.ToInt64(dataPengguna.Kecamatan)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data Kecamatan"), http.StatusInternalServerError)
+			}
+			intKecamatan := int(int64Kecamatan)
+			dataRespondent.Kecamatan = &intKecamatan
+		}
+		if dataPengguna.Kelurahan != "" {
+			int64Kelurahan, err := utils.ToInt64(dataPengguna.Kelurahan)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data Kelurahan"), http.StatusInternalServerError)
+			}
+			intKelurahan := int(int64Kelurahan)
+			dataRespondent.Kelurahan = &intKelurahan
+		}
+		if dataPengguna.RW != "" {
+			int64RW, err := utils.ToInt64(dataPengguna.RW)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data RW"), http.StatusInternalServerError)
+			}
+			intRW := int(int64RW)
+			dataRespondent.RW = &intRW
+		}
+		if dataPengguna.RT != "" {
+			int64RT, err := utils.ToInt64(dataPengguna.RT)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data RT"), http.StatusInternalServerError)
+			}
+			intRT := int(int64RT)
+			dataRespondent.RT = &intRT
+		}
 
 		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(dataRespondent.Email)
 		if err != nil {
@@ -109,7 +144,6 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			tx.Rollback()
 			return utils.SendError(fmt.Errorf("nomor telepon %s sudah digunakan", dataRespondent.PhoneNumber), http.StatusBadRequest)
 		}
-
 		err = service.respondentRepo.StoreUsers(tx, dataRespondent)
 		if err != nil {
 			tx.Rollback()
