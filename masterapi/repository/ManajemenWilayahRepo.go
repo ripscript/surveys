@@ -5,6 +5,7 @@ import (
 	"backend/masterapi/payloads"
 	"backend/masterapi/response"
 	"backend/masterapi/utils"
+	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
@@ -284,6 +285,7 @@ func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) 
 	}
 
 	if surveyWilayahCount > 0 {
+		fmt.Println("Data digunakan Survey Wilayah")
 		return true, nil
 	}
 
@@ -294,6 +296,7 @@ func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) 
 	}
 
 	if pejabatWilayahCount > 0 {
+		fmt.Println("Data digunakan Pejabat Wilayah")
 		return true, nil
 	}
 
@@ -304,6 +307,7 @@ func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) 
 	}
 
 	if respCount > 0 {
+		fmt.Println("Data digunakan Respondent")
 		return true, nil
 	}
 
@@ -314,6 +318,7 @@ func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) 
 	}
 
 	if countKelurahan > 0 {
+		fmt.Println("Data digunakan kelurahan")
 		return true, nil
 	}
 
