@@ -41,10 +41,10 @@ type UpdateRespondents struct {
 	PhoneNumber  string    `json:"phone_number"`
 	Email        string    `json:"email"`
 	RoleID       int       `json:"role"`
-	Kecamatan    string    `json:"kecamatan"`
-	Kelurahan    string    `json:"kelurahan"`
-	RW           string    `json:"rw"`
-	RT           string    `json:"rt"`
+	Kecamatan    string    `json:"kecamatan" gorm:"column:kecamatan_id"`
+	Kelurahan    string    `json:"kelurahan" gorm:"column:kelurahan_id"`
+	RW           string    `json:"rw" gorm:"column:rw_id"`
+	RT           string    `json:"rt" gorm:"column:rt_id"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
