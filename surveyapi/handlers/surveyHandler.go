@@ -15,6 +15,11 @@ type SurveyHandler interface {
 	ApprovalSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	AvailableSurveyWilayah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	PreviewSurveyIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PreviewSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	SurveyBundlingSubmit(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -50,4 +55,16 @@ func (handler *surveyHandler) ApprovalSurvey(ctx context.Context, req map[string
 
 func (handler *surveyHandler) AvailableSurveyWilayah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.AvailableSurveyWilayah(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) PreviewSurveyIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.PreviewSurveyIndex(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) PreviewSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.PreviewSurvey(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) SurveyBundlingSubmit(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.SurveyBundlingSubmit(ctx, req, usr, param, slug)
 }

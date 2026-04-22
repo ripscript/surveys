@@ -310,6 +310,15 @@ func (service *manajemenWilayahService) DeleteKecamatan(slug map[string]interfac
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
+	_, err = service.manajemenWilayahRepo.GetKecamatanByID(int(Id))
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			err := errors.New("Kecamatan tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	err = service.manajemenWilayahRepo.DeleteKecamatanById(Id)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)

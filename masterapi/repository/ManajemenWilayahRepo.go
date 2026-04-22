@@ -287,6 +287,16 @@ func (repository *manajemenWilayahRepo) IsKecamatanUsed(id int64) (bool, error) 
 		return true, nil
 	}
 
+	var pejabatWilayahCount int64
+	err = db.Model(&models.PejabatWilayah{}).Where("id_wilayah = ? AND tipe_wilayah = 5", id).Count(&pejabatWilayahCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	if pejabatWilayahCount > 0 {
+		return true, nil
+	}
+
 	var respCount int64
 	err = db.Model(&models.Respondent{}).Where("kecamatan_id = ?", id).Count(&respCount).Error
 	if err != nil {

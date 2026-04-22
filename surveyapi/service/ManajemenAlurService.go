@@ -1067,7 +1067,7 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 
 	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
 
-	newSlug := map[string]interface{}{"id": strconv.FormatInt(usr.ID, 10)}
+	newSlug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
 
 	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/:id", newSlug, nil)
 	if err != nil {

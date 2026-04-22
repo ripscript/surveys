@@ -243,6 +243,19 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.ApprovalSurvey,
 		MenuKey: "list-survey",
 	}},
+	"/survey/preview-index/:code": {"GET": {
+		Handler: surveyHandler.PreviewSurveyIndex,
+		MenuKey: "list-survey",
+	}},
+	"/survey/preview/:survey_code/:section_code": {"GET": {
+		Handler: surveyHandler.PreviewSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/:survey_code/section/:section_code/submit": {"POST": {
+		Handler: surveyHandler.SurveyBundlingSubmit,
+		MenuKey: "list-survey",
+	}},
+
 	"/survey-wilayah/list": {"GET": {
 		Handler: surveyHandler.AvailableSurveyWilayah,
 		MenuKey: "list-survey",

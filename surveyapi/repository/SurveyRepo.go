@@ -254,11 +254,24 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 
 	db := repository.dbSlave.Table("surveys").
 		Joins("LEFT JOIN users ON users.id = surveys.created_by").
-		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id")
+		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id").
+		Where("surveys.approval_survey = 'approved' OR surveys.approval_survey = 'non_approval'")
+
+	if req.StatusSurvey == string(enums.STATUS_SURVEY_UPCOMING) {
+		db = db.Where("surveys.start_date > NOW()")
+	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_ONGOING) {
+		db = db.Where("surveys.start_date <= NOW() AND surveys.end_date >= NOW()")
+	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_FINISHED) {
+		db = db.Where("surveys.end_date < NOW()")
+	}
 
 	if respondentLogin.RoleId != nil {
 		if *respondentLogin.RoleId == int64(enums.ROLE_RT) {
-			// surveyWilayah
+			db = db.Where(`EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id 
+				AND survey_wilayahs.kecamatan_id = ?
+			)`, respondentLogin.KecamatanId)
 		}
 	}
 

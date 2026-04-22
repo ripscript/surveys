@@ -62,3 +62,11 @@ type SurveyWilayahDatatableResponse struct {
 	PosibleProcess bool      `json:"posible_process"`
 	PosibleHistory bool      `json:"posible_history"`
 }
+
+type SurveyPreviewSection struct {
+	SectionId              int     `json:"-"`
+	SectionCode            *string `json:"section_code"`
+	SectionName            *string `json:"section_name"`
+	TotalRequiredQuestions int     `json:"total_required_questions"`
+	TotalOptionalQuestions int     `json:"total_optional_questions"`
+}

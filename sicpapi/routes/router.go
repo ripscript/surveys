@@ -214,6 +214,9 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.GET("/periode-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
