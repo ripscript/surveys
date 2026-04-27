@@ -17,6 +17,7 @@ import (
 type PenggunaService interface {
 	Login(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	Logout(usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
+	Menus(usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
 }
 
 type penggunaService struct {
@@ -80,12 +81,29 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		}
 	}
 
+	menuPermission, err := service.penggunaRepo.GetMenuPermission(respondent.RoleID)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	permMap := make(map[string]models.PermissionAction)
+
+	for _, p := range menuPermission {
+		permMap[p.Menu.Key] = models.PermissionAction{
+			V: p.ViewAction,
+			C: p.CreateAction,
+			U: p.UpdateAction,
+			D: p.DeleteAction,
+		}
+	}
+
 	claims := &models.JwtCustomClaims{
 		ID:           int64(storedUser.ID),
 		RespondentID: int64(respondent.ID),
 		Name:         respondent.Name,
 		Email:        requestEmail,
 		Role:         respondent.RoleID,
+		Permissions:  permMap,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 		},
@@ -115,4 +133,22 @@ func (service *penggunaService) Logout(usr models.JwtCustomClaims) (*pb.ProxyRes
 	}
 
 	return utils.SendData(nil, "Logout berhasil")
+}
+
+func (service *penggunaService) Menus(usr models.JwtCustomClaims) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	roleIdString := usr.Role
+
+	roleId, err := utils.ToInt64(roleIdString)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	listMenus, err := service.penggunaRepo.ListMenus(roleId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(listMenus)
 }

@@ -17,6 +17,8 @@ type PenggunaRepo interface {
 	BlockRespondent(id int) error
 	CheckActiveJabatan(id int) (bool, error)
 	FindUserByID(id int) (*models.User, error)
+	GetMenuPermission(roleId int) ([]models.MenuPermission, error)
+	ListMenus(RoleId int64) ([]models.MenuPermissionRole, error)
 }
 
 type penggunaRepo struct {
@@ -30,6 +32,69 @@ func NewPenggunaRepo(dbSlave, dbMaster *gorm.DB) *penggunaRepo {
 		dbSlave,
 		dbMaster,
 	}
+}
+
+func (r *penggunaRepo) ListMenus(roleId int64) ([]models.MenuPermissionRole, error) {
+	defer utils.GeneralRecover()
+
+	var menuPermissions []models.MenuPermission
+	err := r.dbSlave.Debug().
+		Preload("Menu").
+		Where("role_id = ?", roleId).
+		Find(&menuPermissions).Error
+	if err != nil {
+		return nil, err
+	}
+	menuMap := make(map[int]models.MenuPermission)
+	for _, mp := range menuPermissions {
+		menuMap[mp.MenuID] = mp
+	}
+
+	var result []models.MenuPermissionRole
+	for _, mp := range menuPermissions {
+		if mp.Menu.ParentID == nil {
+			node := buildMenuTree(mp.Menu, menuMap)
+			result = append(result, node)
+		}
+	}
+
+	return result, nil
+}
+
+func buildMenuTree(menu models.Menu, menuMap map[int]models.MenuPermission) models.MenuPermissionRole {
+	node := models.MenuPermissionRole{
+		Icon:      menu.Icon,
+		Key:       menu.Key,
+		Title:     menu.MenuName,
+		ChildMenu: []models.ChildMenu{},
+	}
+
+	for _, mp := range menuMap {
+		if mp.Menu.ParentID != nil && *mp.Menu.ParentID == menu.ID {
+			child := buildMenuTree(mp.Menu, menuMap)
+
+			node.ChildMenu = append(node.ChildMenu, models.ChildMenu{
+				Icon:      child.Icon,
+				Key:       child.Key,
+				Title:     child.Title,
+				ChildMenu: child.ChildMenu,
+			})
+		}
+	}
+
+	return node
+}
+
+func (r *penggunaRepo) GetMenuPermission(roleId int) ([]models.MenuPermission, error) {
+	var menuPerms []models.MenuPermission
+
+	dbSlave := r.dbSlave
+	err := dbSlave.Preload("Menu").Where("role_id = ?", roleId).Find(&menuPerms).Error
+	if err != nil {
+		return menuPerms, err
+	}
+
+	return menuPerms, nil
 }
 
 func (r *penggunaRepo) FindRespondentByRole(payload payloads.LoginPayload) (*models.Respondent, string, error) {
