@@ -578,6 +578,18 @@ func (repository *manajemenWilayahRepo) IsKelurahanUsed(id int64) (bool, error) 
 	}
 
 	if surveyWilayahCount > 0 {
+		fmt.Println("Data digunakan Survey Wilayah")
+		return true, nil
+	}
+
+	var pejabatWilayahCount int64
+	err = db.Model(&models.PejabatWilayah{}).Where("id_wilayah = ? AND tipe_wilayah = 4", id).Count(&pejabatWilayahCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	if pejabatWilayahCount > 0 {
+		fmt.Println("Data digunakan Pejabat Wilayah")
 		return true, nil
 	}
 
@@ -588,6 +600,7 @@ func (repository *manajemenWilayahRepo) IsKelurahanUsed(id int64) (bool, error) 
 	}
 
 	if respCount > 0 {
+		fmt.Println("Data digunakan Respondent")
 		return true, nil
 	}
 
@@ -598,6 +611,7 @@ func (repository *manajemenWilayahRepo) IsKelurahanUsed(id int64) (bool, error) 
 	}
 
 	if countRW > 0 {
+		fmt.Println("Data digunakan RW")
 		return true, nil
 	}
 
@@ -863,6 +877,18 @@ func (repository *manajemenWilayahRepo) IsRwUsed(id int64) (bool, error) {
 	}
 
 	if surveyWilayahCount > 0 {
+		fmt.Println("Data digunakan Survey Wilayah")
+		return true, nil
+	}
+
+	var pejabatWilayahCount int64
+	err = db.Model(&models.PejabatWilayah{}).Where("id_wilayah = ? AND tipe_wilayah = 3", id).Count(&pejabatWilayahCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	if pejabatWilayahCount > 0 {
+		fmt.Println("Data digunakan Pejabat Wilayah")
 		return true, nil
 	}
 
@@ -873,6 +899,7 @@ func (repository *manajemenWilayahRepo) IsRwUsed(id int64) (bool, error) {
 	}
 
 	if respCount > 0 {
+		fmt.Println("Data digunakan Respondent")
 		return true, nil
 	}
 
@@ -883,6 +910,7 @@ func (repository *manajemenWilayahRepo) IsRwUsed(id int64) (bool, error) {
 	}
 
 	if countRT > 0 {
+		fmt.Println("Data digunakan RT")
 		return true, nil
 	}
 
@@ -1167,13 +1195,30 @@ func (repository *manajemenWilayahRepo) IsRtUsed(id int64) (bool, error) {
 	defer utils.GeneralRecover()
 
 	db := repository.dbSlave
-	var count int64
-	err := db.Model(&models.Respondent{}).Where("rt_id = ?", id).Count(&count).Error
+
+	var pejabatWilayahCount int64
+	err := db.Model(&models.PejabatWilayah{}).Where("id_wilayah = ? AND tipe_wilayah = 2", id).Count(&pejabatWilayahCount).Error
 	if err != nil {
 		return false, err
 	}
 
-	return count > 0, nil
+	if pejabatWilayahCount > 0 {
+		fmt.Println("Data digunakan Pejabat Wilayah")
+		return true, nil
+	}
+
+	var respCount int64
+	err = db.Model(&models.Respondent{}).Where("rt_id = ?", id).Count(&respCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	if respCount > 0 {
+		fmt.Println("Data digunakan Respondent")
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (repository *manajemenWilayahRepo) DeleteRtById(id int64) error {

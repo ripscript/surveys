@@ -13,11 +13,12 @@ type ManajemenPejabatRepo interface {
 	GetFirstPejabatanWilayahByWilayahIdDanTipeWilayah(id int, tipeWilayah int) (*models.PejabatWilayah, error)
 	GetRespondenById(id int64) (*models.Respondent, error)
 	CreatePejabat(pejabat *models.PejabatWilayah) (*models.PejabatWilayah, error)
-	IsPejabatExistByRespondenId(respondenId int64) (bool, error)
+	IsPejabatExistByRespondenId(respondenId int64, tipeWilayah int64) (bool, error)
 	GetPejabatById(id int64) (*models.DetailPejabatWilayah, error)
 	UpdatePejabat(pejabat *models.PejabatWilayah) (*models.PejabatWilayah, error)
 	DeletePejabatById(id int64) error
 	GetListPejabat(req payloads.DatatablePejabatPayload) ([]models.PejabatWilayahList, int64, error)
+	IsRespondentHaveActivePejabat(respondenId int64) (bool, error)
 }
 
 type manajemenPejabatRepo struct {
@@ -60,13 +61,13 @@ func (repository *manajemenPejabatRepo) GetRespondenById(id int64) (*models.Resp
 	return &data, nil
 }
 
-func (repository *manajemenPejabatRepo) IsPejabatExistByRespondenId(respondenId int64) (bool, error) {
+func (repository *manajemenPejabatRepo) IsPejabatExistByRespondenId(respondenId int64, tipeWilayah int64) (bool, error) {
 	defer utils.GeneralRecover()
 
 	var count int64
 	db := repository.dbSlave
 
-	err := db.Model(&models.PejabatWilayah{}).Where("id_responden = ?", respondenId).Count(&count).Error
+	err := db.Model(&models.PejabatWilayah{}).Where("id_responden = ? AND tipe_wilayah = ? AND status_jabat = 1", respondenId, tipeWilayah).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -78,7 +79,17 @@ func (repository *manajemenPejabatRepo) CreatePejabat(pejabat *models.PejabatWil
 	defer utils.GeneralRecover()
 	db := repository.dbMaster
 
-	err := db.Create(pejabat).Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&models.PejabatWilayah{}).
+			Where("id_responden = ? AND status_jabat = 1", pejabat.IdResponden).
+			Update("status_jabat", 0).Error
+		if err != nil {
+			return err
+		}
+
+		return tx.Create(pejabat).Error
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +101,19 @@ func (repository *manajemenPejabatRepo) UpdatePejabat(pejabat *models.PejabatWil
 	defer utils.GeneralRecover()
 	db := repository.dbMaster
 
-	err := db.Save(pejabat).Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if pejabat.StatusJabat != nil && *pejabat.StatusJabat == 1 {
+			err := tx.Model(&models.PejabatWilayah{}).
+				Where("id_responden = ? AND status_jabat = 1", pejabat.IdResponden).
+				Update("status_jabat", 0).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		return tx.Save(pejabat).Error
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -286,4 +309,18 @@ func (repository *manajemenPejabatRepo) GetListPejabat(req payloads.DatatablePej
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *manajemenPejabatRepo) IsRespondentHaveActivePejabat(respondenId int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	var count int64
+	db := repository.dbSlave
+
+	err := db.Model(&models.PejabatWilayah{}).Where("id_responden = ? AND status_jabat = 1", respondenId).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

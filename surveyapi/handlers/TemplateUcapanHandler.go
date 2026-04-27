@@ -31,7 +31,7 @@ func NewTemplateUcapanHandler(
 }
 
 func (handler *templateUcapanHandler) GetTemplateUcapanDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.templateUcapanService.GetGeneralTemplate(slug)
+	return handler.templateUcapanService.GetGeneralTemplate(ctx, req, usr, param, slug)
 }
 
 func (handler *templateUcapanHandler) OptionsVariableTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -51,7 +51,7 @@ func (handler *templateUcapanHandler) DeleteTemplateUcapan(ctx context.Context, 
 }
 
 func (handler *templateUcapanHandler) GetListTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.templateUcapanService.GetListTemplateUcapan(usr, req, slug)
+	return handler.templateUcapanService.GetListTemplateUcapan(ctx, req, usr, param, slug)
 }
 
 func (handler *templateUcapanHandler) GetUcapanOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

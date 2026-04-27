@@ -13,12 +13,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
+	"gorm.io/gorm"
 )
 
 type ManajemenAlurService interface {
@@ -26,7 +29,7 @@ type ManajemenAlurService interface {
 	GetDetailManajemenAlur(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateManajemenAlur(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteManajemenAlur(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListManajemenAlur(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListManajemenAlur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	FlowPreviewIndex(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	PreviewAlurSurvey(ctx context.Context, usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
@@ -99,6 +102,17 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 	}
 
 	err = service.manajemenAlurRepo.RunInTransaction(func(txRepo repository.ManajemenAlurRepo) error {
+
+		alurByName, err := txRepo.GetFlowDetailByNameCaseInsensitive(payload.NamaAlur)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		spew.Dump(alurByName)
+
+		if alurByName != nil {
+			return fmt.Errorf("nama alur survey '%s' sudah digunakan, silakan gunakan nama lain", payload.NamaAlur)
+		}
 
 		// PUTARAN 1: Bikin Master, Section, dan Group
 		statusSec := "0"
@@ -941,13 +955,21 @@ func (service *manajemenAlurService) DeleteManajemenAlur(usr models.JwtCustomCla
 	return utils.SendData(nil, "Alur survey berhasil dihapus!")
 }
 
-func (service *manajemenAlurService) GetListManajemenAlur(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenAlurService) GetListManajemenAlur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	if payload.Page <= 0 {

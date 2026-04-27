@@ -25,6 +25,7 @@ type ManajemenAlurRepo interface {
 	GetAdvancedOptionsByFieldIDs(fieldIDs []int) ([]models.AdvancedOptionFlow, error)
 	GetSectionsByIDs(sectionIDs []int) ([]models.FlowSection, error)
 	GetGroupsByIDs(groupIDs []int) ([]models.FlowGroup, error)
+	GetFlowDetailByNameCaseInsensitive(name string) (*models.FlowDetail, error)
 
 	GetFlowDetailByID(id int) (*models.FlowDetail, error)
 	UpdateFlowDetail(detail *models.FlowDetail) error
@@ -380,4 +381,13 @@ func (repository *manajemenAlurRepo) GetAnswerOptionsByQuestionIDList(questionID
 	// 'sequence' pada form_answer_fields digunakan untuk mengurutkan A, B, C, dst.
 	err := repository.dbSlave.Where("form_field_id IN ?", questionIDs).Order("sequence ASC").Find(&options).Error
 	return options, err
+}
+
+func (repository *manajemenAlurRepo) GetFlowDetailByNameCaseInsensitive(name string) (*models.FlowDetail, error) {
+	var detail models.FlowDetail
+	err := repository.dbSlave.Where("LOWER(name) = LOWER(?)", name).First(&detail).Error
+	if err != nil {
+		return nil, err
+	}
+	return &detail, err
 }

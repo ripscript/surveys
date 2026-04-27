@@ -8,6 +8,7 @@ import (
 	"backend/surveyapi/repository"
 	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -18,28 +19,31 @@ import (
 )
 
 type TemplateUcapanService interface {
-	GetGeneralTemplate(slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetGeneralTemplate(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetTemplateUcapanOptions(param url.Values) (*pb.ProxyResponse, error)
 	CreateTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteTemplateUcapan(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetUcapanOptions(param url.Values) (*pb.ProxyResponse, error)
 }
 
 type templateUcapanService struct {
 	templateUcapanRepo repository.TemplateUcapanRepo
+	userRepo           repository.UserRepo
 }
 
 func NewTemplateUcapanService(
 	templateUcapanRepo repository.TemplateUcapanRepo,
+	userRepo repository.UserRepo,
 ) TemplateUcapanService {
 	return &templateUcapanService{
 		templateUcapanRepo: templateUcapanRepo,
+		userRepo:           userRepo,
 	}
 }
 
-func (service *templateUcapanService) GetGeneralTemplate(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *templateUcapanService) GetGeneralTemplate(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	StrId := slug["template_ucapan_id"]
 	Id, err := utils.ToInt64(StrId)
@@ -51,6 +55,22 @@ func (service *templateUcapanService) GetGeneralTemplate(slug map[string]interfa
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	respondent, err := service.userRepo.GetRespondentDetailById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	content := data.Content
+
+	if rawOpening, errOp := service.templateUcapanRepo.GetTemplateUcapanById(data.ID); errOp == nil && rawOpening != nil {
+
+		openingStr := utils.ReplaceStringRespondentVariable(rawOpening.Content, respondent)
+		content = openingStr
+	}
+
+	data.Preview = content
+
 	return utils.SendData(data, "Berhasil mengambil data")
 }
 
@@ -247,6 +267,15 @@ func (service *templateUcapanService) DeleteTemplateUcapan(usr models.JwtCustomC
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	isUsed, err := service.templateUcapanRepo.IsUsedTemplateUcapan(Id)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isUsed {
+		return utils.SendError(errors.New("Template ucapan tidak dapat dihapus karena sedang digunakan"), http.StatusBadRequest)
+	}
+
 	err = service.templateUcapanRepo.DeleteTemplateUcapan(int(Id))
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
@@ -255,13 +284,21 @@ func (service *templateUcapanService) DeleteTemplateUcapan(usr models.JwtCustomC
 	return utils.SendData(nil, "Berhasil menghapus template ucapan")
 }
 
-func (service *templateUcapanService) GetListTemplateUcapan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *templateUcapanService) GetListTemplateUcapan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	if payload.Page <= 0 {

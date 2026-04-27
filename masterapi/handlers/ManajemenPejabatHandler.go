@@ -45,5 +45,5 @@ func (handler *manajemenPejabatHandler) DeletePejabat(ctx context.Context, req m
 }
 
 func (handler *manajemenPejabatHandler) GetListPejabat(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenPejabatService.GetListPejabat(ctx, usr, req)
+	return handler.manajemenPejabatService.GetListPejabat(ctx, req, usr, param, slug)
 }

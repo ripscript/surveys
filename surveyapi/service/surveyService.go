@@ -27,7 +27,7 @@ import (
 type SurveyService interface {
 	OptionsPeriodeSurvey(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	CreateSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ApprovalSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	AvailableSurveyWilayah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -402,13 +402,28 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 	return utils.SendData(nil, "Survey berhasil dibuat!")
 }
 
-func (service *surveyService) GetListSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.SurveyDatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	surveyDiikutiStr := param.Get("survey_diikuti")
+	surveyDiikuti := false
+	if surveyDiikutiStr == "true" {
+		surveyDiikuti = true
+	}
+
+	payload := payloads.SurveyDatatablePayload{
+		Search:        search,
+		Page:          page,
+		Limit:         limit,
+		OrderBy:       orderBy,
+		OrderDir:      orderDir,
+		SurveyDiikuti: surveyDiikuti,
 	}
 
 	if payload.Page <= 0 {

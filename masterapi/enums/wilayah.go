@@ -31,3 +31,17 @@ func GetWilayahFromRole(role *int64) (int64, bool) {
 	}
 	return 0, false
 }
+
+func (t WilayahID) Label() string {
+	switch t {
+	case KECAMATAN:
+		return "Kecamatan"
+	case KELURAHAN:
+		return "Kelurahan"
+	case RW:
+		return "RW"
+	case RT:
+		return "RT"
+	}
+	return ""
+}

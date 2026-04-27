@@ -11,7 +11,7 @@ import (
 )
 
 type TemplateUcapanRepo interface {
-	GetTemplateUcapanById(id int) (*models.GeneralTemplate, error)
+	GetTemplateUcapanById(id int) (*models.GeneralTemplateDetail, error)
 	GetVariableTemplateUcapanOptions(req payloads.TemplateUcapanOptionsPayload) ([]response.OptionItem, int64, error)
 	GetTemplateUcapanByName(name string) (*models.GeneralTemplate, error)
 	CreateTemplateUcapan(templateUcapan models.GeneralTemplate) (*models.GeneralTemplate, error)
@@ -19,6 +19,7 @@ type TemplateUcapanRepo interface {
 	DeleteTemplateUcapan(id int) error
 	GetListTemplateUcapan(req payloads.DatatablePayload) ([]models.GeneralTemplateDatatableResponse, int64, error)
 	GetTemplateUcapanOption(req payloads.UcapanOptionsPayload) ([]response.OptionItem, int64, error)
+	IsUsedTemplateUcapan(templateUcapanId int64) (bool, error)
 }
 
 type templateUcapanRepo struct {
@@ -34,9 +35,9 @@ func NewTemplateUcapanRepo(dbSlave, dbMaster *gorm.DB) *templateUcapanRepo {
 	}
 }
 
-func (repository *templateUcapanRepo) GetTemplateUcapanById(id int) (*models.GeneralTemplate, error) {
+func (repository *templateUcapanRepo) GetTemplateUcapanById(id int) (*models.GeneralTemplateDetail, error) {
 	defer utils.GeneralRecover()
-	var data models.GeneralTemplate
+	var data models.GeneralTemplateDetail
 	db := repository.dbSlave
 
 	err := db.Select("general_templates.*").
@@ -277,4 +278,18 @@ func (repository *templateUcapanRepo) GetTemplateUcapanOption(req payloads.Ucapa
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *templateUcapanRepo) IsUsedTemplateUcapan(templateUcapanId int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	var count int64
+	db := repository.dbSlave
+
+	err := db.Model(&models.FlowDetail{}).Where("closing_id = ?", templateUcapanId).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

@@ -47,7 +47,7 @@ func (handler *manajemenAlurHandler) DeleteManajemenAlur(ctx context.Context, re
 }
 
 func (handler *manajemenAlurHandler) GetListManajemenAlur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenAlurService.GetListManajemenAlur(usr, req)
+	return handler.manajemenAlurService.GetListManajemenAlur(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenAlurHandler) FlowPreviewIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

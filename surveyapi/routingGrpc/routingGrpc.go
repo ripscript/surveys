@@ -44,6 +44,7 @@ var (
 var (
 	templateUcapanService service.TemplateUcapanService = service.NewTemplateUcapanService(
 		templateUcapanRepo,
+		userRepo,
 	)
 	templateFormulirPertanyaanService service.TemplateFormulirPertanyaanService = service.NewTemplateFormulirPertanyaanService(
 		templateFormulirPertanyaanRepo,

@@ -8,6 +8,7 @@ import (
 	"backend/surveyapi/repository"
 	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,7 +26,7 @@ type TemplateFormulirPertanyaanService interface {
 	UpdateTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DuplicateTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListTemplateFormulirPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetQuestionTypeOptions(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetFormulirPertanyaanOptions(param url.Values) (*pb.ProxyResponse, error)
 	GetPertanyaanOptions(param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -134,6 +135,18 @@ func (service *templateFormulirPertanyaanService) CreateTemplateFormulirPertanya
 		if v.ImageQuantity != nil && *v.ImageQuantity != 0 {
 			strVal := strconv.Itoa(*v.ImageQuantity)
 			imageQtyStr = &strVal
+		}
+
+		if v.InputType != string(enums.MULTIPLE_CHOICES) && len(v.Options) > 0 {
+			return utils.SendError(errors.New("Hanya tipe pertanyaan multiple-choices yang boleh memiliki opsi"), http.StatusBadRequest)
+		}
+
+		if v.InputType == string(enums.MULTIPLE_CHOICES) && len(v.Options) == 0 {
+			return utils.SendError(errors.New("Tipe pertanyaan multiple-choices harus memiliki opsi"), http.StatusBadRequest)
+		}
+
+		if v.InputType != string(enums.IMAGE_TEMPLATE) && v.ImageQuantity != nil && *v.ImageQuantity != 0 {
+			return utils.SendError(errors.New("Hanya tipe pertanyaan image-template yang boleh memiliki kuantitas gambar"), http.StatusBadRequest)
 		}
 
 		var formFieldOptions []models.FormAnswerField
@@ -309,6 +322,13 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 			if q.InputType == "multiple-choices" {
 				for optIndex, opt := range q.Options {
 					if opt.ID != nil && *opt.ID != 0 {
+						isExistsOption, err := service.templateFormulirPertanyaanRepo.IsQuestionOptionsExistById(*opt.ID)
+						if err != nil {
+							return utils.SendError(err, http.StatusInternalServerError)
+						}
+						if !isExistsOption {
+							return utils.SendError(errors.New("Opsi pertanyaan tidak ditemukan: "+strconv.Itoa(*opt.ID)), http.StatusBadRequest)
+						}
 						optionsToKeep = append(optionsToKeep, *opt.ID)
 					}
 
@@ -331,6 +351,18 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 			if q.ImageQuantity != nil && *q.ImageQuantity != 0 {
 				strVal := strconv.Itoa(*q.ImageQuantity)
 				imageQty = &strVal
+			}
+
+			if q.InputType != string(enums.MULTIPLE_CHOICES) && len(q.Options) > 0 {
+				return utils.SendError(errors.New("Hanya tipe pertanyaan multiple-choices yang boleh memiliki opsi"), http.StatusBadRequest)
+			}
+
+			if q.InputType == string(enums.MULTIPLE_CHOICES) && len(q.Options) == 0 {
+				return utils.SendError(errors.New("Tipe pertanyaan multiple-choices harus memiliki opsi"), http.StatusBadRequest)
+			}
+
+			if q.InputType != string(enums.IMAGE_TEMPLATE) && q.ImageQuantity != nil && *q.ImageQuantity != 0 {
+				return utils.SendError(errors.New("Hanya tipe pertanyaan image-template yang boleh memiliki kuantitas gambar"), http.StatusBadRequest)
 			}
 
 			formFields = append(formFields, models.UpdateFormFieldWithOption{
@@ -505,13 +537,21 @@ func (service *templateFormulirPertanyaanService) DeleteTemplateFormulirPertanya
 	return utils.SendData(nil, "Berhasil menghapus template formulir pertanyaan")
 }
 
-func (service *templateFormulirPertanyaanService) GetListTemplateFormulirPertanyaan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *templateFormulirPertanyaanService) GetListTemplateFormulirPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	if payload.Page <= 0 {

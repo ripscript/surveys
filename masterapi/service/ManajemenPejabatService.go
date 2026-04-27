@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -24,7 +25,7 @@ type ManajemenPejabatService interface {
 	DetailPejabat(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdatePejabat(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, reqSlug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeletePejabat(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListPejabat(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListPejabat(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenPejabatService struct {
@@ -69,17 +70,18 @@ func (service *manajemenPejabatService) CreatePejabat(ctx context.Context, usr m
 		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
 	}
 
-	isPejabatExist, err := service.manajemenPejabatRepo.IsPejabatExistByRespondenId(respondentData.ID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return utils.SendError(err, http.StatusInternalServerError)
-	}
-	if isPejabatExist {
-		return utils.SendError(errors.New("Responden sudah terdaftar sebagai pejabat wilayah"), http.StatusBadRequest)
-	}
-
 	tipeWilayah, isValid := enums.GetWilayahFromRole(respondentData.RoleId)
 	if !isValid {
 		return utils.SendError(errors.New("Role respondent tidak valid untuk dijadikan pejabat wilayah"), http.StatusBadRequest)
+	}
+
+	isPejabatExist, err := service.manajemenPejabatRepo.IsPejabatExistByRespondenId(respondentData.ID, tipeWilayah)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isPejabatExist {
+		return utils.SendError(errors.New("Responden sudah terdaftar sebagai pejabat wilayah"), http.StatusBadRequest)
 	}
 
 	var IdWilayah int64
@@ -188,7 +190,7 @@ func (service *manajemenPejabatService) UpdatePejabat(ctx context.Context, usr m
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		return utils.SendError(errors.New("gagal parse string ke int64"), http.StatusBadRequest)
+		return utils.SendError(errors.New("Pejabat tidak ditemukan"), http.StatusBadRequest)
 	}
 
 	existingPejabat, err := service.manajemenPejabatRepo.GetPejabatById(id)
@@ -225,61 +227,60 @@ func (service *manajemenPejabatService) UpdatePejabat(ctx context.Context, usr m
 		isRespondenBerubah = false
 	}
 
-	if isRespondenBerubah {
+	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+	userApiSlug := map[string]interface{}{"id": strconv.FormatInt(finalIdResponden, 10)}
 
-		isPejabatExist, err := service.manajemenPejabatRepo.IsPejabatExistByRespondenId(finalIdResponden)
+	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", userApiSlug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentData models.Respondent
+	if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	if isRespondenBerubah {
+		isPejabatExist, err := service.manajemenPejabatRepo.IsRespondentHaveActivePejabat(finalIdResponden)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.SendError(err, http.StatusInternalServerError)
 		}
 		if isPejabatExist {
 			return utils.SendError(errors.New("Responden sudah terdaftar sebagai pejabat wilayah lain"), http.StatusBadRequest)
 		}
-
-		hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
-		userApiSlug := map[string]interface{}{"id": strconv.FormatInt(finalIdResponden, 10)}
-
-		dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", userApiSlug, nil)
-		if err != nil {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
-
-		var respondentData models.Respondent
-		if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
-			return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
-		}
-
-		tipeWilayah, isValid := enums.GetWilayahFromRole(respondentData.RoleId)
-		if !isValid {
-			return utils.SendError(errors.New("Role respondent tidak valid untuk dijadikan pejabat wilayah"), http.StatusBadRequest)
-		}
-
-		switch tipeWilayah {
-		case int64(enums.KECAMATAN):
-			if respondentData.KecamatanId == nil {
-				return utils.SendError(errors.New("Data respondent tidak memiliki ID Kecamatan"), http.StatusBadRequest)
-			}
-			finalIdWilayah = int64(*respondentData.KecamatanId)
-		case int64(enums.KELURAHAN):
-			if respondentData.KelurahanId == nil {
-				return utils.SendError(errors.New("Data respondent tidak memiliki ID Kelurahan"), http.StatusBadRequest)
-			}
-			finalIdWilayah = int64(*respondentData.KelurahanId)
-		case int64(enums.RW):
-			if respondentData.RWId == nil {
-				return utils.SendError(errors.New("Data respondent tidak memiliki ID RW"), http.StatusBadRequest)
-			}
-			finalIdWilayah = int64(*respondentData.RWId)
-		case int64(enums.RT):
-			if respondentData.RTId == nil {
-				return utils.SendError(errors.New("Data respondent tidak memiliki ID RT"), http.StatusBadRequest)
-			}
-			finalIdWilayah = int64(*respondentData.RTId)
-		default:
-			return utils.SendError(errors.New("Tipe wilayah tidak dikenali"), http.StatusBadRequest)
-		}
-
-		finalTipeWilayah = tipeWilayah
 	}
+
+	tipeWilayah, isValid := enums.GetWilayahFromRole(respondentData.RoleId)
+	if !isValid {
+		return utils.SendError(errors.New("Role respondent tidak valid untuk dijadikan pejabat wilayah"), http.StatusBadRequest)
+	}
+
+	switch tipeWilayah {
+	case int64(enums.KECAMATAN):
+		if respondentData.KecamatanId == nil {
+			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kecamatan"), http.StatusBadRequest)
+		}
+		finalIdWilayah = int64(*respondentData.KecamatanId)
+	case int64(enums.KELURAHAN):
+		if respondentData.KelurahanId == nil {
+			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kelurahan"), http.StatusBadRequest)
+		}
+		finalIdWilayah = int64(*respondentData.KelurahanId)
+	case int64(enums.RW):
+		if respondentData.RWId == nil {
+			return utils.SendError(errors.New("Data respondent tidak memiliki ID RW"), http.StatusBadRequest)
+		}
+		finalIdWilayah = int64(*respondentData.RWId)
+	case int64(enums.RT):
+		if respondentData.RTId == nil {
+			return utils.SendError(errors.New("Data respondent tidak memiliki ID RT"), http.StatusBadRequest)
+		}
+		finalIdWilayah = int64(*respondentData.RTId)
+	default:
+		return utils.SendError(errors.New("Tipe wilayah tidak dikenali"), http.StatusBadRequest)
+	}
+
+	finalTipeWilayah = tipeWilayah
 
 	// 6. Validasi dan Parsing Tanggal
 	if payload.PeriodeAwal == nil || payload.PeriodeAkhir == nil {
@@ -358,13 +359,83 @@ func (service *manajemenPejabatService) DeletePejabat(ctx context.Context, usr m
 	return utils.SendData(nil, "Berhasil menghapus pejabat")
 }
 
-func (service *manajemenPejabatService) GetListPejabat(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenPejabatService) GetListPejabat(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePejabatPayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	fNama := param.Get("f_nama")
+	fPeriodeAwal := param.Get("f_periode_awal")
+	fPeriodeAkhir := param.Get("f_periode_akhir")
+	FStatusStr := param.Get("f_status")
+	var fStatus *int
+	if FStatusStr != "" {
+		statusInt, err := strconv.Atoi(FStatusStr)
+		if err != nil {
+			return utils.SendError(errors.New("Invalid value for f_status, must be an integer"), http.StatusBadRequest)
+		}
+		fStatus = &statusInt
+	}
+
+	fKecamatan := param.Get("f_kecamatan")
+	var fKecamatanInt *int64
+	if fKecamatan != "" {
+		kecamatanId, err := strconv.ParseInt(fKecamatan, 10, 64)
+		if err != nil {
+			return utils.SendError(errors.New("Invalid value for f_kecamatan, must be an integer"), http.StatusBadRequest)
+		}
+		fKecamatanInt = &kecamatanId
+	}
+
+	fKelurahan := param.Get("f_kelurahan")
+	var fKelurahanInt *int64
+	if fKelurahan != "" {
+		kelurahanId, err := strconv.ParseInt(fKelurahan, 10, 64)
+		if err != nil {
+			return utils.SendError(errors.New("Invalid value for f_kelurahan, must be an integer"), http.StatusBadRequest)
+		}
+		fKelurahanInt = &kelurahanId
+	}
+
+	fRw := param.Get("f_rw")
+	var fRwInt *int64
+	if fRw != "" {
+		rwId, err := strconv.ParseInt(fRw, 10, 64)
+		if err != nil {
+			return utils.SendError(errors.New("Invalid value for f_rw, must be an integer"), http.StatusBadRequest)
+		}
+		fRwInt = &rwId
+	}
+
+	fRt := param.Get("f_rt")
+	var fRtInt *int64
+	if fRt != "" {
+		rtId, err := strconv.ParseInt(fRt, 10, 64)
+		if err != nil {
+			return utils.SendError(errors.New("Invalid value for f_rt, must be an integer"), http.StatusBadRequest)
+		}
+		fRtInt = &rtId
+	}
+
+	payload := payloads.DatatablePejabatPayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
+
+		FNama:         &fNama,
+		FPeriodeAwal:  &fPeriodeAwal,
+		FPeriodeAkhir: &fPeriodeAkhir,
+		FStatus:       fStatus,
+		FKecamatan:    fKecamatanInt,
+		FKelurahan:    fKelurahanInt,
+		FRw:           fRwInt,
+		FRt:           fRtInt,
 	}
 
 	if payload.Page <= 0 {

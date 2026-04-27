@@ -32,3 +32,20 @@ type GeneralTemplateDatatableResponse struct {
 	DeletedAt     gorm.DeletedAt           `json:"deleted_at"`
 	CreatedByName string                   `json:"created_by_name"`
 }
+
+type GeneralTemplateDetail struct {
+	ID         int                      `json:"id"`
+	Type       enums.TypeTemplateUcapan `json:"type"`
+	Name       string                   `json:"name"`
+	Content    string                   `json:"content"`
+	Preview    string                   `json:"preview"`
+	IsVerified bool                     `json:"is_verified"`
+	CreatedAt  time.Time                `json:"created_at"`
+	UpdatedAt  time.Time                `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt           `json:"-"`
+	CreatedBy  int                      `json:"created_by"`
+}
+
+func (GeneralTemplateDetail) TableName() string {
+	return "general_templates"
+}

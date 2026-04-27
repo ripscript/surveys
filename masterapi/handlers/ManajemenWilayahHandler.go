@@ -66,7 +66,7 @@ func (handler *manajemenWilayahHandler) UpdateKecamatan(ctx context.Context, req
 }
 
 func (handler *manajemenWilayahHandler) GetListKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListKecamatan(req)
+	return handler.manajemenWilayahService.GetListKecamatan(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) OptionsKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -90,11 +90,11 @@ func (handler *manajemenWilayahHandler) CreateKelurahan(ctx context.Context, req
 }
 
 func (handler *manajemenWilayahHandler) GetListKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListKelurahan(req, slug)
+	return handler.manajemenWilayahService.GetListKelurahan(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) GetListKelurahanByKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListKelurahan(req, slug)
+	return handler.manajemenWilayahService.GetListKelurahan(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) OptionsKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -114,11 +114,11 @@ func (handler *manajemenWilayahHandler) UpdateRw(ctx context.Context, req map[st
 }
 
 func (handler *manajemenWilayahHandler) GetListRw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListRw(req, slug)
+	return handler.manajemenWilayahService.GetListRw(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) GetListRwByKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListRw(req, slug)
+	return handler.manajemenWilayahService.GetListRw(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) CreateRw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -142,11 +142,11 @@ func (handler *manajemenWilayahHandler) UpdateRt(ctx context.Context, req map[st
 }
 
 func (handler *manajemenWilayahHandler) GetListRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListRt(req, slug)
+	return handler.manajemenWilayahService.GetListRt(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) GetListRtByRw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.manajemenWilayahService.GetListRt(req, slug)
+	return handler.manajemenWilayahService.GetListRt(ctx, req, usr, param, slug)
 }
 
 func (handler *manajemenWilayahHandler) CreateRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

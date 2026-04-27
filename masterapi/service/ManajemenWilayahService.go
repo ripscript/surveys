@@ -7,6 +7,7 @@ import (
 	"backend/masterapi/response"
 	"backend/masterapi/utils"
 	"backend/siccore/pb"
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -21,27 +22,27 @@ type ManajemenWilayahService interface {
 	CreateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKecamatanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateKecamatan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListKecamatan(req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKecamatanOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteKecamatan(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	CreateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKelurahanDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateKelurahan(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListKelurahan(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetKelurahanOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteKelurahan(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetRwDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRw(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListRw(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListRw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	CreateRw(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRwOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteRw(slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetRtDetail(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRt(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetListRt(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetListRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	CreateRt(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRtOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteRT(slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -193,13 +194,21 @@ func (service *manajemenWilayahService) UpdateKecamatan(usr models.JwtCustomClai
 	return utils.SendData(nil, "Berhasil update data")
 }
 
-func (service *manajemenWilayahService) GetListKecamatan(req map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenWilayahService) GetListKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	if payload.Page <= 0 {
@@ -474,13 +483,21 @@ func (service *manajemenWilayahService) UpdateKelurahan(usr models.JwtCustomClai
 	return utils.SendData(nil, "Berhasil update data")
 }
 
-func (service *manajemenWilayahService) GetListKelurahan(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenWilayahService) GetListKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	StrId := slug["kecamatan_id"]
@@ -621,6 +638,15 @@ func (service *manajemenWilayahService) DeleteKelurahan(slug map[string]interfac
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
+	_, err = service.manajemenWilayahRepo.GetKelurahanByID(int(Id))
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			err := errors.New("Kelurahan tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	err = service.manajemenWilayahRepo.DeleteKelurahanById(Id)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
@@ -704,13 +730,21 @@ func (service *manajemenWilayahService) UpdateRw(usr models.JwtCustomClaims, req
 	return utils.SendData(nil, "Berhasil update data")
 }
 
-func (service *manajemenWilayahService) GetListRw(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenWilayahService) GetListRw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	StrId := slug["kelurahan_id"]
@@ -987,13 +1021,21 @@ func (service *manajemenWilayahService) UpdateRt(usr models.JwtCustomClaims, req
 	return utils.SendData(nil, "Berhasil update data")
 }
 
-func (service *manajemenWilayahService) GetListRt(req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *manajemenWilayahService) GetListRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.DatatablePayload
-	err := utils.DynamicBind(req, &payload)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
 	}
 
 	StrId := slug["rw_id"]
@@ -1179,6 +1221,10 @@ func (service *manajemenWilayahService) DeleteRT(slug map[string]interface{}) (*
 
 	getRtById, err := service.manajemenWilayahRepo.GetRtByID(Id)
 	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			err := errors.New("Data rt tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 

@@ -55,7 +55,7 @@ func (handler *templateFormulirPertanyaanHandler) DeleteTemplateFormulirPertanya
 }
 
 func (handler *templateFormulirPertanyaanHandler) GetListTemplateFormulirPertanyaan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.templateFormulirPertanyaanService.GetListTemplateFormulirPertanyaan(usr, req, slug)
+	return handler.templateFormulirPertanyaanService.GetListTemplateFormulirPertanyaan(ctx, req, usr, param, slug)
 }
 
 func (handler *templateFormulirPertanyaanHandler) GetQuestionTypeOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

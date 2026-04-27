@@ -19,8 +19,8 @@ type DatatablePejabatPayload struct {
 	FPeriodeAwal  *string `json:"f_periode_awal"`
 	FPeriodeAkhir *string `json:"f_periode_akhir"`
 	FStatus       *int    `json:"f_status"`
-	FKecamatan    *int    `json:"f_kecamatan"`
-	FKelurahan    *int    `json:"f_kelurahan"`
-	FRw           *int    `json:"f_rw"`
-	FRt           *int    `json:"f_rt"`
+	FKecamatan    *int64  `json:"f_kecamatan"`
+	FKelurahan    *int64  `json:"f_kelurahan"`
+	FRw           *int64  `json:"f_rw"`
+	FRt           *int64  `json:"f_rt"`
 }
