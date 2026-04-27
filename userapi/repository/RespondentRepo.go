@@ -23,6 +23,8 @@ type RespondentRepo interface {
 	StoreUsers(tx *gorm.DB, data models.CreateRespondents) error
 	GetRespondenById(id int) (*models.RawRespondents, error)
 	SurveyorOption() ([]models.Surveyor, error)
+	CheckRespondent(idRespondent int64) (models.BlockRespondent, error)
+	RespondentBlock(data models.BlockRespondent) error
 }
 
 type respondentRepo struct {
@@ -36,6 +38,31 @@ func NewRespondentRepo(dbSlave, dbMaster *gorm.DB) *respondentRepo {
 		dbSlave,
 		dbMaster,
 	}
+}
+
+func (r *respondentRepo) RespondentBlock(data models.BlockRespondent) error {
+	defer utils.GeneralRecover()
+	db := r.dbMaster
+
+	err := db.Where("id = ?", data.ID).Updates(data).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *respondentRepo) CheckRespondent(idRespondent int64) (models.BlockRespondent, error) {
+	defer utils.GeneralRecover()
+	var data models.BlockRespondent
+	db := r.dbSlave
+
+	err := db.Where("id = ?", idRespondent).First(&data).Error
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
 }
 
 func (r *respondentRepo) GetKecamatanByName(kecamatan string) (models.KecamatanOptions, error) {

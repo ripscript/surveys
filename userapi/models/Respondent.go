@@ -80,6 +80,7 @@ type Respondents struct {
 	PhoneNumber string `gorm:"column:phone_number"`
 	Username    string `gorm:"column:username"`
 	NIK         string `gorm:"column:nik"`
+	IsBlocked   string `gorm:"is_blocked"`
 	RoleId      int    `json:"-"`
 	Role        string `json:"role"`
 
