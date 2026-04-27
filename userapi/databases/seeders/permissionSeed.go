@@ -2,383 +2,17 @@ package seeders
 
 import (
 	"backend/userapi/models"
-	"backend/userapi/utils"
 	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func MenuSeed(db *gorm.DB) error {
-	now := utils.TimeNow()
-
-	// Create Parent Menus
-	Menus := []models.Menu{
-		{
-			MenuName:  "Template",
-			Key:       "template",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Alur",
-			Key:       "manajemen-alur",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Survey",
-			Key:       "survey",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Dashboard",
-			Key:       "dashboard",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Pengaturan",
-			Key:       "pengaturan",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Laporan",
-			Key:       "laporan",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Monitoring",
-			Key:       "monitoring",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Admin",
-			Key:       "admin",
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-	}
-
-	err := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "key"}},
-		DoNothing: true,
-	}).Create(&Menus).Error
-
-	if err != nil {
-		return err
-	}
-
-	// Create Child Menus
-	parentMenus := []models.Menu{}
-	err = db.Where("key IN ?", []string{"template", "manajemen-alur", "survey", "dashboard", "pengaturan", "laporan", "monitoring", "admin"}).Find(&parentMenus).Error
-	if err != nil {
-		return err
-	}
-	menuIDMap := make(map[string]uint)
-	for _, menu := range parentMenus {
-		menuIDMap[menu.Key] = uint(menu.ID)
-	}
-	templateID := int(menuIDMap["template"])
-	surveyID := int(menuIDMap["survey"])
-	pengaturanID := int(menuIDMap["pengaturan"])
-	monitoringID := int(menuIDMap["monitoring"])
-	adminID := int(menuIDMap["admin"])
-	ChildMenus := []models.Menu{
-		{
-			MenuName:  "Formulir Pertanyaan",
-			Key:       "formulir-pertanyaan",
-			ParentID:  &templateID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Ucapan",
-			Key:       "ucapan",
-			ParentID:  &templateID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "List Survey",
-			Key:       "list-survey",
-			ParentID:  &surveyID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Hasil",
-			Key:       "hasil",
-			ParentID:  &surveyID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Hasil",
-			Key:       "hasil",
-			ParentID:  &surveyID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Pengguna",
-			Key:       "manajemen-pengguna",
-			ParentID:  &pengaturanID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Wilayah",
-			Key:       "manajemen-wilayah",
-			ParentID:  &pengaturanID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen CMS",
-			Key:       "manajemen-cms",
-			ParentID:  &pengaturanID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Artikel",
-			Key:       "manajemen-artikel",
-			ParentID:  &pengaturanID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Rating",
-			Key:       "rating",
-			ParentID:  &pengaturanID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Statistik",
-			Key:       "statistik",
-			ParentID:  &monitoringID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Aktifitas Survey",
-			Key:       "aktifitas-survey",
-			ParentID:  &monitoringID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Profil Saya",
-			Key:       "profil-saya",
-			ParentID:  &adminID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Keluar",
-			Key:       "keluar",
-			ParentID:  &adminID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-	}
-
-	err = db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "key"}},
-		DoNothing: true,
-	}).Create(&ChildMenus).Error
-
-	if err != nil {
-		return err
-	}
-
-	// Create Grandchild xixixi
-
-	childMenus := []models.Menu{}
-	err = db.Where("key IN ?", []string{"manajemen-pengguna", "manajemen-wilayah", "manajemen-artikel"}).Find(&childMenus).Error
-	if err != nil {
-		return err
-	}
-	childMenuIDMap := make(map[string]uint)
-	for _, menu := range childMenus {
-		childMenuIDMap[menu.Key] = uint(menu.ID)
-	}
-	manajemenPenggunaID := int(childMenuIDMap["manajemen-pengguna"])
-	manajemenWilayahID := int(childMenuIDMap["manajemen-wilayah"])
-	manajemenArtikelID := int(childMenuIDMap["manajemen-artikel"])
-
-	GrindChildMenus := []models.Menu{
-		{
-			MenuName:  "Manajemen Responden",
-			Key:       "manajemen-responden",
-			ParentID:  &manajemenPenggunaID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen User",
-			Key:       "manajemen-user",
-			ParentID:  &manajemenPenggunaID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Blokir",
-			Key:       "manajemen-blokir",
-			ParentID:  &manajemenPenggunaID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Wilayah",
-			Key:       "manajemen-wilayah-child",
-			ParentID:  &manajemenWilayahID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Manajemen Pejabat",
-			Key:       "manajemen-pejabat",
-			ParentID:  &manajemenWilayahID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Artikel",
-			Key:       "artikel",
-			ParentID:  &manajemenArtikelID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Promote",
-			Key:       "promote",
-			ParentID:  &manajemenArtikelID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		{
-			MenuName:  "Kategori",
-			Key:       "kategori",
-			ParentID:  &manajemenArtikelID,
-			Icon:      "-",
-			CreatedBy: 0,
-			UpdatedBy: 0,
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-	}
-
-	err = db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "key"}},
-		DoNothing: true,
-	}).Create(&GrindChildMenus).Error
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func PermissionSeed(db *gorm.DB) error {
-	var menuKeys = []string{"template", "manajemen-alur", "survey", "dashboard", "pengaturan", "laporan", "monitoring",
-		"admin", "formulir-pertanyaan", "ucapan", "list-survey", "hasil", "manajemen-pengguna", "manajemen-wilayah",
-		"manajemen-cms", "manajemen-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
-		"manajemen-responden", "manajemen-user", "manajemen-blokir", "manajemen-wilayah-child", "manajemen-pejabat",
+	var menuKeys = []string{"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
+		"admin", "template-pertanyaan", "template-ucapan", "survey", "management-pengguna", "manage-wilayah",
+		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
+		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
 		"artikel", "promote", "kategori",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
@@ -394,981 +28,129 @@ func PermissionSeed(db *gorm.DB) error {
 	}
 	roleIDs := RoleMapToStruct(roleMap)
 
-	// Mapping Menu ID By Key
-	ManajemenUserID := menuIDs.ManajemenUser
-	ManajemenWilayahID := menuIDs.ManajemenWilayahChild
-	ManajemenPejabatID := menuIDs.ManajemenPejabat
-	ManajemenArtikelID := menuIDs.ManajemenArtikel
-	PromoteID := menuIDs.Promote
-	CategoryID := menuIDs.Kategori
-	ListSurveyID := menuIDs.ListSurvey
-	HasilSurvey := menuIDs.Hasil
-	ManajemenAlur := menuIDs.ManajemenAlur
-	FormulirPertanyaan := menuIDs.FormulirPertanyaan
-	Ucapan := menuIDs.Ucapan
-	ManajemenRespondent := menuIDs.ManajemenResponden
+	full := func(menuID, roleID int) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: true, CreateAction: true, UpdateAction: true, DeleteAction: true,
+		}
+	}
+	none := func(menuID, roleID int) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: false, CreateAction: false, UpdateAction: false, DeleteAction: false,
+		}
+	}
+	viewOnly := func(menuID, roleID int) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: true, CreateAction: false, UpdateAction: false, DeleteAction: false,
+		}
+	}
 
-	// Mapping Role Id By Name
-	RolePublicId := roleIDs.Public
-	RoleRtId := roleIDs.Rt
-	RoleRwId := roleIDs.Rw
-	RoleLurahId := roleIDs.Lurah
-	RoleCamatId := roleIDs.Camat
-	RolePemkotId := roleIDs.Pemkot
-	RoleAdminId := roleIDs.Admin
-	RoleSurveyorId := roleIDs.Surveyor
-	RoleWalikotaId := roleIDs.Walikota
+	type P = models.MenuPermission
+	var (
+		beranda          = menuIDs.Beranda
+		masterData       = menuIDs.MasterData
+		pengaturan       = menuIDs.Pengaturan
+		respondent       = menuIDs.ManajemenResponden
+		ucapan           = menuIDs.Ucapan
+		formulir         = menuIDs.FormulirPertanyaan
+		alur             = menuIDs.ManajemenAlur
+		ManajemenWilayah = menuIDs.ManajemenWilayah
+		Surveys          = menuIDs.Surveys
+		category         = menuIDs.Kategori
+		promote          = menuIDs.Promote
+		artikel          = menuIDs.ManajemenArtikel
+		pejabat          = menuIDs.ManajemenPejabat
+		mUser            = menuIDs.ManajemenUser
+		mWilayah         = menuIDs.ManajemenWilayahChild
 
-	MenuPermission := []models.MenuPermission{
+		public   = roleIDs.Public
+		rt       = roleIDs.Rt
+		rw       = roleIDs.Rw
+		lurah    = roleIDs.Lurah
+		camat    = roleIDs.Camat
+		pemkot   = roleIDs.Pemkot
+		admin    = roleIDs.Admin
+		surveyor = roleIDs.Surveyor
+		walikota = roleIDs.Walikota
+	)
+
+	MenuPermission := []P{
+		// Manajemen Wilayah
+		none(ManajemenWilayah, public), none(ManajemenWilayah, rt), none(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
+		none(ManajemenWilayah, camat), none(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
+		none(ManajemenWilayah, surveyor), none(ManajemenWilayah, walikota),
+
+		// Beranda
+		none(beranda, public), none(beranda, rt), none(beranda, rw), full(beranda, lurah),
+		none(beranda, camat), none(beranda, pemkot), full(beranda, admin),
+		none(beranda, surveyor), none(beranda, walikota),
+
+		// Pengelola Survey (Master Data)
+		none(masterData, public), none(masterData, rt), none(masterData, rw), full(masterData, lurah),
+		none(masterData, camat), none(masterData, pemkot), full(masterData, admin),
+		none(masterData, surveyor), none(masterData, walikota),
+
+		// Pengaturan
+		none(pengaturan, public), none(pengaturan, rt), none(pengaturan, rw), full(pengaturan, lurah),
+		none(pengaturan, camat), none(pengaturan, pemkot), full(pengaturan, admin),
+		none(pengaturan, surveyor), none(pengaturan, walikota),
+
 		// Manajemen Responden
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenRespondent,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Ucapan
-		{
-			MenuID:       Ucapan,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       Ucapan,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Formulir Pertanyaan
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       FormulirPertanyaan,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
+		none(respondent, public), none(respondent, rt), none(respondent, rw), none(respondent, lurah),
+		none(respondent, camat), none(respondent, pemkot), full(respondent, admin),
+		none(respondent, surveyor), none(respondent, walikota),
+
+		// Ucapan
+		none(ucapan, public), none(ucapan, rt), none(ucapan, rw), none(ucapan, lurah),
+		none(ucapan, camat), none(ucapan, pemkot), full(ucapan, admin),
+		none(ucapan, surveyor), none(ucapan, walikota),
+
+		// Formulir Pertanyaan
+		none(formulir, public), none(formulir, rt), none(formulir, rw), none(formulir, lurah),
+		none(formulir, camat), none(formulir, pemkot), full(formulir, admin),
+		none(formulir, surveyor), none(formulir, walikota),
+
 		// Manajemen Alur
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenAlur,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Hasil Survey
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       HasilSurvey,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		// Manajemen List Survey
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RolePublicId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleRtId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleRwId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleLurahId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleCamatId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RolePemkotId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ListSurveyID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   true,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Kategori
-		{
-			MenuID:       CategoryID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleCamatId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       CategoryID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Promote
-		{
-			MenuID:       PromoteID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleCamatId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
+		none(alur, public), none(alur, rt), none(alur, rw), none(alur, lurah),
+		none(alur, camat), none(alur, pemkot), full(alur, admin),
+		none(alur, surveyor), none(alur, walikota),
+
+		// List Survey
+		viewOnly(Surveys, public), viewOnly(Surveys, rt), viewOnly(Surveys, rw), full(Surveys, lurah),
+		full(Surveys, camat), viewOnly(Surveys, pemkot), full(Surveys, admin),
+		viewOnly(Surveys, surveyor), viewOnly(Surveys, walikota),
+
+		// Kategori
+		none(category, public), none(category, rt), none(category, rw), none(category, lurah),
+		full(category, camat), none(category, pemkot), full(category, admin),
+		none(category, surveyor), none(category, walikota),
+
 		// Promote
-		{
-			MenuID:       PromoteID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleCamatId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       PromoteID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
+		none(promote, public), none(promote, rt), none(promote, rw), none(promote, lurah),
+		full(promote, camat), none(promote, pemkot), full(promote, admin),
+		none(promote, surveyor), none(promote, walikota),
+
 		// Manajemen Artikel
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleCamatId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenArtikelID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
+		none(artikel, public), none(artikel, rt), none(artikel, rw), none(artikel, lurah),
+		full(artikel, camat), none(artikel, pemkot), full(artikel, admin),
+		none(artikel, surveyor), none(artikel, walikota),
+
 		// Manajemen Pejabat
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenPejabatID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen User Permission
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleLurahId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenUserID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		// Manajemen Wilayah Permission
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RolePublicId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleRwId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleRtId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleLurahId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleCamatId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RolePemkotId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleAdminId,
-			ViewAction:   true,
-			CreateAction: true,
-			UpdateAction: true,
-			DeleteAction: true,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleSurveyorId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
-		{
-			MenuID:       ManajemenWilayahID,
-			RoleID:       RoleWalikotaId,
-			ViewAction:   false,
-			CreateAction: false,
-			UpdateAction: false,
-			DeleteAction: false,
-		},
+		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), none(pejabat, lurah),
+		none(pejabat, camat), none(pejabat, pemkot), full(pejabat, admin),
+		none(pejabat, surveyor), none(pejabat, walikota),
+
+		// Manajemen User
+		none(mUser, public), none(mUser, rt), none(mUser, rw), none(mUser, lurah),
+		none(mUser, camat), none(mUser, pemkot), full(mUser, admin),
+		none(mUser, surveyor), none(mUser, walikota),
+
+		// Manajemen Wilayah
+		none(mWilayah, public), none(mWilayah, rt), none(mWilayah, rw), full(mWilayah, lurah),
+		none(mWilayah, camat), none(mWilayah, pemkot), full(mWilayah, admin),
+		none(mWilayah, surveyor), none(mWilayah, walikota),
 	}
 
 	err = db.Clauses(clause.OnConflict{
@@ -1376,11 +158,7 @@ func PermissionSeed(db *gorm.DB) error {
 		DoNothing: true,
 	}).Create(&MenuPermission).Error
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func GetMenuIDMap(db *gorm.DB, keys []string) (map[string]int, error) {
@@ -1408,35 +186,35 @@ func GetMenuIDMap(db *gorm.DB, keys []string) (map[string]int, error) {
 
 func MapToStruct(m map[string]int) models.MenuIDs {
 	return models.MenuIDs{
-		Template:              m["template"],
-		ManajemenAlur:         m["manajemen-alur"],
-		Survey:                m["survey"],
-		Dashboard:             m["dashboard"],
-		Pengaturan:            m["pengaturan"],
-		Laporan:               m["laporan"],
-		Monitoring:            m["monitoring"],
-		Admin:                 m["admin"],
-		FormulirPertanyaan:    m["formulir-pertanyaan"],
-		Ucapan:                m["ucapan"],
-		ListSurvey:            m["list-survey"],
-		Hasil:                 m["hasil"],
-		ManajemenPengguna:     m["manajemen-pengguna"],
-		ManajemenWilayah:      m["manajemen-wilayah"],
-		ManajemenCMS:          m["manajemen-cms"],
-		ManajemenArtikel:      m["manajemen-artikel"],
+		Template:           m["template"],
+		ManajemenAlur:      m["management-alur"],
+		Beranda:            m["beranda"],
+		Pengaturan:         m["user"],
+		Laporan:            m["laporan"],
+		Monitoring:         m["monitoring"],
+		Admin:              m["admin"],
+		FormulirPertanyaan: m["template-pertanyaan"],
+		Ucapan:             m["template-ucapan"],
+		Surveys:            m["survey"],
+		// Hasil:                 m["hasil"],
+		ManajemenPengguna:     m["management-pengguna"],
+		ManajemenWilayah:      m["manage-wilayah"],
+		ManajemenCMS:          m["management-cms"],
+		ManajemenArtikel:      m["management-artikel"],
 		Rating:                m["rating"],
 		Statistik:             m["statistik"],
 		AktifitasSurvey:       m["aktifitas-survey"],
 		ProfilSaya:            m["profil-saya"],
 		Keluar:                m["keluar"],
-		ManajemenResponden:    m["manajemen-responden"],
-		ManajemenUser:         m["manajemen-user"],
-		ManajemenBlokir:       m["manajemen-blokir"],
-		ManajemenWilayahChild: m["manajemen-wilayah-child"],
-		ManajemenPejabat:      m["manajemen-pejabat"],
+		ManajemenResponden:    m["management-responden"],
+		ManajemenUser:         m["management-user"],
+		ManajemenBlokir:       m["management-blokir"],
+		ManajemenWilayahChild: m["management-wilayah"],
+		ManajemenPejabat:      m["management-pejabat"],
 		Artikel:               m["artikel"],
 		Promote:               m["promote"],
 		Kategori:              m["kategori"],
+		MasterData:            m["master-data"],
 	}
 }
 
