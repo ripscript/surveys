@@ -16,6 +16,7 @@ import (
 	"time"
 
 	excelize "github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type RespondentService interface {
@@ -28,6 +29,7 @@ type RespondentService interface {
 	ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyorOption() (*pb.ProxyResponse, error)
+	BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -54,6 +56,10 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 	err := utils.DynamicBind(req, &payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if len(payload.Respondent) < 1 {
+		return utils.SendError(fmt.Errorf("Data Tidak Boleh Kosong"), http.StatusBadRequest)
 	}
 
 	tx := service.respondentRepo.BeginTx()
@@ -471,4 +477,51 @@ func (service *respondentService) SurveyorOption() (*pb.ProxyResponse, error) {
 	}
 
 	return utils.SendData(data)
+}
+
+func (service *respondentService) BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	respondentId := param.Get("id")
+	blockStatus := param.Get("block")
+
+	if respondentId == "" {
+		return utils.SendError(fmt.Errorf("ID Respondent Tidak Ditemukan"), http.StatusBadRequest)
+	}
+
+	if blockStatus == "" {
+		return utils.SendError(fmt.Errorf("Block Status Tidak Ditemukan"), http.StatusBadRequest)
+	}
+
+	intRespondentId, err := utils.ToInt64(respondentId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	checkRespondent, err := service.respondentRepo.CheckRespondent(intRespondentId)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(fmt.Errorf("Respondent Tidak Ditemukan"), http.StatusBadRequest)
+		}
+		return utils.SendError(fmt.Errorf("Terjadi Kesalahan Saat Melakukan Pengecekan Data User"), http.StatusInternalServerError)
+	}
+
+	if checkRespondent.IsBlocked == "true" && blockStatus == "true" {
+		return utils.SendError(fmt.Errorf("Repondent Terblokir"), http.StatusBadRequest)
+	} else if checkRespondent.IsBlocked == "false" && blockStatus == "false" {
+		return utils.SendError(fmt.Errorf("Repondent Tidak Terblokir"), http.StatusBadRequest)
+	}
+
+	var data models.BlockRespondent
+
+	data.ID = int(intRespondentId)
+	data.IsBlocked = blockStatus
+	data.UpdatedAt = utils.TimeNow()
+
+	err = service.respondentRepo.RespondentBlock(data)
+	if err != nil {
+		return utils.SendError(fmt.Errorf("Terjadi Kesalahan Saat Melakukan Block Respondent"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil)
 }
