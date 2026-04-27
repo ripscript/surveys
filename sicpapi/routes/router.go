@@ -120,6 +120,9 @@ func SetupRoutes(e *echo.Echo) {
 	// Surveyor
 	e.GET("/surveyor/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
+	// Get List Menu Permission
+	e.GET("/menus/permission", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup := e.Group("/manajemen-wilayah")
