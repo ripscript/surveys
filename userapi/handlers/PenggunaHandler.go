@@ -11,6 +11,7 @@ import (
 type PenggunaHandler interface {
 	Login(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	Logout(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	Menus(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type penggunaHandler struct {
@@ -30,4 +31,8 @@ func (handler *penggunaHandler) Login(ctx context.Context, req map[string]interf
 
 func (handler *penggunaHandler) Logout(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.penggunaService.Logout(usr)
+}
+
+func (handler *penggunaHandler) Menus(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.penggunaService.Menus(usr)
 }

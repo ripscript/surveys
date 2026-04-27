@@ -29,6 +29,20 @@ type MenuPermission struct {
 	DeleteAction bool `json:"delete_action"`
 }
 
+type MenuPermissionRole struct {
+	ChildMenu []ChildMenu `json:"childMenu"`
+	Icon      string      `json:"icon"`
+	Key       string      `json:"key"`
+	Title     string      `json:"title"`
+}
+
+type ChildMenu struct {
+	ChildMenu []ChildMenu `json:"childMenu"`
+	Icon      string      `json:"icon"`
+	Key       string      `json:"key"`
+	Title     string      `json:"title"`
+}
+
 type Role struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -42,14 +56,14 @@ type MenuIDs struct {
 	Template              int
 	ManajemenAlur         int
 	Survey                int
-	Dashboard             int
+	Beranda               int
 	Pengaturan            int
 	Laporan               int
 	Monitoring            int
 	Admin                 int
 	FormulirPertanyaan    int
 	Ucapan                int
-	ListSurvey            int
+	Surveys               int
 	Hasil                 int
 	ManajemenPengguna     int
 	ManajemenWilayah      int
@@ -68,6 +82,7 @@ type MenuIDs struct {
 	Artikel               int
 	Promote               int
 	Kategori              int
+	MasterData            int
 }
 
 type RoleIDs struct {
