@@ -107,6 +107,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.DELETE("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/respondent/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/respondent/raw/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.PUT("/respondent/block", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// Users Management
 	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.POST("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
