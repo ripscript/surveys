@@ -30,10 +30,16 @@ type Respondent struct {
 	KelurahanID *int           `gorm:"column:kelurahan_id"`
 	RWID        *int           `gorm:"column:rw_id"`
 	RTID        *int           `gorm:"column:rt_id"`
-	IsBlocked   bool           `gorm:"column:is_blocked"`
+	IsBlocked   string         `gorm:"column:is_blocked"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type BlockRespondent struct {
+	ID        int    `gorm:"primaryKey"`
+	IsBlocked string `gorm:"column:is_blocked"`
+	UpdatedAt time.Time
 }
 
 type User struct {
@@ -89,6 +95,9 @@ func (User) TableName() string {
 }
 
 func (Respondent) TableName() string {
+	return "respondents"
+}
+func (BlockRespondent) TableName() string {
 	return "respondents"
 }
 

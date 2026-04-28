@@ -129,8 +129,9 @@ var grpcMap = map[string]map[string]RouteConfig{
 	// Respondent
 	"/respondent":         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "management-responden"}},
 	"/respondent/import":  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "management-responden"}},
-	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "management-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "respondent"}},
+	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "management-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "management-responden"}},
 	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "management-responden"}},
+	"/respondent/block":   {"PUT": {Handler: respondentHandler.BlockRespondent, MenuKey: "management-responden"}},
 	// Users
 	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
 	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},

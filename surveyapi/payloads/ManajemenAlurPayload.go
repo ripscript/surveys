@@ -20,7 +20,7 @@ type FlowItem struct {
 }
 
 type RoutingRule struct {
-	Rule             string        `json:"rule" validate:"required,oneof=jump-to logic"`
+	Rule             *string       `json:"rule" validate:"omitempty,oneof=jump-to logic"`
 	IsBreakdown      bool          `json:"is_breakdown"`
 	TargetQuestionID *int          `json:"target_question_id,omitempty"`
 	IsEnd            bool          `json:"is_end"`
@@ -29,9 +29,11 @@ type RoutingRule struct {
 }
 
 type OptionRoute struct {
-	OptionID         int  `json:"option_id" validate:"required,gt=0"`
-	TargetQuestionID *int `json:"target_question_id,omitempty"`
-	IsEnd            bool `json:"is_end"`
+	OptionID         int          `json:"option_id" validate:"required,gt=0"`
+	Rule             *string      `json:"rule" validate:"omitempty,oneof=jump-to logic"`
+	TargetQuestionID *int         `json:"target_question_id,omitempty"`
+	IsEnd            bool         `json:"is_end"`
+	Logics           []LogicRoute `json:"logics" validate:"dive"`
 }
 
 type LogicRoute struct {
@@ -67,7 +69,7 @@ type FlowDetailItem struct {
 }
 
 type RoutingDetailRule struct {
-	Rule             string                `json:"rule"`
+	Rule             *string               `json:"rule"` // Pointer agar bisa null
 	IsBreakdown      bool                  `json:"is_breakdown"`
 	TargetQuestionID *int                  `json:"target_question_id"`
 	IsEnd            bool                  `json:"is_end"`
@@ -76,10 +78,12 @@ type RoutingDetailRule struct {
 }
 
 type RoutingOptionDetail struct {
-	FieldID          int  `json:"field_id"`
-	OptionID         int  `json:"option_id"`
-	TargetQuestionID *int `json:"target_question_id"`
-	IsEnd            bool `json:"is_end"`
+	FieldID          int                  `json:"field_id"`
+	OptionID         int                  `json:"option_id"`
+	Rule             *string              `json:"rule"` // PERBAIKAN: Harus ada untuk logic di dalam opsi
+	TargetQuestionID *int                 `json:"target_question_id"`
+	IsEnd            bool                 `json:"is_end"`
+	Logics           []RoutingLogicDetail `json:"logics"` // PERBAIKAN: Harus ada untuk menampung logic
 }
 
 type RoutingLogicDetail struct {
