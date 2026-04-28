@@ -105,16 +105,49 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 	var respondentList []models.Respondents
 	var total int64
 
-	question := param.Get("question")
-	answer := param.Get("answer")
+	search := param.Get("search")
+	name := param.Get("name")
+	email := param.Get("email")
+	nik := param.Get("nik")
+	phoneNumber := param.Get("phoneNumber")
+	kecamatan := param.Get("kecamatan")
+	kelurahan := param.Get("kelurahan")
+	rw := param.Get("rw")
+	rt := param.Get("rt")
 
 	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").Where("deleted_at IS NULL")
 
-	if question != "" {
-		query = query.Where("LOWER(question) LIKE ?", "%"+strings.ToLower(question)+"%")
+	if search != "" {
+		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
 	}
-	if answer != "" {
-		query = query.Where("LOWER(answer) LIKE ?", "%"+strings.ToLower(answer)+"%")
+
+	if name != "" {
+		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(name)+"%")
+	}
+	if email != "" {
+		query = query.Where("LOWER(email) LIKE ?", "%"+strings.ToLower(email)+"%")
+	}
+	if nik != "" {
+		query = query.Where("LOWER(nik) LIKE ?", "%"+strings.ToLower(nik)+"%")
+	}
+	if phoneNumber != "" {
+		query = query.Where("LOWER(phone_number) LIKE ?", "%"+strings.ToLower(phoneNumber)+"%")
+	}
+
+	if kecamatan != "" {
+		query = query.Where("kecamatan_id = ?", kecamatan)
+	}
+
+	if kelurahan != "" {
+		query = query.Where("kelurahan_id = ?", kelurahan)
+	}
+
+	if rw != "" {
+		query = query.Where("rw_id = ?", rw)
+	}
+
+	if rt != "" {
+		query = query.Where("rt_id = ?", rt)
 	}
 
 	if err := query.Model(&models.Respondents{}).Count(&total).Error; err != nil {
