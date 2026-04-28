@@ -43,7 +43,7 @@ func (r *usersRepo) GetUsers(offset int, limit int, param url.Values) ([]models.
 	var total int64
 
 	search := param.Get("search")
-	username := param.Get("username")
+	name := param.Get("name")
 	email := param.Get("email")
 	nik := param.Get("nik")
 	phoneNumber := param.Get("phoneNumber")
@@ -51,11 +51,11 @@ func (r *usersRepo) GetUsers(offset int, limit int, param url.Values) ([]models.
 
 	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").Where("deleted_at IS NULL").Where("role_id IN (?)", []int{7, 8})
 	if search != "" {
-		query = query.Where("LOWER(email) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
+		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
 	}
 
-	if username != "" {
-		query = query.Where("LOWER(username) LIKE ?", "%"+strings.ToLower(username)+"%")
+	if name != "" {
+		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(name)+"%")
 	}
 	if email != "" {
 		query = query.Where("LOWER(email) LIKE ?", "%"+strings.ToLower(email)+"%")
@@ -66,8 +66,16 @@ func (r *usersRepo) GetUsers(offset int, limit int, param url.Values) ([]models.
 	if phoneNumber != "" {
 		query = query.Where("LOWER(phone_number) LIKE ?", "%"+strings.ToLower(phoneNumber)+"%")
 	}
-	if phoneNumber != "" {
-		query = query.Where("role_id = ?", "%"+strings.ToLower(role)+"%")
+	if role != "" {
+		var roleId int
+
+		if role == "Admin" {
+			roleId = 7
+		} else if role == "Surveyor" {
+			roleId = 8
+		}
+
+		query = query.Where("role_id = ?", roleId)
 	}
 
 	if err := query.Model(&models.Respondents{}).Count(&total).Error; err != nil {

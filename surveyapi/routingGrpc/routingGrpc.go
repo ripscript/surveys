@@ -82,7 +82,7 @@ var (
 
 // && Key Menu && \\
 // template
-// manajemen-alur
+// management-alur
 // survey
 // dashboard
 // pengaturan
@@ -91,22 +91,22 @@ var (
 // admin
 // formulir-pertanyaan
 // ucapan
-// list-survey
+// master-data
 // hasil
-// manajemen-pengguna
-// manajemen-wilayah
-// manajemen-cms
-// manajemen-artikel
+// management-pengguna
+// management-wilayah
+// management-cms
+// management-artikel
 // rating
 // statistik
 // aktifitas-survey
 // profil-saya
 // keluar
-// manajemen-responden
-// manajemen-user
-// manajemen-blokir
-// manajemen-wilayah-child
-// manajemen-pejabat
+// management-responden
+// user
+// management-blokir
+// management-wilayah-child
+// management-pejabat
 // artikel
 // promote
 // kategori
@@ -230,36 +230,36 @@ var grpcMap = map[string]map[string]RouteConfig{
 
 	"/survey/create": {"POST": {
 		Handler: surveyHandler.CreateSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/periode-options": {"GET": {
 		Handler: surveyHandler.OptionsPeriodeSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/list": {"GET": {
 		Handler: surveyHandler.GetListSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/approval/:code": {"POST": {
 		Handler: surveyHandler.ApprovalSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/preview-index/:code": {"GET": {
 		Handler: surveyHandler.PreviewSurveyIndex,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/preview/:survey_code/:section_code": {"GET": {
 		Handler: surveyHandler.PreviewSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 	"/survey/:survey_code/section/:section_code/submit": {"POST": {
 		Handler: surveyHandler.SurveyBundlingSubmit,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 
 	"/survey-wilayah/list": {"GET": {
 		Handler: surveyHandler.AvailableSurveyWilayah,
-		MenuKey: "list-survey",
+		MenuKey: "master-data",
 	}},
 }
 
@@ -296,7 +296,7 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	menuKey := routeConfig.MenuKey
 
 	if req.GetIsSecure() {
-		allowed := CheckPermission(int(userLogin.Role), menuKey, method)
+		allowed := CheckPermission(userLogin, menuKey, method)
 		if !allowed {
 			message := "Anda tidak memiliki hak akses"
 			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
@@ -376,11 +376,9 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 
 	if withToken {
 		claims := &models.JwtCustomClaims{}
-
 		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(os.Getenv("JWT_SECRET_KEY")), nil
 		})
-
 		if err != nil {
 			if req.GetIsSecure() {
 				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
@@ -394,6 +392,7 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 			Name:         claims.Name,
 			Email:        claims.Email,
 			Role:         claims.Role,
+			Permissions:  claims.Permissions,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: claims.ExpiresAt,
 			},
@@ -434,6 +433,7 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 		Name:         user.Name,
 		Email:        user.Email,
 		Role:         user.Role,
+		Permissions:  user.Permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiredAt,
 		},
@@ -441,7 +441,7 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET_KEY")))
 	if err != nil {
 		return "", err
 	}
@@ -467,35 +467,26 @@ func methodToAction(method string) string {
 		return ""
 	}
 }
-func CheckPermission(roleID int, menuKey string, method string) bool {
+func CheckPermission(claims models.JwtCustomClaims, menuKey string, method string) bool {
+	action := methodToAction(method)
 	if menuKey == "" {
 		return true
 	}
-
-	action := methodToAction(method)
-	if action == "" {
+	perm, ok := claims.Permissions[menuKey]
+	if !ok {
 		return false
 	}
 
-	var count int64
-
-	query := dbSlave.Table("menu_permissions mp").
-		Joins("JOIN menus m ON m.id = mp.menu_id").
-		Where("mp.role_id = ?", roleID).
-		Where("m.key = ?", menuKey)
-
 	switch action {
 	case "view":
-		query = query.Where("mp.view_action = ?", true)
+		return perm.V
 	case "create":
-		query = query.Where("mp.create_action = ?", true)
+		return perm.C
 	case "update":
-		query = query.Where("mp.update_action = ?", true)
+		return perm.U
 	case "delete":
-		query = query.Where("mp.delete_action = ?", true)
+		return perm.D
 	}
 
-	query.Count(&count)
-
-	return count > 0
+	return false
 }
