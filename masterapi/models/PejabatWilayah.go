@@ -40,6 +40,7 @@ func (u *DetailPejabatWilayah) TableName() string {
 }
 
 type PejabatWilayahList struct {
+	No            int64     `json:"no"`
 	ID            int       `json:"id"`
 	DaftarWilayah string    `json:"daftar_wilayah"`
 	TipeWilayah   string    `json:"tipe_wilayah"`

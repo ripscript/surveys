@@ -209,11 +209,19 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 	var data []models.FlowDetailDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("flow_details").
 		Select(`
 			flow_details.id,
 			flow_details.code AS flow_code,
 			flow_details.name AS flow_name,
+			flow_details.version,
 			forms.title AS form_name,
 			flow_details.created_at,
 			flow_details.updated_at,
@@ -223,72 +231,81 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 		Joins("LEFT JOIN users ON users.id = flow_details.created_by").
 		Joins("LEFT JOIN forms ON forms.id = flow_details.form_id")
 
+	countDB := repository.dbSlave.Table("flow_details").
+		Joins("LEFT JOIN users ON users.id = flow_details.created_by").
+		Joins("LEFT JOIN forms ON forms.id = flow_details.form_id")
+
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
 		searchStr := strings.TrimSpace(req.Search)
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
+			condition := `
 				flow_details.name ILIKE ? OR
 				forms.title ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				DATE(flow_details.created_at) = ? OR
 				DATE(flow_details.updated_at) = ?
-			`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				flow_details.name ILIKE ? OR
 				forms.title ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				EXTRACT(YEAR FROM flow_details.created_at)::TEXT = ? OR
 				EXTRACT(YEAR FROM flow_details.updated_at)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where(`
-			flow_details.name ILIKE ? OR
-			forms.title ILIKE ? OR 
-			users.first_name ILIKE ?
-			`, searchTerm, searchTerm, searchTerm)
+			condition := `
+				flow_details.name ILIKE ? OR
+				forms.title ILIKE ? OR 
+				users.first_name ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("flow_details.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "flow_details.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"id":              "flow_details.id",
-			"flow_name":       "flow_details.name",
-			"form_name":       "forms.title",
-			"created_at":      "flow_details.created_at",
-			"updated_at":      "flow_details.updated_at",
-			"created_by_name": "users.first_name",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("flow_details.id desc")
+	allowedOrderCols := map[string]string{
+		"id":              "flow_details.id",
+		"flow_name":       "flow_details.name",
+		"form_name":       "forms.title",
+		"created_at":      "flow_details.created_at",
+		"updated_at":      "flow_details.updated_at",
+		"created_by_name": "users.first_name",
 	}
 
-	// Fitur Pagination
+	finalOrderBy := "flow_details.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
+
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil

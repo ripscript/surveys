@@ -126,106 +126,106 @@ var grpcMap = map[string]map[string]RouteConfig{
 
 	"/template/ucapan/detail/:template_ucapan_id": {"GET": {
 		Handler: templateUcapanHandler.GetTemplateUcapanDetail,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 
 	"/template/ucapan/variable-options": {"GET": {
 		Handler: templateUcapanHandler.OptionsVariableTemplateUcapan,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 	"/template/ucapan/create": {"POST": {
 		Handler: templateUcapanHandler.CreateTemplateUcapan,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 	"/template/ucapan/update/:template_ucapan_id": {"PUT": {
 		Handler: templateUcapanHandler.UpdateTemplateUcapan,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": {
 		Handler: templateUcapanHandler.DeleteTemplateUcapan,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 	"/template/ucapan/list": {"GET": {
 		Handler: templateUcapanHandler.GetListTemplateUcapan,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 	"/template/ucapan/options": {"GET": {
 		Handler: templateUcapanHandler.GetUcapanOptions,
-		MenuKey: "ucapan",
+		MenuKey: "template-ucapan",
 	}},
 
 	"/template/formulir-pertanyaan/create": {"POST": {
 		Handler: templateFormulirPertanyaanHandler.CreateTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/detail/:template_formulir_pertanyaan_code": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code": {"PUT": {
 		Handler: templateFormulirPertanyaanHandler.UpdateTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/duplicate/:template_formulir_pertanyaan_code": {"POST": {
 		Handler: templateFormulirPertanyaanHandler.DuplicateTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code": {"DELETE": {
 		Handler: templateFormulirPertanyaanHandler.DeleteTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/list": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetListTemplateFormulirPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/question-type-options": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetQuestionTypeOptions,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/options": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetFormulirPertanyaanOptions,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/pertanyaan-options/:form_code": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetPertanyaanOptions,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/detail-pertanyaan/:id": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.DetailPertanyaan,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 	"/template/formulir-pertanyaan/multiple-choice-options/:form_field_id": {"GET": {
 		Handler: templateFormulirPertanyaanHandler.GetMultipleChoiceOptionByFormFieldId,
-		MenuKey: "formulir-pertanyaan",
+		MenuKey: "template-pertanyaan",
 	}},
 
 	"/manajemen-alur/create": {"POST": {
 		Handler: manajemenAlurHandler.CreateManajemenAlur,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/detail/:code": {"GET": {
 		Handler: manajemenAlurHandler.GetDetailManajemenAlur,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/update/:code": {"PUT": {
 		Handler: manajemenAlurHandler.UpdateManajemenAlur,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/delete/:code": {"DELETE": {
 		Handler: manajemenAlurHandler.DeleteManajemenAlur,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/list": {"GET": {
 		Handler: manajemenAlurHandler.GetListManajemenAlur,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/preview-index/:code": {"GET": {
 		Handler: manajemenAlurHandler.FlowPreviewIndex,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 	"/manajemen-alur/preview-alur/:flow_code/:section_code": {"GET": {
 		Handler: manajemenAlurHandler.PreviewAlurSurvey,
-		MenuKey: "manajemen-alur",
+		MenuKey: "management-alur",
 	}},
 
 	"/survey/create": {"POST": {

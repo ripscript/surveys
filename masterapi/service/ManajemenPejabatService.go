@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -442,7 +443,7 @@ func (service *manajemenPejabatService) GetListPejabat(ctx context.Context, req 
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
 	data, totalData, err := service.manajemenPejabatRepo.GetListPejabat(payload)
@@ -450,22 +451,15 @@ func (service *manajemenPejabatService) GetListPejabat(ctx context.Context, req 
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 

@@ -145,6 +145,13 @@ func (repository *templateUcapanRepo) GetListTemplateUcapan(req payloads.Datatab
 	var data []models.GeneralTemplateDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("general_templates").
 		Select(`
 			general_templates.id AS id,
@@ -155,7 +162,12 @@ func (repository *templateUcapanRepo) GetListTemplateUcapan(req payloads.Datatab
 			general_templates.deleted_at AS deleted_at,
 			users.first_name AS created_by_name
 		`).
-		Joins("LEFT JOIN users ON users.id = general_templates.created_by")
+		Joins("LEFT JOIN users ON users.id = general_templates.created_by").
+		Where("general_templates.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("general_templates").
+		Joins("LEFT JOIN users ON users.id = general_templates.created_by").
+		Where("general_templates.deleted_at IS NULL")
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -163,65 +175,71 @@ func (repository *templateUcapanRepo) GetListTemplateUcapan(req payloads.Datatab
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
+			condition := `
 				general_templates.name ILIKE ? OR 
 				general_templates.type ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				DATE(general_templates.created_at) = ? OR
 				DATE(general_templates.updated_at) = ?
-			`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				general_templates.name ILIKE ? OR 
 				general_templates.type ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				EXTRACT(YEAR FROM general_templates.created_at)::TEXT = ? OR
 				EXTRACT(YEAR FROM general_templates.updated_at)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where(`
-			general_templates.name ILIKE ? OR 
-			general_templates.type ILIKE ? OR
-			users.first_name ILIKE ?
-			`, searchTerm, searchTerm, searchTerm)
+			condition := `
+				general_templates.name ILIKE ? OR 
+				general_templates.type ILIKE ? OR
+				users.first_name ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("general_templates.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "general_templates.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"name":            "general_templates.name",
-			"type":            "general_templates.type",
-			"created_at":      "general_templates.created_at",
-			"updated_at":      "general_templates.updated_at",
-			"created_by_name": "users.first_name",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("general_templates.id desc")
+	allowedOrderCols := map[string]string{
+		"id":              "general_templates.id",
+		"name":            "general_templates.name",
+		"type":            "general_templates.type",
+		"created_at":      "general_templates.created_at",
+		"updated_at":      "general_templates.updated_at",
+		"created_by_name": "users.first_name",
 	}
 
-	// Fitur Pagination
+	finalOrderBy := "general_templates.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
+
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil

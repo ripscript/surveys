@@ -24,9 +24,11 @@ func (u *FlowDetail) TableName() string {
 }
 
 type FlowDetailDatatableResponse struct {
+	No            int64     `json:"no"`
 	Id            int       `json:"id"`
 	FlowCode      string    `json:"flow_code"`
 	FlowName      string    `json:"flow_name"`
+	Version       int       `json:"version"`
 	FormName      string    `json:"form_name"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

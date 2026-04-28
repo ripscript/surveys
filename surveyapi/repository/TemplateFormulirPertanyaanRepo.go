@@ -374,6 +374,13 @@ func (repository *templateFormulirPertanyaanRepo) GetListTemplateFormulirPertany
 	var data []models.FormDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("forms").
 		Select(`
 			forms.id AS id,
@@ -385,7 +392,12 @@ func (repository *templateFormulirPertanyaanRepo) GetListTemplateFormulirPertany
 			forms.flag_tematik AS flag_tematik,
 			users.first_name AS created_by_name
 		`).
-		Joins("LEFT JOIN users ON users.id = forms.user_id")
+		Joins("LEFT JOIN users ON users.id = forms.user_id").
+		Where("forms.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("forms").
+		Joins("LEFT JOIN users ON users.id = forms.user_id").
+		Where("forms.deleted_at IS NULL")
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -393,64 +405,68 @@ func (repository *templateFormulirPertanyaanRepo) GetListTemplateFormulirPertany
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
+			condition := `
 				forms.title ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				DATE(forms.created_at) = ? OR
 				DATE(forms.updated_at) = ?
-			`, searchTerm, searchTerm, parsedDate, parsedDate)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				forms.title ILIKE ? OR 
 				users.first_name ILIKE ? OR
 				EXTRACT(YEAR FROM forms.created_at)::TEXT = ? OR
 				EXTRACT(YEAR FROM forms.updated_at)::TEXT = ?
-			`, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where(`
-			forms.title ILIKE ? OR 
-			users.first_name ILIKE ?
-			`, searchTerm, searchTerm)
+			condition := `
+				forms.title ILIKE ? OR 
+				users.first_name ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("forms.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "forms.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"id":              "forms.id",
-			"code":            "forms.code",
-			"name":            "forms.title",
-			"created_at":      "forms.created_at",
-			"updated_at":      "forms.updated_at",
-			"flag_tematik":    "forms.flag_tematik",
-			"created_by_name": "users.first_name",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("forms.id desc")
+	allowedOrderCols := map[string]string{
+		"id":              "forms.id",
+		"code":            "forms.code",
+		"name":            "forms.title",
+		"created_at":      "forms.created_at",
+		"updated_at":      "forms.updated_at",
+		"flag_tematik":    "forms.flag_tematik",
+		"created_by_name": "users.first_name",
 	}
 
-	// Fitur Pagination
+	finalOrderBy := "forms.id"
+	finalOrderDir := "desc"
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
+
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil

@@ -149,15 +149,35 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 	var data []models.KecamatanDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("kecamatans").
 		Select(`
-			kecamatans.id, kecamatans.sub_district_name, kecamatans.sub_district_slug, 
-			kecamatans.kode_wilayah, kecamatans.lat, kecamatans.long, kecamatans.created_at, kecamatans.updated_at,
+			kecamatans.id, 
+			kecamatans.sub_district_name, 
+			kecamatans.sub_district_slug, 
+			kecamatans.kode_wilayah, 
+			kecamatans.lat, 
+			kecamatans.long, 
+			kecamatans.created_at, 
+			kecamatans.updated_at,
 			respondents.name as nama_pejabat, 
-			pejabat__wilayahs.periode_awal, pejabat__wilayahs.periode_akhir
+			pejabat__wilayahs.periode_awal, 
+			pejabat__wilayahs.periode_akhir
 		`).
 		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kecamatans.id AND pejabat__wilayahs.tipe_wilayah = 5`).
-		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`)
+		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
+		Where("kecamatans.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("kecamatans").
+		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kecamatans.id AND pejabat__wilayahs.tipe_wilayah = 5`).
+		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
+		Where("kecamatans.deleted_at IS NULL")
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -165,59 +185,68 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
-				kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ? 
-				OR DATE(pejabat__wilayahs.periode_awal) = ? OR DATE(pejabat__wilayahs.periode_akhir) = ?
-			`, searchTerm, searchTerm, parsedDate, parsedDate)
+			condition := `
+				kecamatans.sub_district_name ILIKE ? OR 
+				respondents.name ILIKE ? OR 
+				DATE(pejabat__wilayahs.periode_awal) = ? OR 
+				DATE(pejabat__wilayahs.periode_akhir) = ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ? 
 				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? 
 				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
-			`, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where("kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ?", searchTerm, searchTerm)
+			condition := "kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ?"
+			db = db.Where(condition, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("kecamatans.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "kecamatans.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"sub_district_name": "kecamatans.sub_district_name",
-			"sub_district_slug": "kecamatans.sub_district_slug",
-			"kode_wilayah":      "kecamatans.kode_wilayah",
-			"nama_pejabat":      "respondents.name",
-			"periode_awal":      "pejabat__wilayahs.periode_awal",
-			"periode_akhir":     "pejabat__wilayahs.periode_akhir",
-			"lat":               "kecamatans.lat",
-			"long":              "kecamatans.long",
-			"created_at":        "kecamatans.created_at",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("kecamatans.id desc")
+	allowedOrderCols := map[string]string{
+		"id":                "kecamatans.id",
+		"sub_district_name": "kecamatans.sub_district_name",
+		"sub_district_slug": "kecamatans.sub_district_slug",
+		"kode_wilayah":      "kecamatans.kode_wilayah",
+		"nama_pejabat":      "respondents.name",
+		"periode_awal":      "pejabat__wilayahs.periode_awal",
+		"periode_akhir":     "pejabat__wilayahs.periode_akhir",
+		"lat":               "kecamatans.lat",
+		"long":              "kecamatans.long",
+		"created_at":        "kecamatans.created_at",
 	}
+
+	finalOrderBy := "kecamatans.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
 
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -427,6 +456,13 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 	var data []models.KelurahanDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("kelurahans").
 		Select(`
 			kelurahans.id, 
@@ -444,10 +480,18 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 		`).
 		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kelurahans.id AND pejabat__wilayahs.tipe_wilayah = 4`).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
-		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id`)
+		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
+		Where("kelurahans.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("kelurahans").
+		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kelurahans.id AND pejabat__wilayahs.tipe_wilayah = 4`).
+		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
+		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
+		Where("kelurahans.deleted_at IS NULL")
 
 	if kecamatanId != nil {
-		db = db.Where("kelurahans.sub_district_id = ?", kecamatanId)
+		db = db.Where("kelurahans.sub_district_id = ?", *kecamatanId)
+		countDB = countDB.Where("kelurahans.sub_district_id = ?", *kecamatanId)
 	}
 
 	if req.Search != "" {
@@ -456,60 +500,74 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
-				kecamatans.sub_district_name ILIKE ? OR kelurahans.village_name ILIKE ? OR respondents.name ILIKE ? 
-				OR DATE(pejabat__wilayahs.periode_awal) = ? OR DATE(pejabat__wilayahs.periode_akhir) = ?
-			`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			condition := `
+				kecamatans.sub_district_name ILIKE ? OR 
+				kelurahans.village_name ILIKE ? OR 
+				respondents.name ILIKE ? 
+				OR DATE(pejabat__wilayahs.periode_awal) = ? OR 
+				DATE(pejabat__wilayahs.periode_akhir) = ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
 				kelurahans.village_name ILIKE ? OR respondents.name ILIKE ? 
 				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? 
 				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where("kecamatans.sub_district_name ILIKE ? OR kelurahans.village_name ILIKE ? OR respondents.name ILIKE ?", searchTerm, searchTerm, searchTerm)
+			condition := `
+				kecamatans.sub_district_name ILIKE ? OR 
+				kelurahans.village_name ILIKE ? OR 
+				respondents.name ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("kelurahans.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "kelurahans.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"kode_wilayah":      "kelurahans.kode_wilayah",
-			"sub_district_name": "kecamatans.sub_district_name",
-			"village_name":      "kelurahans.village_name",
-			"nama_pejabat":      "respondents.name",
-			"periode_awal":      "pejabat__wilayahs.periode_awal",
-			"periode_akhir":     "pejabat__wilayahs.periode_akhir",
-			"lat":               "kelurahans.lat",
-			"long":              "kelurahans.long",
-			"created_at":        "kecamatans.created_at",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("kelurahans.id desc")
+	allowedOrderCols := map[string]string{
+		"id":                "kelurahans.id",
+		"kode_wilayah":      "kelurahans.kode_wilayah",
+		"sub_district_name": "kecamatans.sub_district_name",
+		"village_name":      "kelurahans.village_name",
+		"nama_pejabat":      "respondents.name",
+		"periode_awal":      "pejabat__wilayahs.periode_awal",
+		"periode_akhir":     "pejabat__wilayahs.periode_akhir",
+		"lat":               "kelurahans.lat",
+		"long":              "kelurahans.long",
+		"created_at":        "kecamatans.created_at",
 	}
+
+	finalOrderBy := "kelurahans.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
 
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -679,6 +737,13 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 	var data []models.RwDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("data__rws").
 		Select(`
 			data__rws.id,
@@ -698,11 +763,20 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		`).
 		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rws.id AND pejabat__wilayahs.tipe_wilayah = 3`).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
-		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id`).
-		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id`)
+		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
+		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
+		Where("data__rws.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("data__rws").
+		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rws.id AND pejabat__wilayahs.tipe_wilayah = 3`).
+		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
+		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
+		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
+		Where("data__rws.deleted_at IS NULL")
 
 	if kelurahanId != nil {
-		db = db.Where("data__rws.kelurahan_id = ?", kelurahanId)
+		db = db.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+		countDB = countDB.Where("data__rws.kelurahan_id = ?", *kelurahanId)
 	}
 
 	if req.Search != "" {
@@ -711,73 +785,79 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR 
 				respondents.name ILIKE ? OR 
 				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR
 				respondents.name ILIKE ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where(`
+			condition := `
 			kecamatans.sub_district_name ILIKE ? OR 
 			kelurahans.village_name ILIKE ? OR 
 			data__rws.nama_rw ILIKE ? OR 
 			respondents.name ILIKE ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("data__rws.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "data__rws.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"kode_wilayah":   "kelurahans.kode_wilayah",
-			"nama_kecamatan": "kecamatans.sub_district_name",
-			"nama_kelurahan": "kelurahans.village_name",
-			"nama_rw":        "data__rws.nama_rw",
-			"nama_pejabat":   "respondents.name",
-			"periode_awal":   "pejabat__wilayahs.periode_awal",
-			"periode_akhir":  "pejabat__wilayahs.periode_akhir",
-			"lat":            "kelurahans.lat",
-			"long":           "kelurahans.long",
-			"created_at":     "kecamatans.created_at",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("data__rws.id desc")
+	allowedOrderCols := map[string]string{
+		"id":             "data__rws.id",
+		"kode_wilayah":   "kelurahans.kode_wilayah",
+		"nama_kecamatan": "kecamatans.sub_district_name",
+		"nama_kelurahan": "kelurahans.village_name",
+		"nama_rw":        "data__rws.nama_rw",
+		"nama_pejabat":   "respondents.name",
+		"periode_awal":   "pejabat__wilayahs.periode_awal",
+		"periode_akhir":  "pejabat__wilayahs.periode_akhir",
+		"lat":            "kelurahans.lat",
+		"long":           "kelurahans.long",
+		"created_at":     "kecamatans.created_at",
 	}
 
-	// Fitur Pagination
+	finalOrderBy := "data__rws.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
+
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -996,6 +1076,13 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 	var data []models.RtDatatableResponse
 	var totalData int64
 
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 5
+	}
+
 	db := repository.dbSlave.Table("data__rts").
 		Select(`
 			data__rts.id,
@@ -1017,12 +1104,22 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		`).
 		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rts.id AND pejabat__wilayahs.tipe_wilayah = 2`).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
-		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id`).
-		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id`).
-		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id`)
+		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
+		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
+		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
+		Where("data__rts.deleted_at IS NULL")
+
+	countDB := repository.dbSlave.Table("data__rts").
+		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rts.id AND pejabat__wilayahs.tipe_wilayah = 2`).
+		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
+		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
+		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
+		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
+		Where("data__rts.deleted_at IS NULL")
 
 	if rwId != nil {
-		db = db.Where("data__rts.rw_id = ?", rwId)
+		db = db.Where("data__rts.rw_id = ?", *rwId)
+		countDB = countDB.Where("data__rts.rw_id = ?", *rwId)
 	}
 
 	if req.Search != "" {
@@ -1031,7 +1128,7 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
 		if isDate {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR 
@@ -1039,9 +1136,11 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 				respondents.name ILIKE ? OR 
 				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR
@@ -1049,59 +1148,63 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 				respondents.name ILIKE ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			db = db.Where(`
-			kecamatans.sub_district_name ILIKE ? OR 
-			kelurahans.village_name ILIKE ? OR 
-			data__rws.nama_rw ILIKE ? OR 
-			data__rts.nama_rt ILIKE ? OR
-			respondents.name ILIKE ?
-			`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			condition := `
+				kecamatans.sub_district_name ILIKE ? OR 
+				kelurahans.village_name ILIKE ? OR 
+				data__rws.nama_rw ILIKE ? OR 
+				data__rts.nama_rt ILIKE ? OR
+				respondents.name ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
-	err := db.Count(&totalData).Error
+	err := countDB.Distinct("data__rts.id").Count(&totalData).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if req.OrderBy != "" {
-		finalOrderBy := "data__rts.id"
-		finalOrderDir := "desc"
-
-		allowedOrderCols := map[string]string{
-			"kode_wilayah":   "kelurahans.kode_wilayah",
-			"nama_kecamatan": "kecamatans.sub_district_name",
-			"nama_kelurahan": "kelurahans.village_name",
-			"nama_rw":        "data__rws.nama_rw",
-			"nama_rt":        "data__rts.nama_rt",
-			"nama_pejabat":   "respondents.name",
-			"periode_awal":   "pejabat__wilayahs.periode_awal",
-			"periode_akhir":  "pejabat__wilayahs.periode_akhir",
-			"lat":            "kelurahans.lat",
-			"long":           "kelurahans.long",
-			"created_at":     "kecamatans.created_at",
-		}
-
-		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
-			finalOrderBy = mappedCol
-		}
-
-		if strings.ToLower(req.OrderDir) == "asc" {
-			finalOrderDir = "asc"
-		}
-
-		db = db.Order(finalOrderBy + " " + finalOrderDir)
-	} else {
-		db = db.Order("data__rts.id desc")
+	allowedOrderCols := map[string]string{
+		"id":             "data__rts.id",
+		"kode_wilayah":   "kelurahans.kode_wilayah",
+		"nama_kecamatan": "kecamatans.sub_district_name",
+		"nama_kelurahan": "kelurahans.village_name",
+		"nama_rw":        "data__rws.nama_rw",
+		"nama_rt":        "data__rts.nama_rt",
+		"nama_pejabat":   "respondents.name",
+		"periode_awal":   "pejabat__wilayahs.periode_awal",
+		"periode_akhir":  "pejabat__wilayahs.periode_akhir",
+		"lat":            "kelurahans.lat",
+		"long":           "kelurahans.long",
+		"created_at":     "kecamatans.created_at",
 	}
 
-	// Fitur Pagination
+	finalOrderBy := "data__rts.id"
+	finalOrderDir := "desc"
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	db = db.Order(finalOrderBy + " " + finalOrderDir)
+
 	offset := (req.Page - 1) * req.Limit
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil

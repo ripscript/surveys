@@ -9,6 +9,7 @@ import (
 	"backend/siccore/pb"
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -215,31 +216,23 @@ func (service *manajemenWilayahService) GetListKecamatan(ctx context.Context, re
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
-	// Ambil data yang SUDAH digabung dari repo
 	data, totalData, err := service.manajemenWilayahRepo.GetListKecamatan(payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 
@@ -515,7 +508,7 @@ func (service *manajemenWilayahService) GetListKelurahan(ctx context.Context, re
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
 	data, totalData, err := service.manajemenWilayahRepo.GetListKelurahan(payload, kecamatanId)
@@ -523,22 +516,15 @@ func (service *manajemenWilayahService) GetListKelurahan(ctx context.Context, re
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 
@@ -762,7 +748,7 @@ func (service *manajemenWilayahService) GetListRw(ctx context.Context, req map[s
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
 	data, totalData, err := service.manajemenWilayahRepo.GetListRw(payload, kelurahanId)
@@ -770,22 +756,15 @@ func (service *manajemenWilayahService) GetListRw(ctx context.Context, req map[s
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 
@@ -1053,7 +1032,7 @@ func (service *manajemenWilayahService) GetListRt(ctx context.Context, req map[s
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
 	data, totalData, err := service.manajemenWilayahRepo.GetListRt(payload, rwId)
@@ -1061,22 +1040,15 @@ func (service *manajemenWilayahService) GetListRt(ctx context.Context, req map[s
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 

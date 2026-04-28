@@ -24,6 +24,7 @@ func (u *GeneralTemplate) TableName() string {
 }
 
 type GeneralTemplateDatatableResponse struct {
+	No            int64                    `json:"no"`
 	ID            int                      `json:"id"`
 	Type          enums.TypeTemplateUcapan `json:"type"`
 	Name          string                   `json:"name"`

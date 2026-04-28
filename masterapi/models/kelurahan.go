@@ -44,6 +44,7 @@ func (u *KelurahanDetail) TableName() string {
 }
 
 type KelurahanDatatableResponse struct {
+	No              int64          `json:"no"`
 	ID              int64          `json:"id"`
 	SubDistrictName string         `json:"sub_district_name"`
 	SubDistrictId   int64          `json:"sub_district_id"`

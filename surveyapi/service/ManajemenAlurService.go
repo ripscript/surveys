@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -76,7 +77,11 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 		}
 	}
 
-	form, err := service.templateFormulirPertanyaanRepo.GetFormByCode(payload.TemplateFormulirPertanyaan)
+	if payload.TemplateFormulirPertanyaan == nil || *payload.TemplateFormulirPertanyaan == "" {
+		return utils.SendError(errors.New("Template formulir pertanyaan tidak boleh kosong"), http.StatusBadRequest)
+	}
+
+	form, err := service.templateFormulirPertanyaanRepo.GetFormByCode(*payload.TemplateFormulirPertanyaan)
 	if err != nil {
 		return utils.SendError(errors.New("formulir tidak ditemukan"), http.StatusNotFound)
 	}
@@ -124,7 +129,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 			ClosingId:     payload.Penutup,
 			Code:          code,
 			Version:       1,
-			CreatedBy:     int(usr.ID), // Diambil dari JWT
+			CreatedBy:     int(usr.ID),
 			StatusSection: statusSec,
 		}
 
@@ -184,8 +189,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 				}
 			}
 
-			// Pengecekan Aman (Safe Dereference) untuk Main Rule
-			mainRuleVal := "jump-to" // Default jika kebetulan kosong saat is_breakdown = true
+			mainRuleVal := "jump-to"
 			if flow.Routing.Rule != nil && *flow.Routing.Rule != "" {
 				mainRuleVal = *flow.Routing.Rule
 			}
@@ -230,7 +234,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 							if optRuleVal == "logic" {
 								isAdvanced = true
-								child = 0 // Logic tidak memiliki child default
+								child = 0
 								grpChild = 0
 							} else {
 								if opt.TargetQuestionID != nil && *opt.TargetQuestionID != 0 {
@@ -276,20 +280,20 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 							if optRuleVal == "logic" {
 								for _, logic := range opt.Logics {
-									logicChild, _ := resolveTarget(logic.TargetQuestionID)
-
+									logicTargetID := 0
 									if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
 										_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 										if err != nil || !_questionExists {
 											return fmt.Errorf("pertanyaan target opsi logic tidak ditemukan")
 										}
+										logicTargetID = *logic.TargetQuestionID
 									}
 
 									advanced := &models.AdvancedOptionFlow{
 										FlowFieldId: optField.ID,
 										FormFieldId: logic.IfQuestionID,
 										Option:      logic.IfOptionID,
-										ChildId:     logicChild,
+										ChildId:     logicTargetID,
 									}
 
 									if err := txRepo.CreateAdvancedOption(advanced); err != nil {
@@ -298,7 +302,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 								}
 							}
 						}
-						continue // Lanjut ke sequence/pertanyaan berikutnya
+						continue
 					} else {
 						if mainRuleVal == "jump-to" {
 							if flow.Routing.TargetQuestionID != nil && *flow.Routing.TargetQuestionID != 0 {
@@ -316,7 +320,6 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 					}
 				}
 
-				// INSERT BARIS UTAMA UNTUK NON-BREAKDOWN (ATAU LOGIC)
 				answerOptionIDs, err := txRepo.GetAnswerOptionsByQuestionID(qID)
 				if err != nil {
 					return err
@@ -347,20 +350,20 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 				if mainRuleVal == "logic" && !flow.Routing.IsBreakdown && !flow.IsGroup && indexQ == len(flow.QuestionIDs)-1 {
 					for _, logic := range flow.Routing.Logics {
-						child, _ := resolveTarget(logic.TargetQuestionID)
-
+						logicTargetID := 0
 						if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
 							_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 							if err != nil || !_questionExists {
 								return fmt.Errorf("pertanyaan target dengan ID %d tidak ditemukan", *logic.TargetQuestionID)
 							}
+							logicTargetID = *logic.TargetQuestionID
 						}
 
 						advanced := &models.AdvancedOptionFlow{
 							FlowFieldId: firstInsertedFieldID,
 							FormFieldId: logic.IfQuestionID,
 							Option:      logic.IfOptionID,
-							ChildId:     child,
+							ChildId:     logicTargetID,
 						}
 
 						if err := txRepo.CreateAdvancedOption(advanced); err != nil {
@@ -399,15 +402,21 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	form, err := service.templateFormulirPertanyaanRepo.GetFormById(int64(flowDetail.FormId))
+	if err != nil {
+		return utils.SendError(errors.New("Formulir pertanyaan tidak ditemukan"), http.StatusNotFound)
+	}
+
 	if len(fields) == 0 {
-		return utils.SendData(payloads.ManajemenAlurDetailResponse{
-			ID:         flowDetail.ID,
-			FormCode:   flowDetail.Code,
-			Name:       flowDetail.Name,
-			OpeningID:  flowDetail.OpeningId,
-			ClosingID:  flowDetail.ClosingId,
-			HasSection: flowDetail.StatusSection == "1",
-			Flows:      []payloads.FlowDetailItem{},
+		return utils.SendData(payloads.ManajemenAlurPayload{
+			ID:                         flowDetail.ID,
+			FlowCode:                   &flowDetail.Code,
+			TemplateFormulirPertanyaan: &form.Code,
+			NamaAlur:                   flowDetail.Name,
+			Pembuka:                    flowDetail.OpeningId,
+			Penutup:                    flowDetail.ClosingId,
+			HasSection:                 flowDetail.StatusSection == "1",
+			Flows:                      []payloads.FlowItem{},
 		}, "Detail alur berhasil diambil")
 	}
 
@@ -418,6 +427,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 	uniqueSections := make(map[int]bool)
 	uniqueGroups := make(map[int]bool)
 	mapSequenceToFields := make(map[int][]models.FlowField)
+	mapGroupIDToFirstQuestionID := make(map[int]int)
 
 	for _, f := range fields {
 		fieldIDs = append(fieldIDs, f.ID)
@@ -426,9 +436,14 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			uniqueSections[*f.SectionId] = true
 			sectionIDs = append(sectionIDs, *f.SectionId)
 		}
-		if f.GroupId != 0 && !uniqueGroups[f.GroupId] {
-			uniqueGroups[f.GroupId] = true
-			groupIDs = append(groupIDs, f.GroupId)
+		if f.GroupId != 0 {
+			if !uniqueGroups[f.GroupId] {
+				uniqueGroups[f.GroupId] = true
+				groupIDs = append(groupIDs, f.GroupId)
+			}
+			if _, exists := mapGroupIDToFirstQuestionID[f.GroupId]; !exists {
+				mapGroupIDToFirstQuestionID[f.GroupId] = f.FormFieldId
+			}
 		}
 
 		mapSequenceToFields[f.Sequence] = append(mapSequenceToFields[f.Sequence], f)
@@ -453,7 +468,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		mapGroupNameByID[g.ID] = g.Name
 	}
 
-	var reconstructedFlows []payloads.FlowDetailItem
+	var reconstructedFlows []payloads.FlowItem
 	var sequences []int
 	for seq := range mapSequenceToFields {
 		sequences = append(sequences, seq)
@@ -464,14 +479,30 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 	sectionCounter := 1
 	mapSectionDBIDToIndex := make(map[int]int)
 
-	ruleLogic := "logic"
-	ruleJumpTo := "jump-to"
+	// Variabel global pembantu pointer
+	rLogic := "logic"
+	rJump := "jump-to"
+
+	// Helper untuk merender pointer TargetQuestionID (menghindari memory shared bug)
+	getTargetPtr := func(child int, grpChild int) *int {
+		target := child
+		if grpChild != 0 {
+			if qID, exists := mapGroupIDToFirstQuestionID[grpChild]; exists {
+				target = qID
+			}
+		}
+		if target == 0 {
+			return nil
+		}
+		val := target
+		return &val
+	}
 
 	for _, seq := range sequences {
 		seqFields := mapSequenceToFields[seq]
 		firstField := seqFields[0]
 
-		flowItem := payloads.FlowDetailItem{
+		flowItem := payloads.FlowItem{
 			Sequence: seq,
 			IsGroup:  firstField.GroupId != 0,
 		}
@@ -513,134 +544,92 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			}
 		}
 
-		// ==========================================================
-		// PERBAIKAN: CARI FIELD KELUARAN (EXIT FIELD) DARI SEQUENCE
-		// ==========================================================
-		// Routing utama selalu menempel pada pertanyaan terakhir di sequence ini
 		lastQuestionID := flowItem.QuestionIDs[len(flowItem.QuestionIDs)-1]
 		var exitField models.FlowField
 		for _, f := range seqFields {
 			if f.FormFieldId == lastQuestionID {
 				exitField = f
-				break // Ambil field pertama dari pertanyaan terakhir
+				break
 			}
 		}
 
-		flowItem.Routing = payloads.RoutingDetailRule{
-			IsBreakdown: firstField.Breakdown, // Sifat breakdown berlaku satu urutan penuh (cek di firstField)
-			Options:     []payloads.RoutingOptionDetail{},
-			Logics:      []payloads.RoutingLogicDetail{},
+		flowItem.Routing = payloads.RoutingRule{
+			IsBreakdown: firstField.Breakdown,
+			Options:     []payloads.OptionRoute{},
+			Logics:      []payloads.LogicRoute{},
 		}
 
 		if firstField.Breakdown {
-			// CASE 1: BREAKDOWN
 			flowItem.Routing.Rule = nil
 			flowItem.Routing.IsEnd = false
 
 			for _, f := range seqFields {
 				if f.FormAnswerFieldId != nil {
-					targetID := f.ChildId
-					if f.GroupChildId != 0 {
-						targetID = int(f.GroupChildId)
-					}
-
-					isEnd := targetID == 0
-					var tPtr *int
-					if !isEnd {
-						tPtr = &targetID
-					}
-
-					optRule := &ruleJumpTo
+					optRule := &rJump
 					if f.IsAdvancedOption {
-						optRule = &ruleLogic
+						optRule = &rLogic
 					}
 
-					var optLogics []payloads.RoutingLogicDetail
+					var optLogics []payloads.LogicRoute
 					if f.IsAdvancedOption {
 						if logics, exists := mapLogicsByFieldID[f.ID]; exists {
 							for _, logic := range logics {
-								lIsEnd := logic.ChildId == 0
-								var lTarget *int
-								if !lIsEnd {
-									lTarget = &logic.ChildId
-								}
-
-								optLogics = append(optLogics, payloads.RoutingLogicDetail{
+								optLogics = append(optLogics, payloads.LogicRoute{
 									LogicID:          logic.ID,
 									IfQuestionID:     logic.FormFieldId,
 									IfOptionID:       logic.Option,
-									TargetQuestionID: lTarget,
-									IsEnd:            lIsEnd,
+									TargetQuestionID: getTargetPtr(logic.ChildId, 0),
+									IsEnd:            logic.ChildId == 0,
 								})
 							}
 						}
 					}
 
-					flowItem.Routing.Options = append(flowItem.Routing.Options, payloads.RoutingOptionDetail{
+					flowItem.Routing.Options = append(flowItem.Routing.Options, payloads.OptionRoute{
 						FieldID:          f.ID,
 						OptionID:         *f.FormAnswerFieldId,
 						Rule:             optRule,
-						TargetQuestionID: tPtr,
-						IsEnd:            isEnd,
+						TargetQuestionID: getTargetPtr(f.ChildId, int(f.GroupChildId)),
+						IsEnd:            f.ChildId == 0 && f.GroupChildId == 0,
 						Logics:           optLogics,
 					})
 				}
 			}
 
 		} else {
-			// ==========================================================
-			// CASE 2: NON-BREAKDOWN (GUNAKAN exitField)
-			// ==========================================================
-			targetID := exitField.ChildId
-			if exitField.GroupChildId != 0 {
-				targetID = int(exitField.GroupChildId)
-			}
-
-			isEnd := targetID == 0
-			var tPtr *int
-			if !isEnd {
-				tPtr = &targetID
-			}
-
-			flowItem.Routing.TargetQuestionID = tPtr
-			flowItem.Routing.IsEnd = isEnd
+			flowItem.Routing.TargetQuestionID = getTargetPtr(exitField.ChildId, int(exitField.GroupChildId))
+			flowItem.Routing.IsEnd = exitField.ChildId == 0 && exitField.GroupChildId == 0
 
 			if exitField.IsAdvancedOption {
-				flowItem.Routing.Rule = &ruleLogic
-
+				flowItem.Routing.Rule = &rLogic
 				if logics, exists := mapLogicsByFieldID[exitField.ID]; exists {
 					for _, logic := range logics {
-						lIsEnd := logic.ChildId == 0
-						var lTarget *int
-						if !lIsEnd {
-							lTarget = &logic.ChildId
-						}
-
-						flowItem.Routing.Logics = append(flowItem.Routing.Logics, payloads.RoutingLogicDetail{
+						flowItem.Routing.Logics = append(flowItem.Routing.Logics, payloads.LogicRoute{
 							LogicID:          logic.ID,
 							IfQuestionID:     logic.FormFieldId,
 							IfOptionID:       logic.Option,
-							TargetQuestionID: lTarget,
-							IsEnd:            lIsEnd,
+							TargetQuestionID: getTargetPtr(logic.ChildId, 0),
+							IsEnd:            logic.ChildId == 0,
 						})
 					}
 				}
 			} else {
-				flowItem.Routing.Rule = &ruleJumpTo
+				flowItem.Routing.Rule = &rJump
 			}
 		}
 
 		reconstructedFlows = append(reconstructedFlows, flowItem)
 	}
 
-	finalResponse := payloads.ManajemenAlurDetailResponse{
-		ID:         flowDetail.ID,
-		FormCode:   flowDetail.Code,
-		Name:       flowDetail.Name,
-		OpeningID:  flowDetail.OpeningId,
-		ClosingID:  flowDetail.ClosingId,
-		HasSection: flowDetail.StatusSection == "1",
-		Flows:      reconstructedFlows,
+	finalResponse := payloads.ManajemenAlurPayload{
+		ID:                         flowDetail.ID,
+		FlowCode:                   &flowDetail.Code,
+		TemplateFormulirPertanyaan: &form.Code,
+		NamaAlur:                   flowDetail.Name,
+		Pembuka:                    flowDetail.OpeningId,
+		Penutup:                    flowDetail.ClosingId,
+		HasSection:                 flowDetail.StatusSection == "1",
+		Flows:                      reconstructedFlows,
 	}
 
 	return utils.SendData(finalResponse, "Detail manajemen alur berhasil diambil")
@@ -649,15 +638,19 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	var payload payloads.ManajemenAlurUpdatePayload
+	var payload payloads.ManajemenAlurPayload
 
-	err := utils.DynamicBind(req, &payload)
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	err = json.Unmarshal(jsonBytes, &payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
 	var validate = validator.New()
-	validate.RegisterStructValidation(customValidator.ManajemenAlurUpdatePayloadValidator, payloads.ManajemenAlurUpdatePayload{})
+	validate.RegisterStructValidation(customValidator.ManajemenAlurPayloadValidator, payloads.ManajemenAlurPayload{})
 
 	err = validate.Struct(payload)
 	if err != nil {
@@ -690,12 +683,13 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 		existingDetail.OpeningId = payload.Pembuka
 		existingDetail.ClosingId = payload.Penutup
 		existingDetail.StatusSection = statusSec
-		existingDetail.Version += 1
+		existingDetail.Version += 1 // Increment Version
 
 		if err := txRepo.UpdateFlowDetail(existingDetail); err != nil {
 			return err
 		}
 
+		// WIPE AND REPLACE: Hapus semua relasi lama
 		if err := txRepo.DeleteRoutingByDetailID(existingDetail.ID); err != nil {
 			return err
 		}
@@ -704,7 +698,7 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 		mapFirstQuestionIDToGroupID := make(map[int]int)
 
 		for _, flow := range payload.Flows {
-
+			// UPSERT SECTION
 			if payload.HasSection && flow.SectionIndex != nil {
 				if _, exists := mapSectionIndexToDBID[*flow.SectionIndex]; !exists {
 					secName := fmt.Sprintf("Section %d", *flow.SectionIndex)
@@ -713,6 +707,7 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 					}
 
 					secModel := &models.FlowSection{Name: secName}
+					// Jika ada SectionID dari payload (Data Lama), gunakan ID itu
 					if flow.SectionID != nil && *flow.SectionID != 0 {
 						secModel.ID = *flow.SectionID
 					}
@@ -724,8 +719,10 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 				}
 			}
 
+			// UPSERT GROUP
 			if flow.IsGroup {
 				grpModel := &models.FlowGroup{Name: *flow.GroupName}
+				// Jika ada GroupID dari payload (Data Lama), gunakan ID itu
 				if flow.GroupID != nil && *flow.GroupID != 0 {
 					grpModel.ID = *flow.GroupID
 				}
@@ -762,6 +759,12 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 				}
 			}
 
+			// Ekstraksi Rule Utama
+			mainRuleVal := "jump-to"
+			if flow.Routing.Rule != nil && *flow.Routing.Rule != "" {
+				mainRuleVal = *flow.Routing.Rule
+			}
+
 			for indexQ, qID := range flow.QuestionIDs {
 				questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(qID)
 				if err != nil {
@@ -772,7 +775,7 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 				}
 
 				field := &models.FlowField{
-					FlowDetailId:     existingDetail.ID,
+					FlowDetailId:     existingDetail.ID, // Gunakan ID existingDetail
 					Sequence:         flow.Sequence,
 					FormFieldId:      qID,
 					GroupChildId:     0,
@@ -786,59 +789,106 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 					nextQIDInGroup := flow.QuestionIDs[indexQ+1]
 					field.ChildId, field.GroupChildId = resolveTarget(&nextQIDInGroup)
 				} else {
-					if flow.Routing.Rule == "jump-to" {
-						if flow.Routing.IsBreakdown {
-							field.Breakdown = true
-							field.ChildId = 0
-							field.GroupChildId = 0
+					if flow.Routing.IsBreakdown {
+						field.Breakdown = true
+						field.ChildId = 0
+						field.GroupChildId = 0
 
-							for _, opt := range flow.Routing.Options {
-								child, grpChild := resolveTarget(opt.TargetQuestionID)
-								if child != 0 {
-									questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(child)
+						for _, opt := range flow.Routing.Options {
+							var child, grpChild int
+							isAdvanced := false
+
+							optRuleVal := "jump-to"
+							if opt.Rule != nil && *opt.Rule != "" {
+								optRuleVal = *opt.Rule
+							}
+
+							if optRuleVal == "logic" {
+								isAdvanced = true
+								child = 0 // Logic tidak memiliki child di flow_fields
+								grpChild = 0
+							} else {
+								if opt.TargetQuestionID != nil && *opt.TargetQuestionID != 0 {
+									questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*opt.TargetQuestionID)
 									if err != nil {
 										return err
 									}
 									if !questionExists {
-										return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", child)
+										return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", *opt.TargetQuestionID)
 									}
 								}
+								child, grpChild = resolveTarget(opt.TargetQuestionID)
+							}
 
-								optID := opt.OptionID
+							optID := opt.OptionID
 
-								if optID != 0 {
-									optionQuestionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionOptionsExistById(optID)
-									if err != nil {
-										return err
-									}
-									if !optionQuestionExists {
-										return fmt.Errorf("opsi pertanyaan dengan ID %d tidak ditemukan", optID)
-									}
-								}
-
-								optField := &models.FlowField{
-									FlowDetailId:      existingDetail.ID,
-									Sequence:          flow.Sequence,
-									FormFieldId:       qID,
-									FormAnswerFieldId: &optID,
-									ChildId:           child,
-									GroupChildId:      grpChild,
-									GroupId:           currentGroupID,
-									SectionId:         currentSectionID,
-									Breakdown:         true,
-								}
-								if err := txRepo.CreateFlowField(optField); err != nil {
+							if optID != 0 {
+								optionQuestionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionOptionsExistById(optID)
+								if err != nil {
 									return err
 								}
+								if !optionQuestionExists {
+									return fmt.Errorf("opsi pertanyaan dengan ID %d tidak ditemukan", optID)
+								}
 							}
-							continue
-						} else {
-							field.ChildId, field.GroupChildId = resolveTarget(flow.Routing.TargetQuestionID)
+
+							optField := &models.FlowField{
+								FlowDetailId:      existingDetail.ID,
+								Sequence:          flow.Sequence,
+								FormFieldId:       qID,
+								FormAnswerFieldId: &optID,
+								ChildId:           child,
+								GroupChildId:      grpChild,
+								GroupId:           currentGroupID,
+								SectionId:         currentSectionID,
+								Breakdown:         true,
+								IsAdvancedOption:  isAdvanced,
+							}
+
+							if err := txRepo.CreateFlowField(optField); err != nil {
+								return err
+							}
+
+							if optRuleVal == "logic" {
+								for _, logic := range opt.Logics {
+									// PERBAIKAN TARGET UNTUK ADVANCED OPTION FLOWS MENGGUNAKAN RAW ID
+									logicTargetID := 0
+									if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
+										_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
+										if err != nil || !_questionExists {
+											return fmt.Errorf("pertanyaan target opsi logic tidak ditemukan")
+										}
+										logicTargetID = *logic.TargetQuestionID
+									}
+
+									advanced := &models.AdvancedOptionFlow{
+										FlowFieldId: optField.ID,
+										FormFieldId: logic.IfQuestionID,
+										Option:      logic.IfOptionID,
+										ChildId:     logicTargetID,
+									}
+
+									if err := txRepo.CreateAdvancedOption(advanced); err != nil {
+										return err
+									}
+								}
+							}
 						}
-					} else if flow.Routing.Rule == "logic" {
-						field.IsAdvancedOption = true
-						field.ChildId = 0
-						field.GroupChildId = 0
+						continue
+					} else {
+						if mainRuleVal == "jump-to" {
+							if flow.Routing.TargetQuestionID != nil && *flow.Routing.TargetQuestionID != 0 {
+								questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*flow.Routing.TargetQuestionID)
+								if err != nil || !questionExists {
+									return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", *flow.Routing.TargetQuestionID)
+								}
+							}
+							field.ChildId, field.GroupChildId = resolveTarget(flow.Routing.TargetQuestionID)
+						} else if mainRuleVal == "logic" {
+							field.IsAdvancedOption = true
+							field.ChildId = 0
+							field.GroupChildId = 0
+						}
 					}
 				}
 
@@ -870,42 +920,25 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 					firstInsertedFieldID = field.ID
 				}
 
-				if flow.Routing.Rule == "logic" && !flow.IsGroup && indexQ == len(flow.QuestionIDs)-1 {
+				if mainRuleVal == "logic" && !flow.Routing.IsBreakdown && !flow.IsGroup && indexQ == len(flow.QuestionIDs)-1 {
 					for _, logic := range flow.Routing.Logics {
-						child, _ := resolveTarget(logic.TargetQuestionID)
-
+						// PERBAIKAN TARGET UNTUK ADVANCED OPTION FLOWS MENGGUNAKAN RAW ID
+						logicTargetID := 0
 						if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
-							questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
-							if err != nil {
-								return err
-							}
-							if !questionExists {
+							_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
+							if err != nil || !_questionExists {
 								return fmt.Errorf("pertanyaan target dengan ID %d tidak ditemukan", *logic.TargetQuestionID)
 							}
-						}
-
-						questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(logic.IfQuestionID)
-						if err != nil {
-							return err
-						}
-						if !questionExists {
-							return fmt.Errorf("pertanyaan acuan dengan ID %d tidak ditemukan", logic.IfQuestionID)
-						}
-
-						optionQuestionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionOptionsExistById(logic.IfOptionID)
-						if err != nil {
-							return err
-						}
-						if !optionQuestionExists {
-							return fmt.Errorf("opsi pertanyaan acuan dengan ID %d tidak ditemukan", logic.IfOptionID)
+							logicTargetID = *logic.TargetQuestionID
 						}
 
 						advanced := &models.AdvancedOptionFlow{
 							FlowFieldId: firstInsertedFieldID,
 							FormFieldId: logic.IfQuestionID,
 							Option:      logic.IfOptionID,
-							ChildId:     child,
+							ChildId:     logicTargetID,
 						}
+
 						if err := txRepo.CreateAdvancedOption(advanced); err != nil {
 							return err
 						}
@@ -983,7 +1016,7 @@ func (service *manajemenAlurService) GetListManajemenAlur(ctx context.Context, r
 		payload.Page = 1
 	}
 	if payload.Limit <= 0 {
-		payload.Limit = 25
+		payload.Limit = 5
 	}
 
 	data, totalData, err := service.manajemenAlurRepo.GetListAlur(payload)
@@ -1009,22 +1042,15 @@ func (service *manajemenAlurService) GetListManajemenAlur(ctx context.Context, r
 		}
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
-
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 

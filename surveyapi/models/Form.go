@@ -50,6 +50,7 @@ func (u *FullForm) TableName() string {
 }
 
 type FormDatatableResponse struct {
+	No            int64          `json:"no"`
 	Id            int            `json:"id"`
 	Code          string         `json:"code"`
 	Title         string         `json:"title"`
