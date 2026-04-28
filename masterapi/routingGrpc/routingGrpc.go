@@ -71,7 +71,7 @@ var (
 
 // && Key Menu && \\
 // template
-// manajemen-alur
+// management-alur
 // survey
 // dashboard
 // pengaturan
@@ -80,22 +80,22 @@ var (
 // admin
 // formulir-pertanyaan
 // ucapan
-// list-survey
+// master-data
 // hasil
-// manajemen-pengguna
-// manajemen-wilayah
-// manajemen-cms
-// manajemen-artikel
+// management-pengguna
+// management-wilayah
+// management-cms
+// management-artikel
 // rating
 // statistik
 // aktifitas-survey
 // profil-saya
 // keluar
-// manajemen-responden
-// manajemen-user
-// manajemen-blokir
-// manajemen-wilayah-child
-// manajemen-pejabat
+// management-responden
+// user
+// management-blokir
+// management-wilayah-child
+// management-pejabat
 // artikel
 // promote
 // kategori
@@ -111,56 +111,56 @@ var grpcMap = map[string]map[string]RouteConfig{
 
 	"/masterapi/healthy": {"GET": {Handler: handlers.Healthy, MenuKey: ""}},
 
-	"/manajemen-wilayah/kecamatan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKecamatan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kecamatan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKecamatan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": {Handler: manajemenWilayahHandler.GetKecamatanDetail, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKecamatan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kecamatan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKecamatan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKecamatan, MenuKey: "manajemen-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKecamatan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKecamatan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": {Handler: manajemenWilayahHandler.GetKecamatanDetail, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKecamatan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKecamatan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKecamatan, MenuKey: "management-wilayah-child"}},
 
-	"/manajemen-wilayah/kelurahan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetKelurahanDetail, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/list/:kecamatan_id":   {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKelurahan, MenuKey: "manajemen-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetKelurahanDetail, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/list/:kecamatan_id":   {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKelurahan, MenuKey: "management-wilayah-child"}},
 
-	"/manajemen-wilayah/rw/detail/:rw_id":      {"GET": {Handler: manajemenWilayahHandler.GetRwDetail, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/update/:rw_id":      {"PUT": {Handler: manajemenWilayahHandler.UpdateRw, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/list":               {"GET": {Handler: manajemenWilayahHandler.GetListRw, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/list/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetListRwByKelurahan, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/create":             {"POST": {Handler: manajemenWilayahHandler.CreateRw, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/options":            {"GET": {Handler: manajemenWilayahHandler.OptionsRw, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rw/delete/:rw_id":      {"DELETE": {Handler: manajemenWilayahHandler.DeleteRw, MenuKey: "manajemen-wilayah-child"}},
+	"/manajemen-wilayah/rw/detail/:rw_id":      {"GET": {Handler: manajemenWilayahHandler.GetRwDetail, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/update/:rw_id":      {"PUT": {Handler: manajemenWilayahHandler.UpdateRw, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/list":               {"GET": {Handler: manajemenWilayahHandler.GetListRw, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/list/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetListRwByKelurahan, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/create":             {"POST": {Handler: manajemenWilayahHandler.CreateRw, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/options":            {"GET": {Handler: manajemenWilayahHandler.OptionsRw, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rw/delete/:rw_id":      {"DELETE": {Handler: manajemenWilayahHandler.DeleteRw, MenuKey: "management-wilayah-child"}},
 
-	"/manajemen-wilayah/rt/detail/:rt_id": {"GET": {Handler: manajemenWilayahHandler.GetRtDetail, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/update/:rt_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateRt, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/list":          {"GET": {Handler: manajemenWilayahHandler.GetListRt, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": {Handler: manajemenWilayahHandler.GetListRtByRw, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/create":        {"POST": {Handler: manajemenWilayahHandler.CreateRt, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/options":       {"GET": {Handler: manajemenWilayahHandler.OptionsRt, MenuKey: "manajemen-wilayah-child"}},
-	"/manajemen-wilayah/rt/delete/:rt_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteRT, MenuKey: "manajemen-wilayah-child"}},
+	"/manajemen-wilayah/rt/detail/:rt_id": {"GET": {Handler: manajemenWilayahHandler.GetRtDetail, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/update/:rt_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateRt, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/list":          {"GET": {Handler: manajemenWilayahHandler.GetListRt, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": {Handler: manajemenWilayahHandler.GetListRtByRw, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/create":        {"POST": {Handler: manajemenWilayahHandler.CreateRt, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/options":       {"GET": {Handler: manajemenWilayahHandler.OptionsRt, MenuKey: "management-wilayah-child"}},
+	"/manajemen-wilayah/rt/delete/:rt_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteRT, MenuKey: "management-wilayah-child"}},
 
 	"/manajemen-pejabat/create": {"POST": {
 		Handler: manajemenPejabatHandler.CreatePejabat,
-		MenuKey: "manajemen-pejabat",
+		MenuKey: "management-pejabat",
 	}},
 	"/manajemen-pejabat/detail/:id": {"GET": {
 		Handler: manajemenPejabatHandler.DetailPejabat,
-		MenuKey: "manajemen-pejabat",
+		MenuKey: "management-pejabat",
 	}},
 	"/manajemen-pejabat/update/:id": {"PUT": {
 		Handler: manajemenPejabatHandler.UpdatePejabat,
-		MenuKey: "manajemen-pejabat",
+		MenuKey: "management-pejabat",
 	}},
 	"/manajemen-pejabat/delete/:id": {"DELETE": {
 		Handler: manajemenPejabatHandler.DeletePejabat,
-		MenuKey: "manajemen-pejabat",
+		MenuKey: "management-pejabat",
 	}},
 	"/manajemen-pejabat/list": {"GET": {
 		Handler: manajemenPejabatHandler.GetListPejabat,
-		MenuKey: "manajemen-pejabat",
+		MenuKey: "management-pejabat",
 	}},
 
 	"/manajemen-artikel/kategori/create": {"POST": {
@@ -185,7 +185,6 @@ var grpcMap = map[string]map[string]RouteConfig{
 	}},
 }
 
-// Metode untuk menangani permintaan yang masuk
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -219,7 +218,7 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 	menuKey := routeConfig.MenuKey
 
 	if req.GetIsSecure() {
-		allowed := CheckPermission(int(userLogin.Role), menuKey, method)
+		allowed := CheckPermission(userLogin, menuKey, method)
 		if !allowed {
 			message := "Anda tidak memiliki hak akses"
 			return utils.SetResponseData([]byte{}, false, message, http.StatusForbidden, nil, ""), nil
@@ -299,11 +298,9 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 
 	if withToken {
 		claims := &models.JwtCustomClaims{}
-
 		_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(os.Getenv("JWT_SECRET_KEY")), nil
 		})
-
 		if err != nil {
 			if req.GetIsSecure() {
 				return false, "Token Tidak Valid", int(http.StatusUnauthorized), userData, newToken
@@ -317,6 +314,7 @@ func ValidasiToken(ctx context.Context, req *pb.ProxyRequest) (bool, string, int
 			Name:         claims.Name,
 			Email:        claims.Email,
 			Role:         claims.Role,
+			Permissions:  claims.Permissions,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: claims.ExpiresAt,
 			},
@@ -357,6 +355,7 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 		Name:         user.Name,
 		Email:        user.Email,
 		Role:         user.Role,
+		Permissions:  user.Permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiredAt,
 		},
@@ -364,7 +363,7 @@ func GenerateJWTToken(user models.JwtCustomClaims) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	encryptedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET_KEY")))
 	if err != nil {
 		return "", err
 	}
@@ -390,35 +389,26 @@ func methodToAction(method string) string {
 		return ""
 	}
 }
-func CheckPermission(roleID int, menuKey string, method string) bool {
+func CheckPermission(claims models.JwtCustomClaims, menuKey string, method string) bool {
+	action := methodToAction(method)
 	if menuKey == "" {
 		return true
 	}
-
-	action := methodToAction(method)
-	if action == "" {
+	perm, ok := claims.Permissions[menuKey]
+	if !ok {
 		return false
 	}
 
-	var count int64
-
-	query := dbSlave.Table("menu_permissions mp").
-		Joins("JOIN menus m ON m.id = mp.menu_id").
-		Where("mp.role_id = ?", roleID).
-		Where("m.key = ?", menuKey)
-
 	switch action {
 	case "view":
-		query = query.Where("mp.view_action = ?", true)
+		return perm.V
 	case "create":
-		query = query.Where("mp.create_action = ?", true)
+		return perm.C
 	case "update":
-		query = query.Where("mp.update_action = ?", true)
+		return perm.U
 	case "delete":
-		query = query.Where("mp.delete_action = ?", true)
+		return perm.D
 	}
 
-	query.Count(&count)
-
-	return count > 0
+	return false
 }
