@@ -79,7 +79,7 @@ var (
 
 // && Key Menu && \\
 // template
-// manajemen-alur
+// management-alur
 // survey
 // dashboard
 // pengaturan
@@ -88,12 +88,12 @@ var (
 // admin
 // formulir-pertanyaan
 // ucapan
-// list-survey
+// master-data
 // hasil
-// manajemen-pengguna
-// manajemen-wilayah
-// manajemen-cms
-// manajemen-artikel
+// management-pengguna
+// management-wilayah
+// management-cms
+// management-artikel
 // rating
 // statistik
 // aktifitas-survey
@@ -101,9 +101,9 @@ var (
 // keluar
 // management-responden
 // user
-// manajemen-blokir
-// manajemen-wilayah-child
-// manajemen-pejabat
+// management-blokir
+// management-wilayah-child
+// management-pejabat
 // artikel
 // promote
 // kategori
