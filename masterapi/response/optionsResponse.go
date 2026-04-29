@@ -1,8 +1,8 @@
 package response
 
 type OptionItem struct {
-	ID    *int64  `form:"id"`
-	Label *string `form:"label"`
+	ID    *int64  `form:"id" json:"value"`
+	Label *string `form:"label" json:"label"`
 }
 
 type PaginationMeta struct {

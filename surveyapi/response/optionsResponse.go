@@ -1,13 +1,13 @@
 package response
 
 type OptionItem struct {
-	ID    *int64  `form:"id"`
-	Label *string `form:"label"`
+	ID    *int64  `form:"id" json:"value"`
+	Label *string `form:"label" json:"label"`
 }
 
 type StringOptionItem struct {
-	ID    *string `form:"id"`
-	Label *string `form:"label"`
+	ID    *string `form:"id" json:"value"`
+	Label *string `form:"label" json:"label"`
 }
 
 type PaginationMeta struct {
@@ -33,8 +33,8 @@ type OptionsStringIdResponse struct {
 }
 
 type EnumOption struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   string `json:"value"`
+	Name string `json:"label"`
 }
 
 type FormFieldOptionsResponse struct {
@@ -43,7 +43,7 @@ type FormFieldOptionsResponse struct {
 }
 
 type FormFieldOptionItem struct {
-	ID    *int64  `form:"id"`
-	Label *string `form:"label"`
-	Type  *string `form:"type"`
+	ID    *int64  `form:"id" json:"value"`
+	Label *string `form:"label" json:"label"`
+	Type  *string `form:"type" json:"type"`
 }
