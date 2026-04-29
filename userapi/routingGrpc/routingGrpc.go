@@ -132,6 +132,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "management-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "management-responden"}},
 	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "management-responden"}},
 	"/respondent/block":   {"PUT": {Handler: respondentHandler.BlockRespondent, MenuKey: "management-responden"}},
+	"/respondent/options": {"GET": {Handler: respondentHandler.GetOptionsRespondent, MenuKey: "management-responden"}},
 	// Users
 	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
 	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},
