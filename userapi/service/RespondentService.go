@@ -30,6 +30,7 @@ type RespondentService interface {
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyorOption() (*pb.ProxyResponse, error)
 	BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
+	GetOptionsRespondent(param url.Values) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -46,6 +47,17 @@ func NewRespondentService(
 		respondentRepo,
 		usersRepo,
 	}
+}
+
+func (service *respondentService) GetOptionsRespondent(param url.Values) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	fmt.Println("masuk sini")
+	data, err := service.respondentRepo.GetOptionsRespondent(param)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data)
 }
 
 func (service *respondentService) CreateRespondent(req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error) {

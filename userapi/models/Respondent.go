@@ -100,6 +100,11 @@ type Respondents struct {
 	Rt        string `gorm:"-"`
 }
 
+type RespondentOptions struct {
+	ID   int    `json:"value"`
+	Name string `json:"label"`
+}
+
 type RespondentBlock struct {
 	No          int    `gorm:"-" json:"no"`
 	ID          int    `gorm:"primaryKey"`
@@ -158,6 +163,10 @@ type Rt struct {
 type Surveyor struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+func (u *RespondentOptions) TableName() string {
+	return "respondents"
 }
 
 func (u *Surveyor) TableName() string {
