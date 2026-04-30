@@ -50,6 +50,7 @@ func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.Respon
 	kelurahan_id := param.Get("kelurahan_id")
 	rw := param.Get("rw")
 	rt := param.Get("rt")
+	status := param.Get("status")
 
 	query := db.Model(data)
 
@@ -80,6 +81,17 @@ func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.Respon
 			return nil, err
 		}
 		query.Where("rt_id = ?", rtId)
+	}
+	if status != "" {
+		if status == "active" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
+		} else if status == "blocked" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
+		} else if status == "inactive" {
+			query.Where("deleted_at IS NOT NULL")
+		}
+	} else {
+		query.Where("deleted_at IS NULL")
 	}
 
 	err := query.Find(&data).Error
@@ -164,8 +176,9 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 	kelurahan := param.Get("kelurahan")
 	rw := param.Get("rw")
 	rt := param.Get("rt")
+	status := param.Get("status")
 
-	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").Where("deleted_at IS NULL")
+	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin")
 
 	if search != "" {
 		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
@@ -198,6 +211,18 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 
 	if rt != "" {
 		query = query.Where("rt_id = ?", rt)
+	}
+
+	if status != "" {
+		if status == "active" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
+		} else if status == "blocked" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
+		} else if status == "inactive" {
+			query.Where("deleted_at IS NOT NULL")
+		}
+	} else {
+		query.Where("deleted_at IS NULL")
 	}
 
 	if err := query.Model(&models.Respondents{}).Count(&total).Error; err != nil {
