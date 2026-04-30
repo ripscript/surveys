@@ -94,10 +94,12 @@ type Respondents struct {
 	RwJoin        Rw        `gorm:"foreignKey:RWID" json:"-"`
 	RtJoin        Rt        `gorm:"foreignKey:RTID" json:"-"`
 
-	Kecamatan string `gorm:"-"`
-	Kelurahan string `gorm:"-"`
-	Rw        string `gorm:"-"`
-	Rt        string `gorm:"-"`
+	Kecamatan string    `gorm:"-"`
+	Kelurahan string    `gorm:"-"`
+	Rw        string    `gorm:"-"`
+	Rt        string    `gorm:"-"`
+	DeletedAt time.Time `json:"-"`
+	Status    string    `json:"status" gorm:"-"`
 }
 
 type RespondentOptions struct {
