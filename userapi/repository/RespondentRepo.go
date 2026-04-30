@@ -244,6 +244,13 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 		respondentList[i].Kelurahan = respondentList[i].KelurahanJoin.VillageName
 		respondentList[i].Rw = respondentList[i].RwJoin.NamaRw
 		respondentList[i].Rt = respondentList[i].RtJoin.NamaRt
+		if !respondentList[i].DeletedAt.IsZero() {
+			respondentList[i].Status = "inactive"
+		} else if respondentList[i].IsBlocked == "true" {
+			respondentList[i].Status = "blocked"
+		} else if respondentList[i].IsBlocked == "false" {
+			respondentList[i].Status = "active"
+		}
 	}
 
 	return respondentList, total, nil
