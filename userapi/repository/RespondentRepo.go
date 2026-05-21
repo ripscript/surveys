@@ -25,6 +25,7 @@ type RespondentRepo interface {
 	SurveyorOption() ([]models.Surveyor, error)
 	CheckRespondent(idRespondent int64) (models.BlockRespondent, error)
 	RespondentBlock(data models.BlockRespondent) error
+	GetOptionsRespondent(param url.Values) ([]models.RespondentOptions, error)
 }
 
 type respondentRepo struct {
@@ -38,6 +39,67 @@ func NewRespondentRepo(dbSlave, dbMaster *gorm.DB) *respondentRepo {
 		dbSlave,
 		dbMaster,
 	}
+}
+
+func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.RespondentOptions, error) {
+	defer utils.GeneralRecover()
+	var data []models.RespondentOptions
+	db := r.dbSlave
+
+	kecamatan := param.Get("kecamatan_id")
+	kelurahan_id := param.Get("kelurahan_id")
+	rw := param.Get("rw")
+	rt := param.Get("rt")
+	status := param.Get("status")
+
+	query := db.Model(data)
+
+	if kecamatan != "" {
+		kecamatanId, err := utils.ToInt64(kecamatan)
+		if err != nil {
+			return nil, err
+		}
+		query.Where("kecamatan_id = ?", kecamatanId)
+	}
+	if kelurahan_id != "" {
+		kelurahanId, err := utils.ToInt64(kelurahan_id)
+		if err != nil {
+			return nil, err
+		}
+		query.Where("kelurahan_id = ?", kelurahanId)
+	}
+	if rw != "" {
+		rwId, err := utils.ToInt64(rw)
+		if err != nil {
+			return nil, err
+		}
+		query.Where("rw_id = ?", rwId)
+	}
+	if rt != "" {
+		rtId, err := utils.ToInt64(rt)
+		if err != nil {
+			return nil, err
+		}
+		query.Where("rt_id = ?", rtId)
+	}
+	if status != "" {
+		if status == "active" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
+		} else if status == "blocked" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
+		} else if status == "inactive" {
+			query.Where("deleted_at IS NOT NULL")
+		}
+	} else {
+		query.Where("deleted_at IS NULL")
+	}
+
+	err := query.Find(&data).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func (r *respondentRepo) RespondentBlock(data models.BlockRespondent) error {
@@ -114,8 +176,9 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 	kelurahan := param.Get("kelurahan")
 	rw := param.Get("rw")
 	rt := param.Get("rt")
+	status := param.Get("status")
 
-	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").Where("deleted_at IS NULL")
+	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin")
 
 	if search != "" {
 		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
@@ -150,6 +213,18 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 		query = query.Where("rt_id = ?", rt)
 	}
 
+	if status != "" {
+		if status == "active" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
+		} else if status == "blocked" {
+			query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
+		} else if status == "inactive" {
+			query.Where("deleted_at IS NOT NULL")
+		}
+	} else {
+		query.Where("deleted_at IS NULL")
+	}
+
 	if err := query.Model(&models.Respondents{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -169,6 +244,13 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 		respondentList[i].Kelurahan = respondentList[i].KelurahanJoin.VillageName
 		respondentList[i].Rw = respondentList[i].RwJoin.NamaRw
 		respondentList[i].Rt = respondentList[i].RtJoin.NamaRt
+		if !respondentList[i].DeletedAt.IsZero() {
+			respondentList[i].Status = "inactive"
+		} else if respondentList[i].IsBlocked == "true" {
+			respondentList[i].Status = "blocked"
+		} else if respondentList[i].IsBlocked == "false" {
+			respondentList[i].Status = "active"
+		}
 	}
 
 	return respondentList, total, nil
