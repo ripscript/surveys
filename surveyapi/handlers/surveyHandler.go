@@ -20,6 +20,7 @@ type SurveyHandler interface {
 	PreviewSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	SurveyBundlingSubmit(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateSurveyRespondentStatus(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -66,5 +67,9 @@ func (handler *surveyHandler) PreviewSurvey(ctx context.Context, req map[string]
 }
 
 func (handler *surveyHandler) SurveyBundlingSubmit(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.surveyService.SurveyBundlingSubmit(ctx, req, usr, param, slug)
+	return handler.surveyService.SubmitSurveyAnswers(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) UpdateSurveyRespondentStatus(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.UpdateSurveyRespondentStatus(ctx, req, usr, param, slug)
 }

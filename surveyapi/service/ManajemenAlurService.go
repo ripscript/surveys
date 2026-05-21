@@ -3,6 +3,7 @@ package service
 import (
 	"backend/siccore/pb"
 	"backend/surveyapi/customValidator"
+	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
 	"backend/surveyapi/repository"
@@ -32,6 +33,7 @@ type ManajemenAlurService interface {
 	GetListManajemenAlur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	FlowPreviewIndex(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	PreviewAlurSurvey(ctx context.Context, usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	AlurOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenAlurService struct {
@@ -114,7 +116,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 		}
 
 		if alurByName != nil {
-			return fmt.Errorf("nama alur survey '%s' sudah digunakan, silakan gunakan nama lain", payload.NamaAlur)
+			return utils.NewClientError(fmt.Sprintf("nama alur survey '%s' sudah digunakan, silakan gunakan nama lain", payload.NamaAlur))
 		}
 
 		statusSec := "0"
@@ -195,12 +197,16 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 			}
 
 			for indexQ, qID := range flow.QuestionIDs {
-				questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(qID)
+				formFieldDetail, err := service.templateFormulirPertanyaanRepo.GetFormFieldByID(qID)
 				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", qID))
+					}
 					return err
 				}
-				if !questionExists {
-					return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", qID)
+
+				if formFieldDetail == nil {
+					return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", qID))
 				}
 
 				field := &models.FlowField{
@@ -212,6 +218,12 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 					SectionId:        currentSectionID,
 					Breakdown:        false,
 					IsAdvancedOption: false,
+				}
+
+				if flow.IsGroup {
+					if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d harus bertipe Multiple Choices untuk digunakan dalam group", qID))
+					}
 				}
 
 				if flow.IsGroup && indexQ < len(flow.QuestionIDs)-1 {
@@ -236,6 +248,27 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 								isAdvanced = true
 								child = 0
 								grpChild = 0
+
+								if len(opt.Logics) > 0 {
+									for _, logic := range opt.Logics {
+										formFieldDetail, err := service.templateFormulirPertanyaanRepo.GetFormFieldByID(logic.IfQuestionID)
+										if err != nil {
+											if errors.Is(err, gorm.ErrRecordNotFound) {
+												return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", logic.IfQuestionID))
+											}
+											return err
+										}
+
+										if formFieldDetail == nil {
+											return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", logic.IfQuestionID))
+										}
+
+										if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+											return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d harus bertipe Multiple Choices untuk digunakan dalam logic", logic.IfQuestionID))
+										}
+									}
+								}
+
 							} else {
 								if opt.TargetQuestionID != nil && *opt.TargetQuestionID != 0 {
 									questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*opt.TargetQuestionID)
@@ -243,7 +276,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 										return err
 									}
 									if !questionExists {
-										return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", *opt.TargetQuestionID)
+										return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", *opt.TargetQuestionID))
 									}
 								}
 								child, grpChild = resolveTarget(opt.TargetQuestionID)
@@ -257,7 +290,7 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 									return err
 								}
 								if !optionQuestionExists {
-									return fmt.Errorf("opsi pertanyaan dengan ID %d tidak ditemukan", optID)
+									return utils.NewClientError(fmt.Sprintf("opsi pertanyaan dengan ID %d tidak ditemukan", optID))
 								}
 							}
 
@@ -283,8 +316,11 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 									logicTargetID := 0
 									if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
 										_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
-										if err != nil || !_questionExists {
-											return fmt.Errorf("pertanyaan target opsi logic tidak ditemukan")
+										if err != nil {
+											return err
+										}
+										if !_questionExists {
+											return utils.NewClientError("pertanyaan target opsi logic tidak ditemukan")
 										}
 										logicTargetID = *logic.TargetQuestionID
 									}
@@ -304,15 +340,20 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 						}
 						continue
 					} else {
-						if mainRuleVal == "jump-to" {
+						switch mainRuleVal {
+						case "jump-to":
 							if flow.Routing.TargetQuestionID != nil && *flow.Routing.TargetQuestionID != 0 {
 								questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*flow.Routing.TargetQuestionID)
-								if err != nil || !questionExists {
-									return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", *flow.Routing.TargetQuestionID)
+								if err != nil {
+									return err
+								}
+
+								if !questionExists {
+									return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", *flow.Routing.TargetQuestionID))
 								}
 							}
 							field.ChildId, field.GroupChildId = resolveTarget(flow.Routing.TargetQuestionID)
-						} else if mainRuleVal == "logic" {
+						case "logic":
 							field.IsAdvancedOption = true
 							field.ChildId = 0
 							field.GroupChildId = 0
@@ -350,11 +391,33 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 				if mainRuleVal == "logic" && !flow.Routing.IsBreakdown && !flow.IsGroup && indexQ == len(flow.QuestionIDs)-1 {
 					for _, logic := range flow.Routing.Logics {
+						if logic.IfQuestionID != 0 {
+							formFieldDetail, err := service.templateFormulirPertanyaanRepo.GetFormFieldByID(logic.IfQuestionID)
+							if err != nil {
+								if errors.Is(err, gorm.ErrRecordNotFound) {
+									return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", logic.IfQuestionID))
+								}
+								return err
+							}
+
+							if formFieldDetail == nil {
+								return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", logic.IfQuestionID))
+							}
+
+							if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+								return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d harus bertipe Multiple Choices untuk digunakan dalam logic", logic.IfQuestionID))
+							}
+						}
+
 						logicTargetID := 0
 						if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
 							_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
-							if err != nil || !_questionExists {
-								return fmt.Errorf("pertanyaan target dengan ID %d tidak ditemukan", *logic.TargetQuestionID)
+							if err != nil {
+								return err
+							}
+
+							if !_questionExists {
+								return utils.NewClientError(fmt.Sprintf("pertanyaan target dengan ID %d tidak ditemukan", *logic.TargetQuestionID))
 							}
 							logicTargetID = *logic.TargetQuestionID
 						}
@@ -377,6 +440,10 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 	})
 
 	if err != nil {
+		var appErr *utils.AppError
+		if errors.As(err, &appErr) {
+			return utils.SendError(err, appErr.Code)
+		}
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
@@ -525,7 +592,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			if !printedSections[secDBID] {
 				name := mapSectionNameByID[secDBID]
 				flowItem.SectionName = &name
-				printedSections[secDBID] = true
+				printedSections[secDBID] = false // ini nanti bisa di ubah ke true kalau mau hanya tampilkan section name di field pertama tiap section, untuk sekarang biar muncul semua aja
 			}
 		}
 
@@ -1077,7 +1144,7 @@ func (service *manajemenAlurService) FlowPreviewIndex(usr models.JwtCustomClaims
 	hasSectionBool := utils.IntToBool(statusSectionInt)
 
 	var sections []models.FlowPreviewSection
-	rawSections, err := service.manajemenAlurRepo.GetPreviewSectionByFlowDetailId(flowDetail.ID, statusSectionStr)
+	rawSections, err := service.manajemenAlurRepo.GetPreviewSectionByFlowDetailId(flowDetail.ID, statusSectionStr, nil)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -1182,6 +1249,8 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 	groupMasterMap := make(map[int]int)
 
 	flowFieldToNodeKeyMap := make(map[int]int)
+	flowFieldToOptionMap := make(map[int]int)                   // Pemetaan flow_field_id ke option_id khusus breakdown
+	breakdownRawMap := make(map[int]map[int]models.RawNodeData) // nodeKey -> optionId -> rawData
 
 	var formFieldIDs []int
 	var flowFieldIDs []int
@@ -1190,6 +1259,9 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 	totalOptional := 0
 	entryNodeId := 0
 	var activeSectionName *string
+
+	rJump := "jump-to"
+	rLogic := "logic"
 
 	// PART 1 Peta Grup & Pencatatan ID Master
 	for _, raw := range rawNodes {
@@ -1206,11 +1278,13 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 	resolveTargetID := func(childID int, groupChildID int) *int {
 		if groupChildID != 0 {
 			if target, ok := groupMasterMap[groupChildID]; ok {
-				return &target
+				val := target
+				return &val
 			}
 		}
 		if childID != 0 {
-			return &childID
+			val := childID
+			return &val
 		}
 		return nil
 	}
@@ -1225,6 +1299,11 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 		}
 
 		flowFieldToNodeKeyMap[raw.FlowFieldId] = nodeKey
+
+		// Catat pemetaan option untuk logic breakdown nanti
+		if raw.Breakdown && raw.FormAnswerFieldId != nil {
+			flowFieldToOptionMap[raw.FlowFieldId] = *raw.FormAnswerFieldId
+		}
 
 		if i == 0 {
 			entryNodeId = nodeKey
@@ -1244,10 +1323,10 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 				GroupName: raw.GroupName,
 				Questions: []response.PreviewAlurSurveyQuestionDetail{},
 				Routing: response.PreviewAlurSurveyRoutingDetail{
-					BreakdownRoutes: make(map[int]int),
-					AdvancedLogics:  []response.PreviewAlurSurveyAdvancedLogicItem{},
+					Logics: []response.PreviewAlurSurveyAdvancedLogicItem{},
 				},
 			}
+			breakdownRawMap[nodeKey] = make(map[int]models.RawNodeData)
 		}
 
 		// Masukkan Pertanyaan
@@ -1286,53 +1365,102 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 
 		target := resolveTargetID(raw.ChildId, int(raw.GroupChildId))
 
-		if raw.IsAdvancedOption {
-			step.Routing.Rule = "logic"
-		} else if raw.Breakdown && raw.FormAnswerFieldId != nil {
-			step.Routing.Rule = "jump-to"
-			if target != nil {
-				step.Routing.BreakdownRoutes[*raw.FormAnswerFieldId] = *target
+		if raw.Breakdown {
+			step.Routing.IsBreakdown = true
+			step.Routing.Rule = nil // Rule utama dikosongkan karena rute ada di level opsi
+			if raw.FormAnswerFieldId != nil {
+				// Simpan raw node untuk diekstrak rutenya ke dalam Option di PART 3
+				breakdownRawMap[nodeKey][*raw.FormAnswerFieldId] = raw
 			}
 		} else {
-			step.Routing.Rule = "jump-to"
-			if target == nil {
-				step.Routing.IsEnd = true
+			step.Routing.IsBreakdown = false
+			step.Routing.TargetQuestionId = target
+			step.Routing.IsEnd = (target == nil)
+			if raw.IsAdvancedOption {
+				step.Routing.Rule = &rLogic
 			} else {
-				step.Routing.DefaultNext = target
+				step.Routing.Rule = &rJump
 			}
 		}
 
 		blueprintNodes[nodeKey] = step
 	}
 
-	// PART 3 Sisipkan Opsi & Advanced Logics
+	// PART 3 Sisipkan Opsi (beserta Rute Breakdown)
 	options, _ := service.manajemenAlurRepo.GetAnswerOptionsByQuestionIDList(formFieldIDs)
 	for _, opt := range options {
 		for nodeKey, step := range blueprintNodes {
 			for i, q := range step.Questions {
 				if q.QuestionId == opt.FormFieldId {
-					step.Questions[i].Options = append(step.Questions[i].Options, response.PreviewAlurSurveyOptionItem{
-						ID:    opt.ID,
-						Label: opt.Option,
-					})
+
+					optItem := response.PreviewAlurSurveyOptionItem{
+						ID:     opt.ID,
+						Label:  opt.Option,
+						Logics: []response.PreviewAlurSurveyAdvancedLogicItem{},
+					}
+
+					// Jika soal breakdown, masukkan Rule dan Target khusus opsi tersebut
+					if step.Routing.IsBreakdown {
+						if rawOpt, ok := breakdownRawMap[nodeKey][opt.ID]; ok {
+							optTarget := resolveTargetID(rawOpt.ChildId, int(rawOpt.GroupChildId))
+							optItem.TargetQuestionId = optTarget
+							optItem.IsEnd = (optTarget == nil)
+
+							if rawOpt.IsAdvancedOption {
+								optItem.Rule = &rLogic
+							} else {
+								optItem.Rule = &rJump
+							}
+						} else {
+							// Fallback aman
+							optItem.Rule = &rJump
+							optItem.IsEnd = true
+						}
+					}
+
+					step.Questions[i].Options = append(step.Questions[i].Options, optItem)
 					blueprintNodes[nodeKey] = step
 				}
 			}
 		}
 	}
 
+	// PART 3.5 Sisipkan Advanced Logics
 	logics, _ := service.manajemenAlurRepo.GetAdvancedOptionsByFieldIDs(flowFieldIDs)
 	for _, logic := range logics {
 		nodeKey, valid := flowFieldToNodeKeyMap[logic.FlowFieldId]
 
 		if valid {
 			if step, exists := blueprintNodes[nodeKey]; exists {
+				var logicTargetPtr *int
+				if logic.ChildId != 0 {
+					val := logic.ChildId
+					logicTargetPtr = &val
+				}
 
-				step.Routing.AdvancedLogics = append(step.Routing.AdvancedLogics, response.PreviewAlurSurveyAdvancedLogicItem{
+				logicItem := response.PreviewAlurSurveyAdvancedLogicItem{
 					IfQuestionId:     logic.FormFieldId,
 					IfOptionId:       logic.Option,
-					TargetQuestionId: logic.ChildId,
-				})
+					TargetQuestionId: logicTargetPtr,
+					IsEnd:            logic.ChildId == 0,
+				}
+
+				if step.Routing.IsBreakdown {
+					// Jika breakdown, cari opsi spesifik dan letakkan logic ke dalam array opsi tersebut
+					optID, hasOptMap := flowFieldToOptionMap[logic.FlowFieldId]
+					if hasOptMap {
+						for i, q := range step.Questions {
+							for j, o := range q.Options {
+								if o.ID == optID {
+									step.Questions[i].Options[j].Logics = append(step.Questions[i].Options[j].Logics, logicItem)
+								}
+							}
+						}
+					}
+				} else {
+					// Jika bukan breakdown, letakkan di root routing
+					step.Routing.Logics = append(step.Routing.Logics, logicItem)
+				}
 
 				blueprintNodes[nodeKey] = step
 			}
@@ -1381,4 +1509,70 @@ func (service *manajemenAlurService) PreviewAlurSurvey(ctx context.Context, usr 
 	}
 
 	return utils.SendData(dataResponse, "Berhasil memuat Blueprint Preview Alur Survey")
+}
+
+func (service *manajemenAlurService) AlurOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var alurIds []string
+	if len(param["id[]"]) > 0 {
+		alurIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		alurIds = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, alurId := range alurIds {
+		parsedIDs = append(parsedIDs, alurId)
+	}
+
+	var excludeAlurIds []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludeAlurIds = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludeAlurIds = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludeAlurIds {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	_req := payloads.ManajemenAlurOptionsPayload{
+		Q:          param.Get("q"),
+		Page:       page,
+		Limit:      limit,
+		IDs:        parsedIDs,
+		ExcludeIDs: parsedExcludeIDs,
+	}
+
+	data, totalData, err := service.manajemenAlurRepo.FlowOptions(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.StringOptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
 }

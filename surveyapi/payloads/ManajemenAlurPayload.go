@@ -12,14 +12,14 @@ type ManajemenAlurPayload struct {
 }
 
 type FlowItem struct {
-	FieldIDs     []int       `json:"field_ids,omitempty"` // ID database flow_fields (untuk response)
+	FieldIDs     []int       `json:"field_ids"` // ID database flow_fields (untuk response)
 	Sequence     int         `json:"sequence" validate:"required,gt=0"`
-	SectionID    *int        `json:"section_id,omitempty"` // <-- INI YANG TERLEWAT, ditambahkan untuk response detail
-	SectionIndex *int        `json:"section_index,omitempty"`
-	SectionName  *string     `json:"section_name,omitempty"`
+	SectionID    *int        `json:"section_id"` // <-- INI YANG TERLEWAT, ditambahkan untuk response detail
+	SectionIndex *int        `json:"section_index"`
+	SectionName  *string     `json:"section_name"`
 	IsGroup      bool        `json:"is_group"`
-	GroupID      *int        `json:"group_id,omitempty"` // ID database group (untuk response)
-	GroupName    *string     `json:"group_name,omitempty"`
+	GroupID      *int        `json:"group_id"` // ID database group (untuk response)
+	GroupName    *string     `json:"group_name"`
 	QuestionIDs  []int       `json:"question_ids" validate:"required,min=1"`
 	Routing      RoutingRule `json:"routing" validate:"required"`
 }
@@ -146,4 +146,12 @@ type RoutingLogicUpdate struct {
 	IfOptionID       int  `json:"if_option_id"`
 	TargetQuestionID *int `json:"target_question_id"`
 	IsEnd            bool `json:"is_end"`
+}
+
+type ManajemenAlurOptionsPayload struct {
+	Q          string   `form:"q" query:"q"`         // Kata kunci pencarian
+	Page       int      `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit      int      `form:"limit" query:"limit"` // Jumlah data per halaman
+	IDs        []string `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	ExcludeIDs []string `json:"exclude_ids"`
 }

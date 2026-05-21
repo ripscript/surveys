@@ -243,6 +243,15 @@ func (service *templateUcapanService) UpdateTemplateUcapan(usr models.JwtCustomC
 		CreatedBy: 1,
 	}
 
+	isUsed, err := service.templateUcapanRepo.IsUsedTemplateUcapan(int64(exisitingTemplateUcapan.ID))
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if isUsed {
+		return utils.SendError(errors.New("Template ucapan tidak dapat diubah karena sedang digunakan"), http.StatusBadRequest)
+	}
+
 	updatedData, err := service.templateUcapanRepo.UpdateTemplateUcapan(templateUcapan)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)

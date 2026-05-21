@@ -43,15 +43,19 @@ type FlowPreview struct {
 	FlowName   string               `json:"flow_name"`
 	FlowCode   string               `json:"flow_code"`
 	HasSection bool                 `json:"has_section"`
+	Status     int                  `json:"status"`
 	Sections   []FlowPreviewSection `json:"sections"`
 }
 
 type FlowPreviewSection struct {
-	SectionId              int     `json:"-"`
-	SectionCode            *string `json:"section_code"`
-	SectionName            *string `json:"section_name"`
-	TotalRequiredQuestions int     `json:"total_required_questions"`
-	TotalOptionalQuestions int     `json:"total_optional_questions"`
+	SectionId                 int     `json:"-"`
+	SectionCode               *string `json:"section_code"`
+	SectionName               *string `json:"section_name"`
+	TotalRequiredQuestions    int     `json:"total_required_questions"`
+	TotalOptionalQuestions    int     `json:"total_optional_questions"`
+	AnsweredRequiredQuestions int     `json:"answered_required_questions"`
+	AnsweredOptionalQuestions int     `json:"answered_optional_questions"`
+	Completed                 bool    `gorm:"-" json:"completed"`
 }
 
 type RawNodeData struct {

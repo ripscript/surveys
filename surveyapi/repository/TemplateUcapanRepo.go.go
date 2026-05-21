@@ -304,7 +304,7 @@ func (repository *templateUcapanRepo) IsUsedTemplateUcapan(templateUcapanId int6
 	var count int64
 	db := repository.dbSlave
 
-	err := db.Model(&models.FlowDetail{}).Where("closing_id = ?", templateUcapanId).Count(&count).Error
+	err := db.Model(&models.FlowDetail{}).Where("closing_id = ? OR opening_id = ?", templateUcapanId, templateUcapanId).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

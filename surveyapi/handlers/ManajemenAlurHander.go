@@ -16,6 +16,7 @@ type ManajemenAlurHandler interface {
 	GetListManajemenAlur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	FlowPreviewIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	PreviewAlurSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	AlurOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenAlurHandler struct {
@@ -56,4 +57,8 @@ func (handler *manajemenAlurHandler) FlowPreviewIndex(ctx context.Context, req m
 
 func (handler *manajemenAlurHandler) PreviewAlurSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.manajemenAlurService.PreviewAlurSurvey(ctx, usr, slug)
+}
+
+func (handler *manajemenAlurHandler) AlurOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.manajemenAlurService.AlurOptions(ctx, req, usr, param, slug)
 }

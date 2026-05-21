@@ -54,6 +54,10 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/GenerateReceipt": {"POST": trxHandler.GenerateReceipt},
 	"/banner/upload":   {"POST": trxHandler.UploadBanner},
 	"/event/upload":    {"POST": trxHandler.UploadBanner},
+
+	"/upload-survey-image":      {"POST": uploadHandler.UploadSurveyImage},
+	"/view-survey-image/:id":    {"GET": uploadHandler.ShowSurveyImage},
+	"/delete-bulk-survey-image": {"POST": uploadHandler.DeleteBulkSurveyImage},
 }
 
 // Metode untuk menangani permintaan yang masuk

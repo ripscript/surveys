@@ -33,6 +33,10 @@ type TemplateFormulirPertanyaanRepo interface {
 	IsQuestionExistsById(id int) (bool, error)
 	IsQuestionOptionsExistById(id int) (bool, error)
 	GetMultipleChoiceOptions(req payloads.MultipleChoiceOptionsPayload, form_field_id int64) ([]response.OptionItem, int64, error)
+
+	GetQuestionTemplateById(id int) (string, error)
+	GetFormFieldByID(id int) (*models.FormField, error)
+	IsTemplateFormulirPertanyaanUsed(id int64) (bool, error)
 }
 
 type templateFormulirPertanyaanRepo struct {
@@ -687,4 +691,51 @@ func (repository *templateFormulirPertanyaanRepo) GetMultipleChoiceOptions(req p
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) GetQuestionTemplateById(id int) (string, error) {
+	defer utils.GeneralRecover()
+
+	var field models.FormField
+	err := repository.dbSlave.Select("template").Where("id = ?", id).First(&field).Error
+	if err != nil {
+		return "", err
+	}
+
+	return field.Template, nil
+}
+
+func (repository *templateFormulirPertanyaanRepo) GetFormFieldByID(id int) (*models.FormField, error) {
+	defer utils.GeneralRecover()
+
+	var data models.FormField
+	db := repository.dbSlave
+
+	err := db.Select("form_fields.*").
+		Where("form_fields.id = ?", id).
+		First(&data).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+
+}
+
+func (repository *templateFormulirPertanyaanRepo) IsTemplateFormulirPertanyaanUsed(id int64) (bool, error) {
+	defer utils.GeneralRecover()
+
+	var count int64
+	db := repository.dbSlave
+
+	err := db.Model(&models.FlowDetail{}).
+		Where("flow_details.form_id = ?", id).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

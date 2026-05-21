@@ -124,6 +124,9 @@ func SetupRoutes(e *echo.Echo) {
 	// Get List Menu Permission
 	e.GET("/menus/permission", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 
+	// DOCAPI SERVICE
+	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenWilayahGroup := e.Group("/manajemen-wilayah")
@@ -212,6 +215,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenAlurGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	manajemenAlurGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	manajemenAlurGroup.GET("/preview-alur/:flow_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	manajemenAlurGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyGroup := e.Group("/survey")
 	surveyGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -221,6 +225,7 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.PUT("/update-status/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })

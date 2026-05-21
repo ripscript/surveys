@@ -68,3 +68,33 @@ type ImageValue struct {
 }
 
 // KEBUTUH SUBMIT HASIL SURVEY =================================================>
+
+// SUBMIT SURVEY RESPONDEN ========================================>
+type SubmitSurveyPayload struct {
+	Answers []AnswerPayload `json:"answers" validate:"required,dive"`
+}
+
+type AnswerPayload struct {
+	QuestionID int    `json:"question_id" validate:"required"`
+	Type       string `json:"type" validate:"required,oneof=long-answer number multiple-choices image-template maps"`
+
+	GroupID *int `json:"group_id,omitempty"`
+
+	// Gunakan pointer agar kita bisa membedakan antara nilai kosong/nol dan tidak diisi
+	ValueString   *string                `json:"value_string,omitempty"`    // Untuk long-answer
+	ValueNumber   *int64                 `json:"value_number,omitempty"`    // Untuk number
+	ValueOptionID *int                   `json:"value_option_id,omitempty"` // Untuk multiple-choices
+	ValueImages   []string               `json:"value_images,omitempty"`    // Untuk image-template (Array of Base64)
+	ValueMaps     []MapCoordinatePayload `json:"value_maps,omitempty"`      // Untuk maps
+}
+
+type MapCoordinatePayload struct {
+	Lat float64 `json:"lat" validate:"required"`
+	Lng float64 `json:"lng" validate:"required"`
+}
+
+// ========================================>
+
+type UpdateSurveyStatusPayload struct {
+	Status *int `json:"status" validate:"required,oneof=0 1 2"`
+}

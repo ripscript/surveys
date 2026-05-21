@@ -2,12 +2,15 @@ package utils
 
 import (
 	pb "backend/siccore/pb"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
@@ -166,4 +169,29 @@ func ToString(value interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}
+}
+
+func GenerateUniqueFilename(prefix string, extension string, useTime bool) string {
+	if extension != "" && !strings.HasPrefix(extension, ".") {
+		extension = "." + extension
+	}
+
+	randomBytes := make([]byte, 4)
+	rand.Read(randomBytes)
+	randomHex := hex.EncodeToString(randomBytes)
+
+	var parts []string
+
+	if prefix != "" {
+		cleanPrefix := strings.ReplaceAll(strings.ToLower(prefix), " ", "_")
+		parts = append(parts, cleanPrefix)
+	}
+
+	if useTime {
+		parts = append(parts, time.Now().Format("20060102_150405"))
+	}
+
+	parts = append(parts, randomHex)
+
+	return strings.Join(parts, "_") + extension
 }

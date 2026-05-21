@@ -39,6 +39,7 @@ var (
 	surveyRepo                     repository.SurveyRepo                     = repository.NewSurveyRepo(dbSlave, dbMaster)
 	wilayahRepo                    repository.WilayahRepo                    = repository.NewWilayahRepo(dbSlave, dbMaster)
 	userRepo                       repository.UserRepo                       = repository.NewUserRepo(dbSlave, dbMaster)
+	fileRepo                       repository.FileRepo                       = repository.NewFileRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -61,6 +62,7 @@ var (
 		surveyRepo,
 		wilayahRepo,
 		userRepo,
+		fileRepo,
 	)
 )
 
@@ -227,6 +229,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: manajemenAlurHandler.PreviewAlurSurvey,
 		MenuKey: "management-alur",
 	}},
+	"/manajemen-alur/options": {"GET": {
+		Handler: manajemenAlurHandler.AlurOptions,
+		MenuKey: "management-alur",
+	}},
 
 	"/survey/create": {"POST": {
 		Handler: surveyHandler.CreateSurvey,
@@ -246,20 +252,25 @@ var grpcMap = map[string]map[string]RouteConfig{
 	}},
 	"/survey/preview-index/:code": {"GET": {
 		Handler: surveyHandler.PreviewSurveyIndex,
-		MenuKey: "master-data",
+		MenuKey: "survey-kewilayahan",
 	}},
 	"/survey/preview/:survey_code/:section_code": {"GET": {
 		Handler: surveyHandler.PreviewSurvey,
-		MenuKey: "master-data",
+		MenuKey: "survey-kewilayahan",
 	}},
 	"/survey/:survey_code/section/:section_code/submit": {"POST": {
 		Handler: surveyHandler.SurveyBundlingSubmit,
-		MenuKey: "master-data",
+		MenuKey: "survey-kewilayahan",
 	}},
 
 	"/survey-wilayah/list": {"GET": {
 		Handler: surveyHandler.AvailableSurveyWilayah,
-		MenuKey: "master-data",
+		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/survey/update-status/:survey_code": {"PUT": {
+		Handler: surveyHandler.UpdateSurveyRespondentStatus,
+		MenuKey: "survey-kewilayahan",
 	}},
 }
 

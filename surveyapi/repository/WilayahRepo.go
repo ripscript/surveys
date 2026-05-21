@@ -16,7 +16,7 @@ import (
 type WilayahRepo interface {
 	GetKecamatanById(ctx context.Context, id int64) (*models.Kecamatan, error)
 	GetKelurahanById(ctx context.Context, id int64) (*models.Kelurahan, error)
-	GetRWById(ctx context.Context, id int64) (*models.DataRw, error)
+	GetRWById(ctx context.Context, id int64) (*models.DataRwDetail, error)
 }
 
 type wilayahRepo struct {
@@ -57,18 +57,18 @@ func (repository *wilayahRepo) GetKelurahanById(ctx context.Context, id int64) (
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kelurahan/detail/:kelurahan_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return nil, errors.New("Gagal mendapatkan data kelurahan dari MasterAPI")
 	}
 
 	var data models.Kelurahan
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		spew.Dump(err)
 		return nil, errors.New("Gagal memparsing data kelurahan dari MasterAPI")
 	}
 	return &data, nil
 }
 
-func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models.DataRw, error) {
+func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models.DataRwDetail, error) {
 	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
 
 	newSlug := map[string]interface{}{"rw_id": strconv.FormatInt(id, 10)}
@@ -79,7 +79,7 @@ func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models
 		return nil, errors.New("Gagal mendapatkan data RW dari MasterAPI")
 	}
 
-	var data models.DataRw
+	var data models.DataRwDetail
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
 		return nil, errors.New("Gagal memparsing data RW dari MasterAPI")
 	}

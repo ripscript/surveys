@@ -3,6 +3,7 @@ package repository
 import (
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
+	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
 	"strings"
 
@@ -35,10 +36,11 @@ type ManajemenAlurRepo interface {
 
 	DeleteAlurByID(detailID int) error
 	GetListAlur(req payloads.DatatablePayload) ([]models.FlowDetailDatatableResponse, int64, error)
-	GetPreviewSectionByFlowDetailId(detailID int, statusSection string) ([]models.FlowPreviewSection, error)
+	GetPreviewSectionByFlowDetailId(detailID int, statusSection string, formResponseID *int64) ([]models.FlowPreviewSection, error)
 
 	GetRawNodesForPreview(detailID int, sectionID int) ([]models.RawNodeData, error)
 	GetAnswerOptionsByQuestionIDList(questionIDs []int) ([]models.FormAnswerField, error)
+	FlowOptions(req payloads.ManajemenAlurOptionsPayload) ([]response.StringOptionItem, int64, error)
 }
 
 type manajemenAlurRepo struct {
@@ -311,11 +313,15 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 	return data, totalData, nil
 }
 
-func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int, statusSection string) ([]models.FlowPreviewSection, error) {
+func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int, statusSection string, formResponseID *int64) ([]models.FlowPreviewSection, error) {
 	defer utils.GeneralRecover()
 	var sections []models.FlowPreviewSection
 
-	// Base query yang sama-sama digunakan
+	var respID int64 = 0
+	if formResponseID != nil {
+		respID = *formResponseID
+	}
+
 	db := repositry.dbSlave.Table("flow_fields").
 		Where("flow_fields.flow_detail_id = ?", detailID).
 		Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id")
@@ -323,29 +329,67 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 	if statusSection == "1" {
 		err := db.Select(`
 				flow__sections.id AS section_id,
-                flow__sections.name AS section_name,
-                COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
-                COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions
-            `).
+				flow__sections.name AS section_name,
+				
+				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+				
+				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+					SELECT 1 FROM field_responses 
+					WHERE field_responses.form_field_id = form_fields.id 
+					AND field_responses.form_response_id = ? 
+					AND field_responses.deleted_at IS NULL
+				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+				
+				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+					SELECT 1 FROM field_responses 
+					WHERE field_responses.form_field_id = form_fields.id 
+					AND field_responses.form_response_id = ? 
+					AND field_responses.deleted_at IS NULL
+				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
+			`, respID, respID).
 			Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
 			Group("flow__sections.id, flow__sections.name").
 			Order("flow__sections.id ASC").
-			Find(&sections).Error
+			Scan(&sections).Error
 
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		err := db.Select(`
-				 0 AS section_id,
-                NULL AS section_name,
-                COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
-                COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions
-            `).
-			Find(&sections).Error
+				0 AS section_id,
+				NULL AS section_name,
+				
+				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+				
+				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+					SELECT 1 FROM field_responses 
+					WHERE field_responses.form_field_id = form_fields.id 
+					AND field_responses.form_response_id = ? 
+					AND field_responses.deleted_at IS NULL
+				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+				
+				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+					SELECT 1 FROM field_responses 
+					WHERE field_responses.form_field_id = form_fields.id 
+					AND field_responses.form_response_id = ? 
+					AND field_responses.deleted_at IS NULL
+				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
+			`, respID, respID).
+			Scan(&sections).Error
 
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	for i := range sections {
+		if sections[i].TotalRequiredQuestions > 0 {
+			sections[i].Completed = sections[i].AnsweredRequiredQuestions >= sections[i].TotalRequiredQuestions
+		} else {
+			sections[i].Completed = true
 		}
 	}
 
@@ -407,4 +451,58 @@ func (repository *manajemenAlurRepo) GetFlowDetailByNameCaseInsensitive(name str
 		return nil, err
 	}
 	return &detail, err
+}
+
+func (repository *manajemenAlurRepo) FlowOptions(req payloads.ManajemenAlurOptionsPayload) ([]response.StringOptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.StringOptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("flow_details").
+		Select(`
+			flow_details.code AS id, 
+			flow_details.name AS label
+		`)
+
+	if len(req.IDs) > 0 {
+		db = db.Where("flow_details.code IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("flow_details.code NOT IN ?", req.ExcludeIDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("flow_details.name ILIKE ?", searchTerm)
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("flow_details.id asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
 }

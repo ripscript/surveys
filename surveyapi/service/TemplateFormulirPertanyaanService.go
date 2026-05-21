@@ -256,6 +256,14 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	isUsed, err := service.templateFormulirPertanyaanRepo.IsTemplateFormulirPertanyaanUsed(int64(form.ID))
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	if isUsed {
+		return utils.SendError(errors.New("Template formulir pertanyaan tidak dapat diubah karena data sedang digunakan"), http.StatusBadRequest)
+	}
+
 	flagTematik := "false"
 	if *payload.IsTematikQuestion {
 		flagTematik = "true"
@@ -527,7 +535,23 @@ func (service *templateFormulirPertanyaanService) DeleteTemplateFormulirPertanya
 		return utils.SendError(errors.New("Kode template formulir pertanyaan tidak valid"), http.StatusBadRequest)
 	}
 
-	err := service.templateFormulirPertanyaanRepo.DeleteFormTransactionByCode(codeStr)
+	form, err := service.templateFormulirPertanyaanRepo.GetFormByCode(codeStr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return utils.SendError(errors.New("Template formulir pertanyaan tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	isUsed, err := service.templateFormulirPertanyaanRepo.IsTemplateFormulirPertanyaanUsed(int64(form.ID))
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	if isUsed {
+		return utils.SendError(errors.New("Template formulir pertanyaan tidak dapat dihapus karena data sedang digunakan"), http.StatusBadRequest)
+	}
+
+	err = service.templateFormulirPertanyaanRepo.DeleteFormTransactionByCode(codeStr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.SendError(errors.New("Template formulir pertanyaan tidak ditemukan"), http.StatusNotFound)

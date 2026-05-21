@@ -1,9 +1,11 @@
 package service
 
 import (
+	"backend/docapi/enums"
 	"backend/docapi/models"
 	"backend/docapi/utils"
 	"backend/siccore/pb"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,12 +18,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/minio/minio-go"
 )
 
 type UploadService interface {
 	UploadFile(usr models.JwtCustomClaims, req map[string]interface{}, param url.Values, path string, module string) (*pb.ProxyResponse, error)
 	Show(slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -75,6 +81,66 @@ func (service *uploadService) UploadFile(usr models.JwtCustomClaims, req map[str
 	}
 
 	return utils.SendData(res, "Berhasil")
+}
+
+func (service *uploadService) UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_RESPONDENT_SURVEY_IMAGE
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_SURVEY, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["id"].(string)
+	spew.Dump(filename)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_RESPONDENT_SURVEY_IMAGE, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
+}
+
+func (service *uploadService) DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type Paths []string
+	tmp, _ := json.Marshal(req["paths"])
+	var paths Paths
+	json.Unmarshal(tmp, &paths)
+
+	for i := range paths {
+		paths[i] = enums.PATH_WEBROOT_FILES + "/" + enums.PATH_RESPONDENT_SURVEY_IMAGE + "/" + paths[i]
+	}
+
+	var success bool
+	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_SURVEY)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	success = true
+	return utils.SendData(success, "File berhasil dihapus")
 }
 
 func (service *uploadService) Show(slug map[string]interface{}) (*pb.ProxyResponse, error) {

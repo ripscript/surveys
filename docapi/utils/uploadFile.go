@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"backend/docapi/enums"
 	"bytes"
 	"encoding/base64"
 	"errors"
@@ -49,9 +50,8 @@ func UploadService(fileName string, folderPath string, file string, module strin
 	fileName = currentDateTime + "-" + generateFileName(fileName)
 
 	// Write file to the directory
-	uploadPath := "webroot/files/" + folderPath + "/" + currentDate + "/" + fileName
+	uploadPath := enums.PATH_WEBROOT_FILES + "/" + folderPath + "/" + currentDate + "/" + fileName
 
-	fmt.Println("uploadPath", uploadPath)
 	dst, err := os.Create(uploadPath)
 	if err != nil {
 		return "", errors.New("AAAAAA")
@@ -75,10 +75,10 @@ func UploadServiceMinio(fileName string, folderPath string, file string, module 
 		bucketName      = os.Getenv("MINIO_BUCKET")
 	)
 
-	fmt.Println("endpoint", endpoint)
-	fmt.Println("accessKeyID", accessKeyID)
-	fmt.Println("secretAccessKey", secretAccessKey)
-	fmt.Println("useSSL", useSSL)
+	// fmt.Println("endpoint", endpoint)
+	// fmt.Println("accessKeyID", accessKeyID)
+	// fmt.Println("secretAccessKey", secretAccessKey)
+	// fmt.Println("useSSL", useSSL)
 
 	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL == "true")
 	if err != nil {
@@ -92,7 +92,7 @@ func UploadServiceMinio(fileName string, folderPath string, file string, module 
 	}
 
 	if !exists {
-		err = minioClient.MakeBucket(bucketName, "") // Empty string for default region
+		err = minioClient.MakeBucket(bucketName, "")
 		if err != nil {
 			return "", fmt.Errorf("error creating bucket: %v", err)
 		}
@@ -121,9 +121,9 @@ func UploadServiceMinio(fileName string, folderPath string, file string, module 
 
 	// Generate filename with instansi ID and timestamp
 	currentDateTime := time.Now().In(loc).Format("20060102150405000")
-	fileName = currentDateTime + "-" + generateFileName(fileName)
+	fileName = currentDateTime + "-" + fileName
 
-	folderPath = "webroot/files/" + folderPath
+	folderPath = enums.PATH_WEBROOT_FILES + "/" + folderPath
 
 	// Construct object path (similar to directory structure)
 	objectPath := fmt.Sprintf("%s/%s/%s", folderPath, currentDate, fileName)
@@ -152,10 +152,51 @@ func UploadServiceMinio(fileName string, folderPath string, file string, module 
 	return currentDate + "/" + fileName, nil
 }
 
+func DeleteBulkServiceMinio(paths []string, module string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	var (
+		endpoint        = os.Getenv("MINIO_ENDPOINT")
+		accessKeyID     = os.Getenv("MINIO_ACCESS_KEY")
+		secretAccessKey = os.Getenv("MINIO_SECRET_KEY")
+		useSSL          = os.Getenv("MINIO_USE_SSL")
+		bucketName      = os.Getenv("MINIO_BUCKET")
+	)
+
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL == "true")
+	if err != nil {
+		return fmt.Errorf("error initializing minio client: %v", err)
+	}
+
+	objectsCh := make(chan string)
+
+	go func() {
+		defer close(objectsCh)
+		for _, path := range paths {
+			objectsCh <- path
+		}
+	}()
+
+	errorCh := minioClient.RemoveObjects(bucketName, objectsCh)
+
+	for rErr := range errorCh {
+		if rErr.Err != nil {
+			return fmt.Errorf("error deleting object %s: %v", rErr.ObjectName, rErr.Err)
+		}
+	}
+
+	return nil
+}
+
 func isValidSize(size int, module string) bool {
 	maxSize := 50
-	if module == "video-tutorial" {
+	switch module {
+	case "video-tutorial":
 		maxSize = 100
+	case "respondent-survey-image":
+		maxSize = 5
 	}
 
 	return size <= maxSize*1024*1024
@@ -166,4 +207,14 @@ func generateFileName(fileName string) string {
 	name := strings.TrimSuffix(fileName, ext)
 	newName := fmt.Sprintf("%s_%d%s", name, time.Now().UnixNano(), ext)
 	return newName
+}
+
+func UploadServiceDataURI(fileName string, folderPath string, dataURI string, module string, fileSize int) (string, error) {
+	parts := strings.SplitN(dataURI, ",", 2)
+	base64String := dataURI
+	if len(parts) == 2 {
+		base64String = parts[1]
+	}
+
+	return UploadService(fileName, folderPath, base64String, module, fileSize)
 }

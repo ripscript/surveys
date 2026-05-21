@@ -32,23 +32,29 @@ type PreviewAlurSurveyQuestionDetail struct {
 	IsRequired         bool                          `json:"is_required"`
 	ExpectedImageCount *int                          `json:"expected_image_count"`
 	Options            []PreviewAlurSurveyOptionItem `json:"options"`
+	Answer             interface{}                   `json:"answer"`
 }
 
 type PreviewAlurSurveyOptionItem struct {
-	ID    int    `json:"id"`
-	Label string `json:"label"`
+	ID               int                                  `json:"id"`
+	Label            string                               `json:"label"`
+	Rule             *string                              `json:"rule"`
+	TargetQuestionId *int                                 `json:"target_question_id"`
+	IsEnd            bool                                 `json:"is_end"`
+	Logics           []PreviewAlurSurveyAdvancedLogicItem `json:"logics"` // Array bersarang untuk logic per-opsi
 }
 
 type PreviewAlurSurveyRoutingDetail struct {
-	Rule            string                               `json:"rule"`
-	IsEnd           bool                                 `json:"is_end"`
-	DefaultNext     *int                                 `json:"default_next"`
-	BreakdownRoutes map[int]int                          `json:"breakdown_routes"` // Format: { OptionID: TargetNodeID }
-	AdvancedLogics  []PreviewAlurSurveyAdvancedLogicItem `json:"advanced_logics"`  // Array kosong [] jika tidak ada
+	Rule             *string                              `json:"rule"`
+	IsBreakdown      bool                                 `json:"is_breakdown"`
+	IsEnd            bool                                 `json:"is_end"`
+	TargetQuestionId *int                                 `json:"target_question_id"`
+	Logics           []PreviewAlurSurveyAdvancedLogicItem `json:"logics"` // Logic utama (non-breakdown)
 }
 
 type PreviewAlurSurveyAdvancedLogicItem struct {
-	IfQuestionId     int `json:"if_question_id"`
-	IfOptionId       int `json:"if_option_id"`
-	TargetQuestionId int `json:"target_question_id"`
+	IfQuestionId     int  `json:"if_question_id"`
+	IfOptionId       int  `json:"if_option_id"`
+	TargetQuestionId *int `json:"target_question_id"`
+	IsEnd            bool `json:"is_end"`
 }
