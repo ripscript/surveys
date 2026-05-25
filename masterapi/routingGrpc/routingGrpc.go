@@ -156,7 +156,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 	}},
 	"/manajemen-pejabat/delete/:id": {"DELETE": {
 		Handler: manajemenPejabatHandler.DeletePejabat,
-		MenuKey: "management-pejabat",
+		MenuKey: "belum-digunakan",
 	}},
 	"/manajemen-pejabat/list": {"GET": {
 		Handler: manajemenPejabatHandler.GetListPejabat,

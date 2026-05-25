@@ -38,7 +38,7 @@ type UpdateTemplateFormulirPertanyaanPayload struct {
 }
 
 type UpdateQuestion struct {
-	Attribute     string   `json:"attribute" validate:"required"`
+	Attribute     *string  `json:"attribute,omitempty" validate:"omitempty"`
 	InputType     string   `json:"input_type" validate:"required,max=191"`
 	Question      string   `json:"question" validate:"required,max=191"`
 	Description   *string  `json:"description"`

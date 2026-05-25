@@ -310,13 +310,13 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 			var formFieldID int
 			var currentAttribute string
 
-			if q.Attribute != "" {
-				existingFormField, exists := fieldMap[q.Attribute]
+			if q.Attribute != nil && *q.Attribute != "" {
+				existingFormField, exists := fieldMap[*q.Attribute]
 				if !exists {
-					return utils.SendError(errors.New("Atribut pertanyaan tidak ditemukan: "+q.Attribute), http.StatusBadRequest)
+					return utils.SendError(errors.New("Atribut pertanyaan tidak ditemukan: "+*q.Attribute), http.StatusBadRequest)
 				}
 
-				currentAttribute = q.Attribute
+				currentAttribute = *q.Attribute
 				formFieldID = existingFormField.ID
 				attributeToKeep = append(attributeToKeep, currentAttribute)
 			} else {

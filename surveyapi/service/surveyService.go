@@ -1702,6 +1702,8 @@ func (service *surveyService) UpdateSurveyRespondentStatus(ctx context.Context, 
 	targetStatus := *payload.Status
 
 	if respondentExistsInSurvey == nil {
+		return utils.SendError(errors.New("Anda tidak dapat mengubah status data, ikuti survey terlebih dahulu"), http.StatusBadRequest)
+
 		newResp := models.SurveyRespondent{
 			RespondentID: respondentId,
 			SurveyID:     surveyID,

@@ -209,6 +209,28 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 					return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", qID))
 				}
 
+				if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+					if len(flow.Routing.Options) > 0 {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak boleh memiliki opsi jawaban karena bukan bertipe multiple choices", qID))
+					}
+				}
+
+				if flow.Routing.Rule != nil {
+					if *flow.Routing.Rule != string(enums.ROUTING_RULE_LOGIC) {
+						if len(flow.Routing.Logics) > 0 {
+							return utils.NewClientError(
+								fmt.Sprintf("pertanyaan dengan ID %d tidak boleh memiliki logics", qID),
+							)
+						}
+					} else if *flow.Routing.Rule == string(enums.ROUTING_RULE_LOGIC) {
+						if len(flow.Routing.Logics) < 1 {
+							return utils.NewClientError(
+								fmt.Sprintf("pertanyaan dengan ID %d harus setidaknya memiliki 1 logics", qID),
+							)
+						}
+					}
+				}
+
 				field := &models.FlowField{
 					FlowDetailId:     flowDetail.ID,
 					Sequence:         flow.Sequence,
@@ -223,6 +245,18 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 				if flow.IsGroup {
 					if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
 						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d harus bertipe Multiple Choices untuk digunakan dalam group", qID))
+					}
+
+					if len(flow.Routing.Options) > 0 {
+						return utils.NewClientError(
+							fmt.Sprintf("pertanyaan dengan ID %d bertipe group, tidak boleh memiliki opsi jawaban", qID),
+						)
+					}
+
+					if len(flow.Routing.Logics) > 0 {
+						return utils.NewClientError(
+							fmt.Sprintf("pertanyaan dengan ID %d bertipe group, tidak boleh memiliki logika", qID),
+						)
 					}
 				}
 
@@ -833,12 +867,38 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 			}
 
 			for indexQ, qID := range flow.QuestionIDs {
-				questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(qID)
+				formFieldDetail, err := service.templateFormulirPertanyaanRepo.GetFormFieldByID(qID)
 				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", qID))
+					}
 					return err
 				}
-				if !questionExists {
-					return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", qID)
+
+				if formFieldDetail == nil {
+					return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak ditemukan", qID))
+				}
+
+				if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+					if len(flow.Routing.Options) > 0 {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d tidak boleh memiliki opsi jawaban karena bukan bertipe multiple choices", qID))
+					}
+				}
+
+				if flow.Routing.Rule != nil {
+					if *flow.Routing.Rule != string(enums.ROUTING_RULE_LOGIC) {
+						if len(flow.Routing.Logics) > 0 {
+							return utils.NewClientError(
+								fmt.Sprintf("pertanyaan dengan ID %d tidak boleh memiliki logics", qID),
+							)
+						}
+					} else if *flow.Routing.Rule == string(enums.ROUTING_RULE_LOGIC) {
+						if len(flow.Routing.Logics) < 1 {
+							return utils.NewClientError(
+								fmt.Sprintf("pertanyaan dengan ID %d harus setidaknya memiliki 1 logics", qID),
+							)
+						}
+					}
 				}
 
 				field := &models.FlowField{
@@ -850,6 +910,24 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 					SectionId:        currentSectionID,
 					Breakdown:        false,
 					IsAdvancedOption: false,
+				}
+
+				if flow.IsGroup {
+					if formFieldDetail.Template != string(enums.MULTIPLE_CHOICES) {
+						return utils.NewClientError(fmt.Sprintf("pertanyaan dengan ID %d harus bertipe Multiple Choices untuk digunakan dalam group", qID))
+					}
+
+					if len(flow.Routing.Options) > 0 {
+						return utils.NewClientError(
+							fmt.Sprintf("pertanyaan dengan ID %d bertipe group, tidak boleh memiliki opsi jawaban", qID),
+						)
+					}
+
+					if len(flow.Routing.Logics) > 0 {
+						return utils.NewClientError(
+							fmt.Sprintf("pertanyaan dengan ID %d bertipe group, tidak boleh memiliki logika", qID),
+						)
+					}
 				}
 
 				if flow.IsGroup && indexQ < len(flow.QuestionIDs)-1 {

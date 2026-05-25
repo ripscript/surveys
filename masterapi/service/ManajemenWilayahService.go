@@ -786,6 +786,20 @@ func (service *manajemenWilayahService) CreateRw(usr models.JwtCustomClaims, req
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
+	getKelurahanById, err := service.manajemenWilayahRepo.GetKelurahanByID(int(payload.KelurahanId))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err := errors.New("Data kelurahan tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if getKelurahanById == nil {
+		err := errors.New("Data kelurahan tidak ditemukan")
+		return utils.SendError(err, http.StatusNotFound)
+	}
+
 	if payload.NamaRw == "" {
 		err := errors.New("Nama rw tidak boleh kosong")
 		return utils.SendError(err, http.StatusBadRequest)
@@ -915,6 +929,15 @@ func (service *manajemenWilayahService) DeleteRw(slug map[string]interface{}) (*
 	if isUsed {
 		err := errors.New("Data tidak dapat dihapus karena masih digunakan oleh data lain.")
 		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	_, err = service.manajemenWilayahRepo.GetRwByID(int(Id))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err := errors.New("Data rw tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
 	err = service.manajemenWilayahRepo.DeleteRwById(Id)
@@ -1068,6 +1091,15 @@ func (service *manajemenWilayahService) CreateRt(usr models.JwtCustomClaims, req
 	if payload.RwId == 0 {
 		err := errors.New("RwId tidak boleh kosong")
 		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	_, err = service.manajemenWilayahRepo.GetRwByID(int(payload.RwId))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err := errors.New("Data Rw tidak ditemukan")
+			return utils.SendError(err, http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
 	if payload.NamaRt == "" {
