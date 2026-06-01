@@ -130,7 +130,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/respondent":         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "management-responden"}},
 	"/respondent/import":  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "management-responden"}},
 	"/respondent/:id":     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "management-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "management-responden"}},
-	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: "management-responden"}},
+	"/respondent/raw/:id": {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: ""}},
 	"/respondent/block":   {"PUT": {Handler: respondentHandler.BlockRespondent, MenuKey: "management-responden"}},
 	"/respondent/options": {"GET": {Handler: respondentHandler.GetOptionsRespondent, MenuKey: "management-responden"}},
 	// Users
