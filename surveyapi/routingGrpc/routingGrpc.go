@@ -234,31 +234,34 @@ var grpcMap = map[string]map[string]RouteConfig{
 		MenuKey: "management-alur",
 	}},
 
+	// SURVEY ===========================================
 	"/survey/create": {"POST": {
 		Handler: surveyHandler.CreateSurvey,
-		MenuKey: "master-data",
+		MenuKey: "list-survey",
 	}},
 	"/survey/periode-options": {"GET": {
 		Handler: surveyHandler.OptionsPeriodeSurvey,
-		MenuKey: "master-data",
+		MenuKey: "list-survey",
 	}},
 	"/survey/list": {"GET": {
 		Handler: surveyHandler.GetListSurvey,
-		MenuKey: "master-data",
+		MenuKey: "list-survey",
 	}},
 	"/survey/approval/:code": {"POST": {
 		Handler: surveyHandler.ApprovalSurvey,
-		MenuKey: "master-data",
+		MenuKey: "list-survey",
 	}},
-	"/survey/preview-index/:code": {"GET": {
+
+	// SURVEY WILAYAH ===========================================
+	"/survey-wilayah/preview-index/:code": {"GET": {
 		Handler: surveyHandler.PreviewSurveyIndex,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey/preview/:survey_code/:section_code": {"GET": {
+	"/survey-wilayah/preview/:survey_code/:section_code": {"GET": {
 		Handler: surveyHandler.PreviewSurvey,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey/:survey_code/section/:section_code/submit": {"POST": {
+	"/survey-wilayah/:survey_code/section/:section_code/submit": {"POST": {
 		Handler: surveyHandler.SurveyBundlingSubmit,
 		MenuKey: "survey-kewilayahan",
 	}},
@@ -268,8 +271,26 @@ var grpcMap = map[string]map[string]RouteConfig{
 		MenuKey: "survey-kewilayahan",
 	}},
 
-	"/survey/update-status/:survey_code": {"PUT": {
+	"/survey-wilayah/update-status/:survey_code": {"PUT": {
 		Handler: surveyHandler.UpdateSurveyRespondentStatus,
+		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/survey-wilayah/approval-history/:survey_code": {"GET": {
+		Handler: surveyHandler.GetApprovalHistorySurvey,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-wilayah/history-detail/:survey_code": {"GET": {
+		Handler: surveyHandler.GetHistoryDetail,
+		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/survey-kewilayahan/list": {"GET": {
+		Handler: surveyHandler.GetSurveyKewilayahan,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/detail/:survey_code": {"GET": {
+		Handler: surveyHandler.GetDetailSurveyKewilayahan,
 		MenuKey: "survey-kewilayahan",
 	}},
 }

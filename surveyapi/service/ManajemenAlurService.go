@@ -305,6 +305,11 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 							} else {
 								if opt.TargetQuestionID != nil && *opt.TargetQuestionID != 0 {
+									// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Cek rule opsi breakdown
+									if *opt.TargetQuestionID == qID {
+										return utils.NewClientError(fmt.Sprintf("target_question_id pada opsi tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID))
+									}
+
 									questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*opt.TargetQuestionID)
 									if err != nil {
 										return err
@@ -349,6 +354,11 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 								for _, logic := range opt.Logics {
 									logicTargetID := 0
 									if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
+										// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Cek logic dalam opsi breakdown
+										if *logic.TargetQuestionID == qID {
+											return utils.NewClientError(fmt.Sprintf("target_question_id pada logic opsi tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID))
+										}
+
 										_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 										if err != nil {
 											return err
@@ -377,6 +387,14 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 						switch mainRuleVal {
 						case "jump-to":
 							if flow.Routing.TargetQuestionID != nil && *flow.Routing.TargetQuestionID != 0 {
+								// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Cek jump-to utama
+								// Looping QuestionIDs berguna agar menangani kasus saat Group tidak boleh lompat ke dirinya sendiri
+								for _, groupQID := range flow.QuestionIDs {
+									if *flow.Routing.TargetQuestionID == groupQID {
+										return utils.NewClientError(fmt.Sprintf("target_question_id rute utama tidak boleh mengarah ke pertanyaan ID %d itu sendiri", groupQID))
+									}
+								}
+
 								questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*flow.Routing.TargetQuestionID)
 								if err != nil {
 									return err
@@ -445,6 +463,11 @@ func (service *manajemenAlurService) CreateManajemenAlur(usr models.JwtCustomCla
 
 						logicTargetID := 0
 						if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
+							// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Cek rule logic utama
+							if *logic.TargetQuestionID == qID {
+								return utils.NewClientError(fmt.Sprintf("target_question_id pada rute logic tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID))
+							}
+
 							_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 							if err != nil {
 								return err
@@ -954,6 +977,11 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 								grpChild = 0
 							} else {
 								if opt.TargetQuestionID != nil && *opt.TargetQuestionID != 0 {
+									// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Opsi breakdown jump-to
+									if *opt.TargetQuestionID == qID {
+										return fmt.Errorf("target_question_id pada opsi tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID)
+									}
+
 									questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*opt.TargetQuestionID)
 									if err != nil {
 										return err
@@ -999,6 +1027,11 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 									// PERBAIKAN TARGET UNTUK ADVANCED OPTION FLOWS MENGGUNAKAN RAW ID
 									logicTargetID := 0
 									if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
+										// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Opsi breakdown logic
+										if *logic.TargetQuestionID == qID {
+											return fmt.Errorf("target_question_id pada logic opsi tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID)
+										}
+
 										_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 										if err != nil || !_questionExists {
 											return fmt.Errorf("pertanyaan target opsi logic tidak ditemukan")
@@ -1023,6 +1056,13 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 					} else {
 						if mainRuleVal == "jump-to" {
 							if flow.Routing.TargetQuestionID != nil && *flow.Routing.TargetQuestionID != 0 {
+								// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Rute utama jump-to
+								for _, groupQID := range flow.QuestionIDs {
+									if *flow.Routing.TargetQuestionID == groupQID {
+										return fmt.Errorf("target_question_id rute utama tidak boleh mengarah ke pertanyaan ID %d itu sendiri", groupQID)
+									}
+								}
+
 								questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*flow.Routing.TargetQuestionID)
 								if err != nil || !questionExists {
 									return fmt.Errorf("pertanyaan dengan ID %d tidak ditemukan", *flow.Routing.TargetQuestionID)
@@ -1070,6 +1110,11 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 						// PERBAIKAN TARGET UNTUK ADVANCED OPTION FLOWS MENGGUNAKAN RAW ID
 						logicTargetID := 0
 						if logic.TargetQuestionID != nil && *logic.TargetQuestionID != 0 {
+							// 🆕 TAMBAHAN VALIDASI SELF-TARGET: Rute utama logic
+							if *logic.TargetQuestionID == qID {
+								return fmt.Errorf("target_question_id pada rute logic tidak boleh mengarah ke pertanyaan ID %d itu sendiri", qID)
+							}
+
 							_questionExists, err := service.templateFormulirPertanyaanRepo.IsQuestionExistsById(*logic.TargetQuestionID)
 							if err != nil || !_questionExists {
 								return fmt.Errorf("pertanyaan target dengan ID %d tidak ditemukan", *logic.TargetQuestionID)
@@ -1097,6 +1142,10 @@ func (service *manajemenAlurService) UpdateManajemenAlur(usr models.JwtCustomCla
 	})
 
 	if err != nil {
+		var appErr *utils.AppError
+		if errors.As(err, &appErr) {
+			return utils.SendError(err, appErr.Code)
+		}
 		return utils.SendError(errors.New("gagal mengupdate alur survey: "+err.Error()), http.StatusInternalServerError)
 	}
 

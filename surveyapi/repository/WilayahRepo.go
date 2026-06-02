@@ -2,6 +2,8 @@ package repository
 
 import (
 	"backend/surveyapi/models"
+	"backend/surveyapi/payloads"
+	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
 	"context"
 	"encoding/json"
@@ -17,6 +19,10 @@ type WilayahRepo interface {
 	GetKecamatanById(ctx context.Context, id int64) (*models.Kecamatan, error)
 	GetKelurahanById(ctx context.Context, id int64) (*models.Kelurahan, error)
 	GetRWById(ctx context.Context, id int64) (*models.DataRwDetail, error)
+
+	GetDaftarRT(ctx context.Context, rw_id int64, payload payloads.DatatablePayload) (response.RTDatatableResponse, error)
+	GetDaftarRW(ctx context.Context, kelurahan_id int64, payload payloads.DatatablePayload) (response.RWDatatableResponse, error)
+	GetDaftarKelurahan(ctx context.Context, kecamatan_id int64, payload payloads.DatatablePayload) (response.KelurahanDatatableResponse, error)
 }
 
 type wilayahRepo struct {
@@ -84,4 +90,82 @@ func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models
 		return nil, errors.New("Gagal memparsing data RW dari MasterAPI")
 	}
 	return &data, nil
+}
+
+func (repository *wilayahRepo) GetDaftarRT(ctx context.Context, rw_id int64, payload payloads.DatatablePayload) (response.RTDatatableResponse, error) {
+	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
+
+	newSlug := map[string]interface{}{
+		"rw_id":     rw_id,
+		"search":    payload.Search,
+		"page":      strconv.Itoa(payload.Page),
+		"limit":     strconv.Itoa(payload.Limit),
+		"order_by":  payload.OrderBy,
+		"order_dir": payload.OrderDir,
+	}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rt/list/:rw_id", newSlug, nil)
+	if err != nil {
+		spew.Dump(err)
+		return response.RTDatatableResponse{}, errors.New("Gagal mendapatkan daftar RT dari MasterAPI")
+	}
+
+	var data response.RTDatatableResponse
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return response.RTDatatableResponse{}, errors.New("Gagal memparsing data daftar RT dari MasterAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *wilayahRepo) GetDaftarRW(ctx context.Context, kelurahan_id int64, payload payloads.DatatablePayload) (response.RWDatatableResponse, error) {
+	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
+
+	newSlug := map[string]interface{}{
+		"kelurahan_id": kelurahan_id,
+		"search":       payload.Search,
+		"page":         strconv.Itoa(payload.Page),
+		"limit":        strconv.Itoa(payload.Limit),
+		"order_by":     payload.OrderBy,
+		"order_dir":    payload.OrderDir,
+	}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rw/list/:kelurahan_id", newSlug, nil)
+	if err != nil {
+		spew.Dump(err)
+		return response.RWDatatableResponse{}, errors.New("Gagal mendapatkan daftar RW dari MasterAPI")
+	}
+
+	var data response.RWDatatableResponse
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return response.RWDatatableResponse{}, errors.New("Gagal memparsing data daftar RW dari MasterAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *wilayahRepo) GetDaftarKelurahan(ctx context.Context, kecamatan_id int64, payload payloads.DatatablePayload) (response.KelurahanDatatableResponse, error) {
+	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
+
+	newSlug := map[string]interface{}{
+		"kecamatan_id": kecamatan_id,
+		"search":       payload.Search,
+		"page":         strconv.Itoa(payload.Page),
+		"limit":        strconv.Itoa(payload.Limit),
+		"order_by":     payload.OrderBy,
+		"order_dir":    payload.OrderDir,
+	}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kelurahan/list/:kecamatan_id", newSlug, nil)
+	if err != nil {
+		spew.Dump(err)
+		return response.KelurahanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kelurahan dari MasterAPI")
+	}
+
+	var data response.KelurahanDatatableResponse
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return response.KelurahanDatatableResponse{}, errors.New("Gagal memparsing data daftar Kelurahan dari MasterAPI")
+	}
+
+	return data, nil
 }

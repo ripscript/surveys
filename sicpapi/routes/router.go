@@ -223,11 +223,18 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.GET("/periode-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyGroup.PUT("/update-status/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.GET("/preview-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.PUT("/update-status/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.GET("/approval-history/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyWilayahGroup.GET("/history-detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	surveyKewilayahanGroup := e.Group("/survey-kewilayahan")
+	surveyKewilayahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
 }

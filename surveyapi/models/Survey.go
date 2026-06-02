@@ -26,7 +26,7 @@ func (u *Survey) TableName() string {
 }
 
 type SurveyDatatableResponse struct {
-	ID              int       `json:"id" gorm:"column:id"`
+	ID              int       `json:"-" gorm:"column:id"`
 	SurveyCode      string    `json:"survey_code" gorm:"column:survey_code"`
 	SurveyName      string    `json:"survey_name" gorm:"column:survey_name"`
 	SurveyDimulai   time.Time `json:"start_date" gorm:"column:start_date"`
@@ -40,8 +40,6 @@ type SurveyDatatableResponse struct {
 	TotalResponden  int       `json:"total_responden" gorm:"column:total_responden"`
 	Status          string    `json:"status" gorm:"column:status"`
 	Approval        string    `json:"approval_survey" gorm:"column:approval_survey"`
-	PosibleUpdate   bool      `json:"posible_update" gorm:"column:posible_update"`
-	PosibleDelete   bool      `json:"posible_delete" gorm:"column:posible_delete"`
 	PosibleApproval bool      `json:"posible_approval" gorm:"column:posible_approval"`
 }
 
@@ -61,6 +59,29 @@ type SurveyWilayahDatatableResponse struct {
 	PosibleDetail  bool      `json:"posible_detail"`
 	PosibleProcess bool      `json:"posible_process"`
 	PosibleHistory bool      `json:"posible_history"`
+
+	StatusKeterisian string  `json:"status_keterisian" gorm:"column:status_keterisian"`
+	JumlahSoalTerisi int     `json:"jumlah_soal_terisi" gorm:"column:jumlah_soal_terisi"`
+	JumlahTotalSoal  int     `json:"jumlah_total_soal" gorm:"column:jumlah_total_soal"`
+	StatusRespondent *string `json:"status_respondent" gorm:"column:status_respondent"`
+}
+
+type SurveyKewilayahanDatatableResponse struct {
+	ID             int       `json:"-" gorm:"column:id"`
+	SurveyCode     string    `json:"survey_code" gorm:"column:survey_code"`
+	SurveyName     string    `json:"survey_name" gorm:"column:survey_name"`
+	SurveyDimulai  time.Time `json:"start_date" gorm:"column:start_date"`
+	SurveyBerakhir time.Time `json:"end_date" gorm:"column:end_date"`
+	Status         string    `json:"status" gorm:"column:status"`
+}
+
+type DetailSurveyKewilayahanDatatableResponse struct {
+	ID                   int    `json:"-" gorm:"column:id"`
+	WilayahId            int64  `json:"wilayah_id" gorm:"column:wilayah_id"`
+	NamaWilayah          string `json:"nama_wilayah" gorm:"column:nama_wilayah"`
+	StatusWilayah        string `json:"status_wilayah" gorm:"column:status_wilayah"`
+	PosibleDetail        bool   `json:"posible_detail"`
+	PosiblePreviewSurvey bool   `json:"posible_preview_survey"`
 }
 
 type SurveyPreviewSection struct {

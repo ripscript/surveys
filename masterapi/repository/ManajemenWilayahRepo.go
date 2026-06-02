@@ -156,6 +156,14 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		req.Limit = 5
 	}
 
+	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 5 = Kecamatan)
+	pejabatJoinQuery := `LEFT JOIN (
+		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
+		FROM pejabat__wilayahs
+		WHERE tipe_wilayah = 5
+		ORDER BY id_wilayah, periode_akhir DESC NULLS FIRST
+	) pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kecamatans.id`
+
 	db := repository.dbSlave.Table("kecamatans").
 		Select(`
 			kecamatans.id, 
@@ -170,12 +178,12 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 			pejabat__wilayahs.periode_awal, 
 			pejabat__wilayahs.periode_akhir
 		`).
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kecamatans.id AND pejabat__wilayahs.tipe_wilayah = 5`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Where("kecamatans.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("kecamatans").
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kecamatans.id AND pejabat__wilayahs.tipe_wilayah = 5`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Where("kecamatans.deleted_at IS NULL")
 
@@ -463,6 +471,14 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 		req.Limit = 5
 	}
 
+	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 4 = Kelurahan)
+	pejabatJoinQuery := `LEFT JOIN (
+		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
+		FROM pejabat__wilayahs
+		WHERE tipe_wilayah = 4
+		ORDER BY id_wilayah, periode_akhir DESC NULLS FIRST
+	) pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kelurahans.id`
+
 	db := repository.dbSlave.Table("kelurahans").
 		Select(`
 			kelurahans.id, 
@@ -478,13 +494,13 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 			kelurahans.created_at,
 			kelurahans.updated_at
 		`).
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kelurahans.id AND pejabat__wilayahs.tipe_wilayah = 4`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
 		Where("kelurahans.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("kelurahans").
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = kelurahans.id AND pejabat__wilayahs.tipe_wilayah = 4`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
 		Where("kelurahans.deleted_at IS NULL")
@@ -744,6 +760,14 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		req.Limit = 5
 	}
 
+	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 3 = RW)
+	pejabatJoinQuery := `LEFT JOIN (
+		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
+		FROM pejabat__wilayahs
+		WHERE tipe_wilayah = 3
+		ORDER BY id_wilayah, periode_akhir DESC NULLS FIRST
+	) pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rws.id`
+
 	db := repository.dbSlave.Table("data__rws").
 		Select(`
 			data__rws.id,
@@ -761,14 +785,14 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 			data__rws.created_at,
 			data__rws.updated_at
 		`).
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rws.id AND pejabat__wilayahs.tipe_wilayah = 3`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
 		Where("data__rws.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("data__rws").
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rws.id AND pejabat__wilayahs.tipe_wilayah = 3`).
+		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
@@ -1083,6 +1107,13 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		req.Limit = 5
 	}
 
+	pejabatJoinQuery := `LEFT JOIN (
+		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
+		FROM pejabat__wilayahs
+		WHERE tipe_wilayah = 2
+		ORDER BY id_wilayah, periode_akhir DESC NULLS FIRST
+	) pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rts.id`
+
 	db := repository.dbSlave.Table("data__rts").
 		Select(`
 			data__rts.id,
@@ -1102,7 +1133,7 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 			data__rts.created_at,
 			data__rts.updated_at
 		`).
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rts.id AND pejabat__wilayahs.tipe_wilayah = 2`).
+		Joins(pejabatJoinQuery). // <-- GUNAKAN SUBQUERY DI SINI
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
@@ -1110,7 +1141,7 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		Where("data__rts.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("data__rts").
-		Joins(`LEFT JOIN pejabat__wilayahs ON pejabat__wilayahs.id_wilayah = data__rts.id AND pejabat__wilayahs.tipe_wilayah = 2`).
+		Joins(pejabatJoinQuery). // <-- GUNAKAN SUBQUERY DI SINI JUGA
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
