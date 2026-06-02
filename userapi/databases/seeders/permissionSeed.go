@@ -53,6 +53,7 @@ func PermissionSeed(db *gorm.DB) error {
 		masterData       = menuIDs.MasterData
 		pengaturan       = menuIDs.Pengaturan
 		respondent       = menuIDs.ManajemenResponden
+		pengguna         = menuIDs.ManajemenPengguna
 		ucapan           = menuIDs.Ucapan
 		formulir         = menuIDs.FormulirPertanyaan
 		alur             = menuIDs.ManajemenAlur
@@ -141,6 +142,11 @@ func PermissionSeed(db *gorm.DB) error {
 		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), none(pejabat, lurah),
 		none(pejabat, camat), none(pejabat, pemkot), full(pejabat, admin),
 		none(pejabat, surveyor), none(pejabat, walikota),
+
+		// Manajemen Pengguna
+		none(pengguna, public), none(pengguna, rt), none(pengguna, rw), none(pengguna, lurah),
+		none(pengguna, camat), none(pengguna, pemkot), full(pengguna, admin),
+		none(pengguna, surveyor), none(pengguna, walikota),
 
 		// Manajemen User
 		none(mUser, public), none(mUser, rt), none(mUser, rw), none(mUser, lurah),
