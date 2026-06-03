@@ -13,7 +13,6 @@ import (
 )
 
 var DOCAPI string = "DOCAPI"
-var REPORTAPI string = "REPORTAPI"
 
 func TrxData(service string, path string, method string, slugs map[string]string, param string, payload interface{}) ([]byte, error) {
 	defer func() {
@@ -95,37 +94,4 @@ func GrpcRelasi(service string, path string, method string, payload map[string]i
 		return data, nil
 	}
 	return nil, nil
-}
-
-func SaveLogActivities(serviceName string, modul string, action string, userId int, userName string, entityID string, description string) error {
-	GeneralRecover()
-
-	service := REPORTAPI
-	path := "/save/log/activities"
-	method := "POST"
-	slugs := map[string]string{}
-	params := ""
-	payload := map[string]interface{}{
-		"serviceName": serviceName,
-		"module":      modul,
-		"action":      action,
-		"userId":      userId,
-		"userName":    userName,
-		"entityID":    entityID,
-		"description": description,
-	}
-
-	res, err := TrxData(service, path, method, slugs, params, payload)
-	if err != nil {
-		return err
-	}
-
-	if res != nil {
-		var dt interface{}
-		err := json.Unmarshal(res, &dt)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
