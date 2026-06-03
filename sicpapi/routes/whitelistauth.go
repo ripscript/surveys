@@ -7,6 +7,8 @@ var Whitelist = map[string]map[string]bool{
 	"/login":             {"POST": true},
 	"/userapi/healthy":   {"GET": true},
 	"/docapi/healthy":    {"GET": true},
+	"/reportapi/healthy": {"GET": true},
+
 	"/kecamatan/options": {"GET": true},
 	"/kelurahan/options": {"GET": true},
 	"/rw/options":        {"GET": true},

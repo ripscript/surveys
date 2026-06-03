@@ -1,0 +1,6 @@
+# air.toml
+
+[[tasks]]
+name = "run"
+script = "main.go"
+args = []
