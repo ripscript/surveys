@@ -50,11 +50,11 @@ func (handler *respondentHandler) GetDetailRespondent(ctx context.Context, req m
 }
 
 func (handler *respondentHandler) DeleteRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.respondentService.DeleteRespondent(slug)
+	return handler.respondentService.DeleteRespondent(usr, slug)
 }
 
 func (handler *respondentHandler) UpdateRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.respondentService.UpdateRespondent(slug, req)
+	return handler.respondentService.UpdateRespondent(usr, slug, req)
 }
 
 func (handler *respondentHandler) GetExampleImport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -62,7 +62,7 @@ func (handler *respondentHandler) GetExampleImport(ctx context.Context, req map[
 }
 
 func (handler *respondentHandler) ImportRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.respondentService.ImportRespondent(req)
+	return handler.respondentService.ImportRespondent(usr, req)
 }
 
 func (handler *respondentHandler) GetRawDetailRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

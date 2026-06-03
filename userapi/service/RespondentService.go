@@ -24,10 +24,10 @@ type RespondentService interface {
 	CreateRespondent(req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
 	GetRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
-	DeleteRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
-	UpdateRespondent(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteRespondent(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateRespondent(usr models.JwtCustomClaims, slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetExampleImport() (*pb.ProxyResponse, error)
-	ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error)
+	ImportRespondent(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyorOption() (*pb.ProxyResponse, error)
 	BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
@@ -57,7 +57,6 @@ func NewRespondentService(
 
 func (service *respondentService) GetOptionsRespondent(param url.Values) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
-	fmt.Println("masuk sini")
 	data, err := service.respondentRepo.GetOptionsRespondent(param)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
@@ -181,6 +180,11 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	err = utils.SaveLogActivities("User", "respondent", "POST", int(usr.ID), string(usr.Name), "-", "Menambahkan Data Responden")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	return utils.SendData("Semua data berhasil disimpan")
 }
 
@@ -210,6 +214,7 @@ func (service *respondentService) GetRespondent(usr models.JwtCustomClaims, para
 		"data": respondent,
 		"meta": meta,
 	}
+
 	return utils.SendData(response)
 }
 
@@ -227,7 +232,7 @@ func (service *respondentService) GetDetailRespondent(slug map[string]interface{
 	return utils.SendData(detailRespondent)
 }
 
-func (service *respondentService) DeleteRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *respondentService) DeleteRespondent(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	id := slug["id"].(string)
 	idInt, err := utils.ToInt64(id)
@@ -247,10 +252,15 @@ func (service *respondentService) DeleteRespondent(slug map[string]interface{}) 
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	err = utils.SaveLogActivities("User", "respondent", "DELETE", int(usr.ID), string(usr.Name), id, "Melakukan Penghapusan Data Respondent")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
 	return utils.SendData("Data Berhasil Dihapus")
 }
 
-func (service *respondentService) UpdateRespondent(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *respondentService) UpdateRespondent(usr models.JwtCustomClaims, slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	id := slug["id"].(string)
 	idInt, err := utils.ToInt64(id)
@@ -281,6 +291,12 @@ func (service *respondentService) UpdateRespondent(slug map[string]interface{}, 
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	err = utils.SaveLogActivities("User", "respondent", "UPDATE", int(usr.ID), string(usr.Name), id, "Memperbaharui Data Responden")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	return utils.SendData("Data Berhasil Diperbarui")
 }
 
@@ -297,7 +313,7 @@ func (service *respondentService) GetExampleImport() (*pb.ProxyResponse, error) 
 	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }
 
-func (service *respondentService) ImportRespondent(req map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *respondentService) ImportRespondent(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	tx := service.respondentRepo.BeginTx()
 	var file string
@@ -410,6 +426,12 @@ func (service *respondentService) ImportRespondent(req map[string]interface{}) (
 		tx.Rollback()
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	err = utils.SaveLogActivities("User", "respondent", "POST", int(usr.ID), string(usr.Name), "-", "Melakukan Import Data Responden")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	return utils.SendData("Data Berhasil Disimpan")
 }
 
@@ -539,6 +561,11 @@ func (service *respondentService) BlockRespondent(usr models.JwtCustomClaims, pa
 	err = service.respondentRepo.RespondentBlock(data)
 	if err != nil {
 		return utils.SendError(fmt.Errorf("Terjadi Kesalahan Saat Melakukan Block Respondent"), http.StatusInternalServerError)
+	}
+
+	err = utils.SaveLogActivities("User", "respondent", "POST", int(usr.ID), string(usr.Name), string(data.ID), "Melakukan Block Data Responden")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
 	return utils.SendData(nil)

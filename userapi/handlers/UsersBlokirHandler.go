@@ -30,5 +30,5 @@ func (handler *usersBlokirHandler) GetListdata(ctx context.Context, req map[stri
 }
 
 func (handler *usersBlokirHandler) OpenBlokir(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.usersBlokirService.OpenBlokir(slug)
+	return handler.usersBlokirService.OpenBlokir(usr, slug)
 }

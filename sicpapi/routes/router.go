@@ -75,6 +75,7 @@ func SetupRoutes(e *echo.Echo) {
 
 	// deklarasi service
 	userapiService := "USERAPI"
+	reportapiService := "REPORTAPI"
 	docapiService := "DOCAPI"
 	masterapiService := "MASTERAPI"
 	surveyapiService := "SURVEYAPI"
@@ -87,6 +88,8 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/userapi/healthy", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// DOCAPI
 	e.GET("/docapi/healthy", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	// REPORTAPI
+	e.GET("/reportapi/healthy", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 
 	// Core Route API
 	// USERAPI AUTH
@@ -121,9 +124,18 @@ func SetupRoutes(e *echo.Echo) {
 	e.PUT("/users/blokir/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// Surveyor
 	e.GET("/surveyor/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
-
 	// Get List Menu Permission
 	e.GET("/menus/permission", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	// Report
+	e.GET("/count/kecamatan", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/kelurahan", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/rw", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/rt", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/survey/ongoing", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/survey/upcoming", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/count/survey/finished", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.POST("/save/log/activities", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/log/activities", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 
 	// DOCAPI SERVICE
 	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })

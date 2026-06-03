@@ -2,6 +2,7 @@ package service
 
 import (
 	"backend/siccore/pb"
+	"backend/userapi/models"
 	"backend/userapi/repository"
 	"backend/userapi/utils"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 
 type UsersBlokirService interface {
 	GetListdata(param url.Values) (*pb.ProxyResponse, error)
-	OpenBlokir(slug map[string]interface{}) (*pb.ProxyResponse, error)
+	OpenBlokir(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type usersBlokirService struct {
@@ -57,7 +58,7 @@ func (service *usersBlokirService) GetListdata(param url.Values) (*pb.ProxyRespo
 	return utils.SendData(response)
 }
 
-func (service *usersBlokirService) OpenBlokir(slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *usersBlokirService) OpenBlokir(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	id := slug["id"].(string)
 	idInt, err := utils.ToInt64(id)
@@ -77,6 +78,11 @@ func (service *usersBlokirService) OpenBlokir(slug map[string]interface{}) (*pb.
 	err = service.usersBlokirRepo.OpenBlokir(int(idInt))
 	if err != nil {
 		return utils.SendError(fmt.Errorf("Gagal Membuka Blokir"), http.StatusInternalServerError)
+	}
+
+	err = utils.SaveLogActivities("User", "respondent", "POST", int(usr.ID), string(usr.Name), id, "Membuka Block Data Responden")
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
 	return utils.SendData(nil, "Blokir Berhasil Dibuka")

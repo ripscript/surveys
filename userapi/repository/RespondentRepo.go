@@ -260,6 +260,11 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 		}
 	}
 
+	// err := utils.SaveLogActivities()
+	// if err != nil {
+
+	// }
+
 	return respondentList, total, nil
 }
 
