@@ -3,8 +3,10 @@ package repository
 import (
 	"backend/userapi/models"
 	"backend/userapi/utils"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -26,6 +28,11 @@ type RespondentRepo interface {
 	CheckRespondent(idRespondent int64) (models.BlockRespondent, error)
 	RespondentBlock(data models.BlockRespondent) error
 	GetOptionsRespondent(param url.Values) ([]models.RespondentOptions, error)
+
+	GetRespondentByKecamatanId(ctx context.Context, kecamatanID int64) (*models.RawRespondents, error)
+	GetRespondentByKelurahanId(ctx context.Context, kelurahanID int64) (*models.RawRespondents, error)
+	GetRespondentByRWId(ctx context.Context, rwID int64) (*models.RawRespondents, error)
+	GetRespondentByRTId(ctx context.Context, rtID int64) (*models.RawRespondents, error)
 }
 
 type respondentRepo struct {
@@ -365,4 +372,76 @@ func (r *respondentRepo) SurveyorOption() ([]models.Surveyor, error) {
 	}
 
 	return data, nil
+}
+
+func (repository *respondentRepo) GetRespondentByKecamatanId(ctx context.Context, kecamatanID int64) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	var respondent models.RawRespondents
+	err := repository.dbSlave.WithContext(ctx).
+		Where("kecamatan_id = ? AND role_id = ? AND deleted_at IS NULL", kecamatanID, 5).
+		First(&respondent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &respondent, nil
+}
+
+func (repository *respondentRepo) GetRespondentByKelurahanId(ctx context.Context, kelurahanID int64) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	var respondent models.RawRespondents
+	err := repository.dbSlave.WithContext(ctx).
+		Where("kelurahan_id = ? AND role_id = ? AND deleted_at IS NULL", kelurahanID, 4).
+		First(&respondent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &respondent, nil
+}
+
+func (repository *respondentRepo) GetRespondentByRWId(ctx context.Context, rwID int64) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	var respondent models.RawRespondents
+	err := repository.dbSlave.WithContext(ctx).
+		Where("rw_id = ? AND role_id = ? AND deleted_at IS NULL", rwID, 3).
+		First(&respondent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &respondent, nil
+}
+
+func (repository *respondentRepo) GetRespondentByRTId(ctx context.Context, rtID int64) (*models.RawRespondents, error) {
+	defer utils.GeneralRecover()
+
+	var respondent models.RawRespondents
+	err := repository.dbSlave.WithContext(ctx).
+		Where("rt_id = ? AND role_id = ? AND deleted_at IS NULL", rtID, 2).
+		First(&respondent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &respondent, nil
 }

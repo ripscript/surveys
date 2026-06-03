@@ -16,6 +16,11 @@ import (
 type UserRepo interface {
 	GetRespondentById(ctx context.Context, id int64) (*models.Respondent, error)
 	GetRespondentDetailById(ctx context.Context, id int64) (*models.DetailRespondent, error)
+
+	GetRespondentByKecamatanId(ctx context.Context, kecamatan_id int64) (*models.Respondent, error)
+	GetRespondentByKelurahanId(ctx context.Context, kelurahan_id int64) (*models.Respondent, error)
+	GetRespondentByRWId(ctx context.Context, rw_id int64) (*models.Respondent, error)
+	GetRespondentByRTId(ctx context.Context, rt_id int64) (*models.Respondent, error)
 }
 
 type userRepo struct {
@@ -63,6 +68,78 @@ func (repository *userRepo) GetRespondentDetailById(ctx context.Context, id int6
 	var data models.DetailRespondent
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
 		return nil, errors.New("Gagal memparsing data surveyor dari UserAPI")
+	}
+	return &data, nil
+}
+
+func (repository *userRepo) GetRespondentByKecamatanId(ctx context.Context, kecamatan_id int64) (*models.Respondent, error) {
+	host := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+
+	newSlug := map[string]interface{}{"kecamatan_id": strconv.FormatInt(kecamatan_id, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/respondent/kecamatan/:kecamatan_id", newSlug, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, errors.New("Gagal mendapatkan data respondent dari UserAPI")
+	}
+
+	var data models.Respondent
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data respondent dari UserAPI")
+	}
+	return &data, nil
+}
+
+func (repository *userRepo) GetRespondentByKelurahanId(ctx context.Context, kelurahan_id int64) (*models.Respondent, error) {
+	host := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+
+	newSlug := map[string]interface{}{"kelurahan_id": strconv.FormatInt(kelurahan_id, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/respondent/kelurahan/:kelurahan_id", newSlug, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, errors.New("Gagal mendapatkan data respondent dari UserAPI")
+	}
+
+	var data models.Respondent
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data respondent dari UserAPI")
+	}
+	return &data, nil
+}
+
+func (repository *userRepo) GetRespondentByRWId(ctx context.Context, rw_id int64) (*models.Respondent, error) {
+	host := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+
+	newSlug := map[string]interface{}{"rw_id": strconv.FormatInt(rw_id, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/respondent/rw/:rw_id", newSlug, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, errors.New("Gagal mendapatkan data respondent dari UserAPI")
+	}
+
+	var data models.Respondent
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data respondent dari UserAPI")
+	}
+	return &data, nil
+}
+
+func (repository *userRepo) GetRespondentByRTId(ctx context.Context, rt_id int64) (*models.Respondent, error) {
+	host := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+
+	newSlug := map[string]interface{}{"rt_id": strconv.FormatInt(rt_id, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/respondent/rt/:rt_id", newSlug, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil, errors.New("Gagal mendapatkan data respondent dari UserAPI")
+	}
+
+	var data models.Respondent
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data respondent dari UserAPI")
 	}
 	return &data, nil
 }

@@ -6,6 +6,7 @@ import (
 	"backend/userapi/payloads"
 	"backend/userapi/repository"
 	"backend/userapi/utils"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -31,6 +32,11 @@ type RespondentService interface {
 	SurveyorOption() (*pb.ProxyResponse, error)
 	BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetOptionsRespondent(param url.Values) (*pb.ProxyResponse, error)
+
+	GetRespondentByKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetRespondentByKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetRespondentByRW(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetRespondentByRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -536,4 +542,68 @@ func (service *respondentService) BlockRespondent(usr models.JwtCustomClaims, pa
 	}
 
 	return utils.SendData(nil)
+}
+
+func (service *respondentService) GetRespondentByKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	kecamatanId := slug["kecamatan_id"].(string)
+	intKecamatanId, err := utils.ToInt64(kecamatanId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	respondent, err := service.respondentRepo.GetRespondentByKecamatanId(ctx, intKecamatanId)
+	if err != nil {
+		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
+	}
+
+	return utils.SendData(respondent)
+}
+
+func (service *respondentService) GetRespondentByKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	kelurahanId := slug["kelurahan_id"].(string)
+	intKelurahanId, err := utils.ToInt64(kelurahanId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	respondent, err := service.respondentRepo.GetRespondentByKelurahanId(ctx, intKelurahanId)
+	if err != nil {
+		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
+	}
+
+	return utils.SendData(respondent)
+}
+
+func (service *respondentService) GetRespondentByRW(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	rwId := slug["rw_id"].(string)
+	intRWId, err := utils.ToInt64(rwId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	respondent, err := service.respondentRepo.GetRespondentByRWId(ctx, intRWId)
+	if err != nil {
+		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
+	}
+
+	return utils.SendData(respondent)
+}
+
+func (service *respondentService) GetRespondentByRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	rtId := slug["rt_id"].(string)
+	intRTId, err := utils.ToInt64(rtId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	respondent, err := service.respondentRepo.GetRespondentByRTId(ctx, intRTId)
+	if err != nil {
+		return utils.SendError(fmt.Errorf("data ditemukan: %w", err), http.StatusNotFound)
+	}
+
+	return utils.SendData(respondent)
 }

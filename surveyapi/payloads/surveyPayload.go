@@ -112,11 +112,11 @@ type DetailSurveyKewilayahanDatatablePayload struct {
 }
 
 // KEBUTUHAN VERIFIKASI ATAU VALIDASI SURVEY ===============================>
-type ApproveAllSurveyAnswersPayload struct {
-	Answers []ApproveSurveyAnswerItem `json:"answers" validate:"required,dive"`
+type VerifyAllSurveyAnswersPayload struct {
+	Answers []VerifySurveyAnswerItem `json:"answers" validate:"required,dive"`
 }
 
-type ApproveSurveyAnswerItem struct {
+type VerifySurveyAnswerItem struct {
 	QuestionID    int           `json:"question_id" validate:"required"`
 	Type          string        `json:"type" validate:"required"`
 	GroupID       *int          `json:"group_id"`

@@ -64,6 +64,7 @@ type SurveyWilayahDatatableResponse struct {
 	JumlahSoalTerisi int     `json:"jumlah_soal_terisi" gorm:"column:jumlah_soal_terisi"`
 	JumlahTotalSoal  int     `json:"jumlah_total_soal" gorm:"column:jumlah_total_soal"`
 	StatusRespondent *string `json:"status_respondent" gorm:"column:status_respondent"`
+	CodeWilayah      *string `json:"code_wilayah" gorm:"column:code_wilayah"`
 }
 
 type SurveyKewilayahanDatatableResponse struct {
