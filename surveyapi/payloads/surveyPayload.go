@@ -110,3 +110,23 @@ type DetailSurveyKewilayahanDatatablePayload struct {
 	KelurahanId *int64 `json:"kelurahan_id,omitempty"`
 	RWId        *int64 `json:"rw_id,omitempty"`
 }
+
+// KEBUTUHAN VERIFIKASI ATAU VALIDASI SURVEY ===============================>
+type ApproveAllSurveyAnswersPayload struct {
+	Answers []ApproveSurveyAnswerItem `json:"answers" validate:"required,dive"`
+}
+
+type ApproveSurveyAnswerItem struct {
+	QuestionID    int           `json:"question_id" validate:"required"`
+	Type          string        `json:"type" validate:"required"`
+	GroupID       *int          `json:"group_id"`
+	ValueString   *string       `json:"value_string"`
+	ValueNumber   *int          `json:"value_number"`
+	ValueOptionID *int          `json:"value_option_id"`
+	ValueMaps     []interface{} `json:"value_maps"`
+	ValueImages   []string      `json:"value_images"`
+}
+
+type RejectAllSurveyAnswersPayload struct {
+	FlaggedQuestionIDs []int `json:"flagged_question_ids" validate:"required,min=1"`
+}

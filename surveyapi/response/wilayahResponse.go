@@ -20,7 +20,8 @@ type DetailSurveyKewilayahanDatatableResponse struct {
 }
 
 type DetailSurveyKewilayahanResponse struct {
-	ID                     int64  `json:"id"`
+	ID                     int64  `json:"-"`
+	Code                   string `json:"code"`
 	NamaWilayah            string `json:"nama_wilayah"`
 	Status                 string `json:"status"`
 	IsPosibleDetail        bool   `json:"posible_detail"`

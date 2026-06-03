@@ -26,6 +26,11 @@ type SurveyHandler interface {
 	GetHistoryDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDetailSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	// RejectSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	// VerifySurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -94,3 +99,19 @@ func (handler *surveyHandler) GetSurveyKewilayahan(ctx context.Context, req map[
 func (handler *surveyHandler) GetDetailSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.GetDetailSurveyKewilayahan(ctx, req, usr, param, slug)
 }
+
+func (handler *surveyHandler) SurveyResultIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.SurveyResultIndex(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) SurveyResultSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.SurveyResultSectionDetail(ctx, req, usr, param, slug)
+}
+
+// func (handler *surveyHandler) RejectSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+// 	return handler.surveyService.RejectSurveyAnswers(ctx, req, usr, param, slug)
+// }
+
+// func (handler *surveyHandler) VerifySurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+// 	return handler.surveyService.ApproveSurveyAnswers(ctx, req, usr, param, slug)
+// }

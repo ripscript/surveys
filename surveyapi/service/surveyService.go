@@ -43,6 +43,11 @@ type SurveyService interface {
 	GetHistoryDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDetailSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	// RejectSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	// ApproveSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -1344,6 +1349,10 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
 	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, surveyID, respondentLogin)
 	if err != nil {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
@@ -1351,6 +1360,10 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 
 	if !canRespondentDoSurvey {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
+	}
+
+	if *respondentLogin.RoleId != int64(enums.ROLE_RT) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
 	// 4. Ambil Blueprint Pertanyaan KHUSUS Section yang Sedang Di-submit
@@ -1703,6 +1716,10 @@ func (service *surveyService) UpdateSurveyRespondentStatus(ctx context.Context, 
 	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, surveyID, respondentLogin)
 	if err != nil || !canRespondentDoSurvey {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
+	}
+
+	if *respondentLogin.RoleId != int64(enums.ROLE_RT) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
 	// 4. Inisiasi Transaksi Database
@@ -2077,25 +2094,32 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 			if len(data.Data) > 0 {
 				var extractedKelurahanIds []int64
-				for _, rt := range data.Data {
-					extractedKelurahanIds = append(extractedKelurahanIds, rt.ID)
+				for _, kelurahan := range data.Data {
+					extractedKelurahanIds = append(extractedKelurahanIds, kelurahan.ID)
 				}
 
 				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkKelurahan(ctx, int64(survey.ID), extractedKelurahanIds)
 
 				for _, kelurahan := range data.Data {
-					newRt := response.DetailSurveyKewilayahanResponse{
+					wilayahId := []int{int(kelurahan.ID)}
+
+					kodeWilayah, err := h.Encode(wilayahId)
+					if err != nil {
+						return utils.SendError(err, http.StatusInternalServerError)
+					}
+					newKelurahan := response.DetailSurveyKewilayahanResponse{
 						ID:              kelurahan.ID,
 						NamaWilayah:     kelurahan.VillageName,
 						IsPosibleDetail: true,
+						Code:            kodeWilayah,
 					}
 
 					if statusStr, exists := statusMap[kelurahan.ID]; exists {
 						val := statusStr
-						newRt.Status = val
+						newKelurahan.Status = val
 					}
 
-					finalData = append(finalData, newRt)
+					finalData = append(finalData, newKelurahan)
 				}
 			}
 		case 3:
@@ -2125,25 +2149,32 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 			if len(data.Data) > 0 {
 				var extractedRWIds []int64
-				for _, rt := range data.Data {
-					extractedRWIds = append(extractedRWIds, rt.ID)
+				for _, rw := range data.Data {
+					extractedRWIds = append(extractedRWIds, rw.ID)
 				}
 
 				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkRW(ctx, int64(survey.ID), extractedRWIds)
 
 				for _, rw := range data.Data {
-					newRt := response.DetailSurveyKewilayahanResponse{
+					wilayahId := []int{int(rw.ID)}
+
+					kodeWilayah, err := h.Encode(wilayahId)
+					if err != nil {
+						return utils.SendError(err, http.StatusInternalServerError)
+					}
+					newRw := response.DetailSurveyKewilayahanResponse{
 						ID:              rw.ID,
 						NamaWilayah:     rw.NamaRw,
 						IsPosibleDetail: true,
+						Code:            kodeWilayah,
 					}
 
 					if statusStr, exists := statusMap[rw.ID]; exists {
 						val := statusStr
-						newRt.Status = val
+						newRw.Status = val
 					}
 
-					finalData = append(finalData, newRt)
+					finalData = append(finalData, newRw)
 				}
 			}
 		case 2:
@@ -2180,9 +2211,16 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkRT(ctx, int64(survey.ID), extractedRTIds)
 
 				for _, rt := range data.Data {
+					wilayahId := []int{int(rt.ID)}
+
+					kodeWilayah, err := h.Encode(wilayahId)
+					if err != nil {
+						return utils.SendError(err, http.StatusInternalServerError)
+					}
 					newRt := response.DetailSurveyKewilayahanResponse{
 						ID:          rt.ID,
 						NamaWilayah: rt.NamaRt,
+						Code:        kodeWilayah,
 					}
 
 					if statusStr, exists := statusMap[rt.ID]; exists {
@@ -2214,3 +2252,760 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 	return utils.SendData(result, "Survey wilayah berhasil diambil")
 }
+
+func (service *surveyService) SurveyResultIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	codeStr := slug["survey_code"]
+	code, ok := codeStr.(string)
+	if !ok {
+		return utils.SendError(errors.New("Survey tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedIDs, err := h.DecodeWithError(code)
+	if err != nil || len(decodedIDs) == 0 {
+		return utils.SendError(errors.New("Survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyId := decodedIDs[0]
+
+	survey, err := service.surveyRepo.GetSurveyById(int64(surveyId))
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	respondentLoginId := usr.RespondentID
+	if respondentLoginId == 0 {
+		return utils.SendError(errors.New("Respondent tidak ditemukan"), http.StatusNotFound)
+	}
+
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentLoginId)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, int64(survey.ID), respondentLogin)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if !canRespondentDoSurvey {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
+	}
+
+	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk melihat hasil survey ini"), http.StatusUnauthorized)
+	}
+
+	codeWilayahStr := slug["code"]
+	codeWilayah, ok := codeWilayahStr.(string)
+	if !ok {
+		return utils.SendError(errors.New("Code wilayah tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedWilayahIDs, err := h.DecodeWithError(codeWilayah)
+	if err != nil || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Code wilayah tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	rtId := decodedWilayahIDs[0]
+
+	// 1. Dapatkan Data Respondent Survey
+	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(survey.ID), int64(rtId))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Gagal mengambil data responden survey untuk wilayah ini"), http.StatusInternalServerError)
+		}
+	}
+
+	if surveyRespondent == nil {
+		return utils.SendData(nil, "Belum ada responden yang mengisi survey untuk wilayah ini")
+	}
+
+	respondent, err := service.userRepo.GetRespondentDetailById(ctx, surveyRespondent.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Responden tidak ditemukan"), http.StatusInternalServerError)
+	}
+
+	// 2. Dapatkan Alur Survey (Flow Detail) untuk Section
+	flowDetail, err := service.manajemenAlurRepo.GetFlowDetailByID(int(survey.FlowDetailID))
+	if err != nil {
+		return utils.SendError(errors.New("Alur survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// 3. Ambil Daftar Section
+	var sections []response.SectionDataIndex
+	surveyRespondentId := &surveyRespondent.ID // Kirim ID ini jika repo butuh untuk hitung progress
+
+	rawSections, err := service.manajemenAlurRepo.GetPreviewSectionByFlowDetailId(flowDetail.ID, flowDetail.StatusSection, surveyRespondentId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	// 4. Mapping rawSections ke format response
+	for _, v := range rawSections {
+		sectionId := []int{v.SectionId}
+
+		sectionCode, err := h.Encode(sectionId)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		sectionName := ""
+		if v.SectionName != nil {
+			sectionName = *v.SectionName
+		}
+
+		sections = append(sections, response.SectionDataIndex{
+			SectionCode: sectionCode,
+			SectionName: sectionName,
+		})
+	}
+
+	respondentId := []int{int(respondent.ID)}
+
+	respondentCode, err := h.Encode(respondentId)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	// 5. Rakit Response Akhir
+	dataResult := response.SurveyResultIndex{
+		Respondent: response.RespondentDataIndex{
+			Code:      respondentCode,
+			Name:      respondent.Name,
+			Kecamatan: respondent.Kecamatan,
+			Kelurahan: respondent.Kelurahan,
+			RW:        respondent.RW,
+			RT:        respondent.RT,
+		},
+		Sections: sections,
+	}
+
+	return utils.SendData(dataResult, "Hasil survey berhasil diambil")
+}
+
+func (service *surveyService) SurveyResultSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// 1. Inisialisasi HashID
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	// 2. Decode Parameter URL
+	surveyCode, ok := slug["survey_code"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Kode survey tidak valid"), http.StatusBadRequest)
+	}
+	decodedSurveyIDs, err := h.DecodeWithError(surveyCode)
+	if err != nil || len(decodedSurveyIDs) == 0 {
+		return utils.SendError(errors.New("Kode survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+	surveyId := decodedSurveyIDs[0]
+
+	codeWilayah, ok := slug["code"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Code wilayah tidak valid"), http.StatusBadRequest)
+	}
+	decodedWilayahIDs, err := h.DecodeWithError(codeWilayah)
+	if err != nil || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Code wilayah tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+	rtId := decodedWilayahIDs[0]
+
+	sectionCode, ok := slug["section_code"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Kode section tidak valid"), http.StatusBadRequest)
+	}
+	decodedSectionIDs, err := h.DecodeWithError(sectionCode)
+	if err != nil || len(decodedSectionIDs) == 0 {
+		return utils.SendError(errors.New("Kode section tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+	sectionID := decodedSectionIDs[0]
+
+	// 3. Validasi Survey & Respondent
+	survey, err := service.surveyRepo.GetSurveyById(int64(surveyId))
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	respondentLoginId := usr.RespondentID
+	if respondentLoginId == 0 {
+		return utils.SendError(errors.New("Respondent tidak ditemukan"), http.StatusNotFound)
+	}
+
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentLoginId)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, int64(survey.ID), respondentLogin)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if !canRespondentDoSurvey {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
+	}
+
+	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk melihat hasil survey ini"), http.StatusUnauthorized)
+	}
+
+	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(survey.ID), int64(rtId))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Gagal mengambil data responden survey untuk wilayah ini"), http.StatusInternalServerError)
+		}
+	}
+	if surveyRespondent == nil {
+		return utils.SendError(errors.New("Belum ada jawaban dari responden untuk wilayah ini"), http.StatusNotFound)
+	}
+
+	// 4. Ambil Raw Nodes (Blueprint Soal) berdasarkan Section
+	flowDetail, err := service.manajemenAlurRepo.GetFlowDetailByID(int(survey.FlowDetailID))
+	if err != nil {
+		return utils.SendError(errors.New("Alur survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	rawNodes, err := service.manajemenAlurRepo.GetRawNodesForPreview(flowDetail.ID, sectionID)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	if len(rawNodes) == 0 {
+		return utils.SendError(errors.New("Tidak ada pertanyaan pada bagian ini"), http.StatusNotFound)
+	}
+
+	// 5. Ambil Jawaban Responden & Mapping (O(1) Lookup)
+	answerMap := make(map[int]string)
+	answers, errAns := service.surveyRepo.GetAnswersByResponseID(surveyRespondent.ID)
+	if errAns == nil {
+		for _, ans := range answers {
+			if ans.Answer != nil {
+				answerMap[ans.FormFieldID] = *ans.Answer
+			}
+		}
+	}
+
+	// =================================================================
+	// 🚀 6. AMBIL OPSI JAWABAN SECARA BULK
+	// =================================================================
+	var formFieldIDs []int
+	tempIDTracker := make(map[int]bool)
+
+	for _, raw := range rawNodes {
+		if !tempIDTracker[raw.FormFieldId] {
+			formFieldIDs = append(formFieldIDs, raw.FormFieldId)
+			tempIDTracker[raw.FormFieldId] = true
+		}
+	}
+
+	// Mapping options by FormFieldID
+	optionsMap := make(map[int][]response.SurveyResultOptionItem)
+	options, _ := service.manajemenAlurRepo.GetAnswerOptionsByQuestionIDList(formFieldIDs)
+	for _, opt := range options {
+		optionsMap[opt.FormFieldId] = append(optionsMap[opt.FormFieldId], response.SurveyResultOptionItem{
+			ID:    opt.ID,
+			Label: opt.Option,
+		})
+	}
+
+	// =================================================================
+	// 7. DATA STITCHING (Penjahitan Soal, Opsi, dan Jawaban Terurut)
+	// =================================================================
+	var resultNodes []response.SurveyResultNode
+	nodeIndexMap := make(map[int]int)
+	groupMasterMap := make(map[int]int)
+
+	// Tracker Duplikasi untuk soal multiple-choices breakdown
+	processedQuestions := make(map[int]bool)
+
+	for _, raw := range rawNodes {
+		if raw.GroupId != nil && *raw.GroupId != 0 {
+			if _, exists := groupMasterMap[*raw.GroupId]; !exists {
+				groupMasterMap[*raw.GroupId] = raw.FormFieldId
+			}
+		}
+	}
+
+	var activeSectionName string
+
+	for i, raw := range rawNodes {
+		if i == 0 && raw.SectionName != nil {
+			activeSectionName = *raw.SectionName
+		}
+
+		// Cegah duplikasi soal akibat breakdown database
+		if processedQuestions[raw.FormFieldId] {
+			continue
+		}
+		processedQuestions[raw.FormFieldId] = true
+
+		// Tentukan Key Node
+		var nodeKey int
+		stepType := "single"
+		if raw.GroupId != nil && *raw.GroupId != 0 {
+			nodeKey = groupMasterMap[*raw.GroupId]
+			stepType = "group"
+		} else {
+			nodeKey = raw.FormFieldId
+		}
+
+		// Evaluasi Jawaban
+		var finalAnswer interface{} = nil
+		if ansStr, exists := answerMap[raw.FormFieldId]; exists {
+			if ansStr == "[SKIPPED_BY_LOGIC]" {
+				finalAnswer = nil
+			} else {
+				switch raw.Template {
+				case "image-template":
+					var jsonArray []string
+					if errUnm := json.Unmarshal([]byte(ansStr), &jsonArray); errUnm == nil {
+						for imgIdx := range jsonArray {
+							jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/view-survey-image/" + jsonArray[imgIdx]
+						}
+						finalAnswer = jsonArray
+					} else {
+						finalAnswer = ansStr
+					}
+				case "maps", "checkboxes":
+					var jsonArray []interface{}
+					if errUnm := json.Unmarshal([]byte(ansStr), &jsonArray); errUnm == nil {
+						finalAnswer = jsonArray
+					} else {
+						finalAnswer = ansStr
+					}
+				default:
+					finalAnswer = ansStr
+				}
+			}
+		}
+
+		// Ambil Opsi dari Map (Jika tidak ada, set menjadi array kosong agar JSON rapi)
+		nodeOptions := optionsMap[raw.FormFieldId]
+		if nodeOptions == nil {
+			nodeOptions = []response.SurveyResultOptionItem{}
+		}
+
+		// Bentuk struct spesifik per soal
+		questionDetail := response.SurveyResultQuestionDetail{
+			QuestionID: raw.FormFieldId,
+			Label:      raw.Label,
+			Type:       raw.Template,
+			IsRequired: raw.IsRequired,
+			Options:    nodeOptions, // 🆕 Sisipkan Opsi Di Sini
+			Answer:     finalAnswer,
+		}
+
+		// Masukkan ke Array Terurut
+		if idx, exists := nodeIndexMap[nodeKey]; exists {
+			resultNodes[idx].Questions = append(resultNodes[idx].Questions, questionDetail)
+		} else {
+			newNode := response.SurveyResultNode{
+				GroupID:   raw.GroupId,
+				GroupName: raw.GroupName,
+				StepType:  stepType,
+				Questions: []response.SurveyResultQuestionDetail{questionDetail},
+			}
+			resultNodes = append(resultNodes, newNode)
+			nodeIndexMap[nodeKey] = len(resultNodes) - 1
+		}
+	}
+
+	// 8. Susun Response Final
+	finalResponse := response.SurveyResultSectionDetail{
+		SectionName: activeSectionName,
+		Nodes:       resultNodes,
+	}
+
+	return utils.SendData(finalResponse, "Berhasil memuat detail jawaban survey")
+}
+
+// func (service *surveyService) RejectSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+// 	defer utils.GeneralRecover()
+
+// 	// 1. Parsing & Validasi Payload (Sangat Cepat)
+// 	var payload payloads.RejectSurveyAnswersPayload
+// 	jsonBytes, err := json.Marshal(req)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusBadRequest)
+// 	}
+
+// 	if err = json.Unmarshal(jsonBytes, &payload); err != nil {
+// 		return utils.SendError(err, http.StatusBadRequest)
+// 	}
+
+// 	validate := validator.New()
+// 	if err = validate.Struct(payload); err != nil {
+// 		for _, valErr := range err.(validator.ValidationErrors) {
+// 			return utils.SendError(errors.New(utils.TranslateError(valErr)), http.StatusBadRequest)
+// 		}
+// 	}
+
+// 	// 2. Decode HashIDs
+// 	hd := hashids.NewData()
+// 	hd.Salt = os.Getenv("HASHID_SALT")
+// 	hd.MinLength = 24
+// 	h, _ := hashids.NewWithData(hd)
+
+// 	surveyCode, _ := slug["survey_code"].(string)
+// 	codeWilayahStr, _ := slug["code"].(string)
+
+// 	decodedSurveyIDs, err1 := h.DecodeWithError(surveyCode)
+// 	decodedWilayahIDs, err2 := h.DecodeWithError(codeWilayahStr)
+// 	if err1 != nil || err2 != nil || len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+// 		return utils.SendError(errors.New("Parameter URL tidak valid"), http.StatusBadRequest)
+// 	}
+
+// 	// 3. Validasi Database Induk
+// 	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(decodedSurveyIDs[0]), int64(decodedWilayahIDs[0]))
+// 	if err != nil || surveyRespondent == nil {
+// 		return utils.SendError(errors.New("Data isian responden tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	if surveyRespondent.Status == nil || *surveyRespondent.Status != 2 {
+// 		return utils.SendError(errors.New("Responden belum menyelesaikan pengisian survey ini"), http.StatusBadRequest)
+// 	}
+// 	if surveyRespondent.StatusApproval != nil && *surveyRespondent.StatusApproval != "" {
+// 		return utils.SendError(errors.New("Survey ini sudah diverifikasi sebelumnya"), http.StatusBadRequest)
+// 	}
+
+// 	// 4. Eksekusi Transaksi Database Khusus REJECT
+// 	errTx := service.surveyRepo.RunInTransaction(func(txRepo repository.SurveyRepo) error {
+// 		var flags []models.FlaggingEditPertanyaanSurvey
+
+// 		for _, qID := range payload.FlaggedQuestionIDs {
+// 			flags = append(flags, models.FlaggingEditPertanyaanSurvey{
+// 				SurveyRespondentID: int64(surveyRespondent.ID),
+// 				FormFieldID:        int64(qID),
+// 				IsRevisied:         "false",
+// 			})
+// 		}
+
+// 		// Insert ke tabel flagging
+// 		if errFlag := txRepo.CreateFlaggingEdit(ctx, flags); errFlag != nil {
+// 			return errFlag
+// 		}
+
+// 		// Update status jadi revisi dan buka gembok
+// 		return txRepo.UpdateRespondentApprovalStatus(ctx, int64(surveyRespondent.ID), "revisi_rt", "true")
+// 	})
+
+// 	if errTx != nil {
+// 		return utils.SendError(errTx, http.StatusInternalServerError)
+// 	}
+
+// 	return utils.SendData(nil, "Berhasil menolak survey dan mengirimkan catatan revisi ke responden")
+// }
+
+// func (service *surveyService) ApproveSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+// 	defer utils.GeneralRecover()
+
+// 	detachedCtx := context.WithoutCancel(ctx)
+// 	var payload payloads.ApproveAllSurveyAnswersPayload
+
+// 	// 1. Binding & Validasi Input
+// 	jsonBytes, err := json.Marshal(req)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusBadRequest)
+// 	}
+// 	if err = json.Unmarshal(jsonBytes, &payload); err != nil {
+// 		return utils.SendError(err, http.StatusBadRequest)
+// 	}
+
+// 	var validate = validator.New()
+// 	if err = validate.Struct(payload); err != nil {
+// 		for _, valErr := range err.(validator.ValidationErrors) {
+// 			return utils.SendError(errors.New(utils.TranslateError(valErr)), http.StatusBadRequest)
+// 		}
+// 	}
+
+// 	// 2. Decode HashIDs (Hanya butuh survey_code dan code wilayah, tanpa section)
+// 	hd := hashids.NewData()
+// 	hd.Salt = os.Getenv("HASHID_SALT")
+// 	hd.MinLength = 24
+// 	h, _ := hashids.NewWithData(hd)
+
+// 	surveyCode, ok1 := slug["survey_code"].(string)
+// 	codeWilayahStr, ok2 := slug["code"].(string)
+// 	if !ok1 || !ok2 {
+// 		return utils.SendError(errors.New("Parameter URL tidak valid"), http.StatusBadRequest)
+// 	}
+
+// 	decodedSurveyIDs, _ := h.DecodeWithError(surveyCode)
+// 	decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
+// 	if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+// 		return utils.SendError(errors.New("Kode URL tidak valid atau dimanipulasi"), http.StatusBadRequest)
+// 	}
+
+// 	surveyID := int64(decodedSurveyIDs[0])
+// 	rtId := int64(decodedWilayahIDs[0])
+
+// 	// 3. Validasi Induk & Status Pengisian
+// 	survey, err := service.surveyRepo.GetSurveyById(surveyID)
+// 	if err != nil {
+// 		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(survey.ID), rtId)
+// 	if err != nil || surveyRespondent == nil {
+// 		return utils.SendError(errors.New("Data isian responden tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	if surveyRespondent.Status == nil || *surveyRespondent.Status != 2 {
+// 		return utils.SendError(errors.New("Responden belum menyelesaikan pengisian survey ini"), http.StatusBadRequest)
+// 	}
+// 	if surveyRespondent.StatusApproval != nil && *surveyRespondent.StatusApproval != "" {
+// 		return utils.SendError(errors.New("Survey ini sudah diverifikasi sebelumnya"), http.StatusBadRequest)
+// 	}
+
+// 	// =========================================================================
+// 	// 🛡️ 4. SECURITY CHECK: VALIDASI SELURUH SOAL (FULL BLUEPRINT) VS PAYLOAD
+// 	// =========================================================================
+// 	// Pass sectionID = 0 untuk menarik seluruh pertanyaan dalam alur survey tersebut
+// 	rawNodes, err := service.manajemenAlurRepo.GetRawNodesForPreview(int(survey.FlowDetailID), 0)
+// 	if err != nil || len(rawNodes) == 0 {
+// 		return utils.SendError(errors.New("Gagal memuat master pertanyaan survey"), http.StatusInternalServerError)
+// 	}
+
+// 	validQuestionsMap := make(map[int]models.RawNodeData)
+// 	var blueprintFieldIDs []int
+// 	for _, node := range rawNodes {
+// 		validQuestionsMap[node.FormFieldId] = node
+// 		blueprintFieldIDs = append(blueprintFieldIDs, node.FormFieldId)
+// 	}
+
+// 	validOptionsMap := make(map[int]map[int]bool)
+// 	options, _ := service.manajemenAlurRepo.GetAnswerOptionsByQuestionIDList(blueprintFieldIDs)
+// 	for _, opt := range options {
+// 		if validOptionsMap[opt.FormFieldId] == nil {
+// 			validOptionsMap[opt.FormFieldId] = make(map[int]bool)
+// 		}
+// 		validOptionsMap[opt.FormFieldId][opt.ID] = true
+// 	}
+
+// 	// Validasi silang keaslian data payload
+// 	for _, ans := range payload.Answers {
+// 		node, exists := validQuestionsMap[ans.QuestionID]
+// 		if !exists {
+// 			return utils.SendError(fmt.Errorf("Pertanyaan ID %d bukan bagian dari survey ini", ans.QuestionID), http.StatusBadRequest)
+// 		}
+// 		if node.Template != ans.Type {
+// 			return utils.SendError(fmt.Errorf("Tipe jawaban tidak cocok untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
+// 		}
+// 		if ans.ValueString != nil && *ans.ValueString == "[SKIPPED_BY_LOGIC]" {
+// 			continue
+// 		}
+
+// 		switch ans.Type {
+// 		case "multiple-choices":
+// 			if ans.ValueOptionID != nil && *ans.ValueOptionID != 0 {
+// 				if !validOptionsMap[ans.QuestionID][*ans.ValueOptionID] {
+// 					return utils.SendError(fmt.Errorf("Pilihan jawaban tidak sah untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
+// 				}
+// 			}
+// 		case "checkboxes":
+// 			if len(ans.ValueMaps) > 0 {
+// 				for _, mapVal := range ans.ValueMaps {
+// 					if optFloat, ok := mapVal.(float64); ok {
+// 						if !validOptionsMap[ans.QuestionID][int(optFloat)] {
+// 							return utils.SendError(fmt.Errorf("Salah satu opsi checkbox tidak sah untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+
+// 	// =========================================================================
+// 	// 5. TRACKER BERKAS GAMBAR LAMA
+// 	// =========================================================================
+// 	imageFieldsMap := make(map[int64]bool)
+// 	for _, node := range rawNodes {
+// 		if node.Template == "image-template" {
+// 			imageFieldsMap[int64(node.FormFieldId)] = true
+// 		}
+// 	}
+
+// 	oldFilesTracker := make(map[string]bool)
+// 	oldResponses, errFindOld := service.surveyRepo.GetAllOldResponsesByRespondent(ctx, int64(surveyRespondent.ID))
+// 	if errFindOld == nil {
+// 		for _, resp := range oldResponses {
+// 			if resp.Answer != nil && imageFieldsMap[int64(resp.FormFieldID)] {
+// 				var oldPaths []string
+// 				if errUnm := json.Unmarshal([]byte(*resp.Answer), &oldPaths); errUnm == nil {
+// 					for _, path := range oldPaths {
+// 						oldFilesTracker[path] = true
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+
+// 	var successfullyUploadedFiles []string
+// 	txCommitted := false
+
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			if len(successfullyUploadedFiles) > 0 {
+// 				_, _ = service.fileRepo.DeleteSurveyImageBulk(detachedCtx, successfullyUploadedFiles)
+// 			}
+// 			panic(r)
+// 		} else if !txCommitted {
+// 			if len(successfullyUploadedFiles) > 0 {
+// 				_, _ = service.fileRepo.DeleteSurveyImageBulk(detachedCtx, successfullyUploadedFiles)
+// 			}
+// 		}
+// 	}()
+
+// 	// =========================================================================
+// 	// 6. JALANKAN TRANSAKSI DATABASE (SAVE CONFIGURATION)
+// 	// =========================================================================
+// 	err = service.surveyRepo.RunInTransaction(func(txRepo repository.SurveyRepo) error {
+// 		var finalResponses []models.FieldResponse
+// 		gatewayURL := os.Getenv("API_GATEWAY_URL") + "/view-survey-image/"
+// 		availableMime := []string{"image/png", "image/jpg", "image/jpeg"}
+// 		availablesExt := []string{".png", ".jpg", ".jpeg"}
+// 		maxSizeInKB := float64(5120)
+
+// 		for _, ans := range payload.Answers {
+// 			var finalAnswerStr *string
+
+// 			if ans.ValueString != nil && *ans.ValueString == "[SKIPPED_BY_LOGIC]" {
+// 				finalAnswerStr = ans.ValueString
+// 			} else {
+// 				switch ans.Type {
+// 				case "long-answer", "short-answer", "date":
+// 					if ans.ValueString != nil {
+// 						ansCopy := *ans.ValueString
+// 						finalAnswerStr = &ansCopy
+// 					}
+// 				case "number":
+// 					if ans.ValueNumber != nil {
+// 						strVal := strconv.Itoa(*ans.ValueNumber)
+// 						finalAnswerStr = &strVal
+// 					}
+// 				case "multiple-choices":
+// 					if ans.ValueOptionID != nil {
+// 						strVal := strconv.Itoa(*ans.ValueOptionID)
+// 						finalAnswerStr = &strVal
+// 					}
+// 				case "maps", "checkboxes":
+// 					if len(ans.ValueMaps) > 0 {
+// 						jsonBytes, _ := json.Marshal(ans.ValueMaps)
+// 						strVal := string(jsonBytes)
+// 						finalAnswerStr = &strVal
+// 					}
+// 				case "image-template":
+// 					if len(ans.ValueImages) > 0 {
+// 						var uploadedPaths []string
+// 						for _, image := range ans.ValueImages {
+// 							if strings.HasPrefix(image, "http") {
+// 								cleanPath := image
+// 								if after, ok0 := strings.CutPrefix(cleanPath, gatewayURL); ok0 {
+// 									cleanPath = after
+// 								}
+// 								uploadedPaths = append(uploadedPaths, cleanPath)
+// 								if oldFilesTracker[cleanPath] {
+// 									oldFilesTracker[cleanPath] = false
+// 								}
+// 							} else if strings.HasPrefix(image, "data:image") {
+// 								base64Data, errExtract := utils.ExtractBase64Info(image)
+// 								if errExtract != nil {
+// 									return errors.New("Gagal memproses gambar")
+// 								}
+// 								if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+// 									return errors.New("Format file gambar tidak didukung")
+// 								}
+// 								if base64Data.SizeInKB > maxSizeInKB {
+// 									return errors.New("Ukuran gambar melebihi 5MB")
+// 								}
+
+// 								imgToUpload := image
+// 								path, errUp := service.fileRepo.UploadSurveyImage(ctx, &imgToUpload)
+// 								if errUp != nil || path == nil {
+// 									return errors.New("Gagal mengunggah gambar ke server dokumen")
+// 								}
+// 								uploadedPaths = append(uploadedPaths, *path)
+// 								successfullyUploadedFiles = append(successfullyUploadedFiles, *path)
+// 							}
+// 						}
+// 						pathBytes, _ := json.Marshal(uploadedPaths)
+// 						ansCopy := string(pathBytes)
+// 						finalAnswerStr = &ansCopy
+// 					}
+// 				}
+// 			}
+
+// 			if finalAnswerStr != nil {
+// 				var groupID int64 = 0
+// 				if ans.GroupID != nil {
+// 					groupID = int64(*ans.GroupID)
+// 				}
+
+// 				finalResponses = append(finalResponses, models.FieldResponse{
+// 					FormResponseID: int64(surveyRespondent.ID),
+// 					FormFieldID:    ans.QuestionID,
+// 					GroupID:        groupID,
+// 					Answer:         finalAnswerStr,
+// 				})
+// 			}
+// 		}
+
+// 		// Wipe & Replace skala 1 survei penuh
+// 		if errWipe := txRepo.WipeAndReplaceFieldResponses(ctx, int64(surveyRespondent.ID), finalResponses); errWipe != nil {
+// 			return errWipe
+// 		}
+
+// 		// Tingkat persetujuan berdasarkan akun login
+// 		newStatusApproval := "approved"
+// 		if usr.Role == int(enums.ROLE_RW) {
+// 			newStatusApproval = "verified_rw"
+// 		} else if usr.Role == int(enums.ROLE_KELURAHAN) {
+// 			newStatusApproval = "validated_lurah"
+// 		}
+
+// 		return txRepo.UpdateRespondentApprovalStatus(ctx, int64(surveyRespondent.ID), newStatusApproval, "false")
+// 	})
+
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusInternalServerError)
+// 	}
+
+// 	txCommitted = true
+
+// 	// 7. Bersihkan berkas yatim secara asinkron
+// 	var finalFilesToCleanup []string
+// 	for path, shouldDelete := range oldFilesTracker {
+// 		if shouldDelete {
+// 			finalFilesToCleanup = append(finalFilesToCleanup, path)
+// 		}
+// 	}
+// 	if len(finalFilesToCleanup) > 0 {
+// 		go func(paths []string) { _, _ = service.fileRepo.DeleteSurveyImageBulk(detachedCtx, paths) }(finalFilesToCleanup)
+// 	}
+
+// 	return utils.SendData(nil, "Berhasil menyetujui dan memperbarui seluruh jawaban survey")
+// }

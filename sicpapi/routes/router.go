@@ -236,5 +236,9 @@ func SetupRoutes(e *echo.Echo) {
 	surveyKewilayahanGroup := e.Group("/survey-kewilayahan")
 	surveyKewilayahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/survey/:survey_code/result-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/survey/:survey_code/result-index/:code/section/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	// surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/section/:section_code/verify", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	// surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/section/:section_code/reject", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 }

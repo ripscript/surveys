@@ -293,6 +293,22 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.GetDetailSurveyKewilayahan,
 		MenuKey: "survey-kewilayahan",
 	}},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code": {"GET": {
+		Handler: surveyHandler.SurveyResultIndex,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/section/:section_code": {"GET": {
+		Handler: surveyHandler.SurveyResultSectionDetail,
+		MenuKey: "survey-kewilayahan",
+	}},
+	// "/survey-kewilayahan/survey/:survey_code/result-index/:code/section/:section_code/verify": {"PUT": {
+	// 	Handler: surveyHandler.VerifySurveyAnswers,
+	// 	MenuKey: "survey-kewilayahan",
+	// }},
+	// "/survey-kewilayahan/survey/:survey_code/result-index/:code/section/:section_code/reject": {"PUT": {
+	// 	Handler: surveyHandler.RejectSurveyAnswers,
+	// 	MenuKey: "survey-kewilayahan",
+	// }},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
