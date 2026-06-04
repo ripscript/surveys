@@ -35,6 +35,9 @@ type SurveyHandler interface {
 
 	RejectValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -130,4 +133,12 @@ func (handler *surveyHandler) RejectValidateSurveyAnswers(ctx context.Context, r
 
 func (handler *surveyHandler) ValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.ValidateSurveyAnswers(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.GetPublicImageSurvey(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.ExportExcelSurveyResultsPerRT(ctx, req, usr, param, slug)
 }

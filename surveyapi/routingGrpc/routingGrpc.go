@@ -255,6 +255,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.GetHistoryApprovalSurvey,
 		MenuKey: "list-survey",
 	}},
+	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": {
+		Handler: surveyHandler.GetPublicImageSurvey,
+		MenuKey: "list-survey",
+	}},
 
 	// SURVEY WILAYAH ===========================================
 	"/survey-wilayah/preview-index/:code": {"GET": {
@@ -318,6 +322,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 	}},
 	"/survey-kewilayahan/history-detail/survey/:survey_code/wilayah/:code_wilayah": {"GET": {
 		Handler: surveyHandler.GetHistoryDetailPerWilayah,
+		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/survey-kewilayahan/export-excel/survey/:survey_code/wilayah/:code_wilayah": {"GET": {
+		Handler: surveyHandler.ExportExcelSurveyResultsPerRT,
 		MenuKey: "survey-kewilayahan",
 	}},
 }

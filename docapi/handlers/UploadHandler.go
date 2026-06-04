@@ -19,6 +19,7 @@ type UploadHandler interface {
 	SendFileWithdraw(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
@@ -72,6 +73,10 @@ func (handler *uploadHandler) UploadSurveyImage(ctx context.Context, req map[str
 
 func (handler *uploadHandler) ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.uploadService.ShowSurveyImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.ShowPublicSurveyImage(ctx, req, usr, param, slug)
 }
 
 func (handler *uploadHandler) DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

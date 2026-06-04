@@ -13,6 +13,7 @@ import (
 type FileRepo interface {
 	UploadSurveyImage(ctx context.Context, datauri *string) (*string, error)
 	DeleteSurveyImageBulk(ctx context.Context, paths []string) (*bool, error)
+	GetPublicImageSurvey(ctx context.Context, path *string) ([]byte, error)
 }
 
 type fileRepo struct {
@@ -62,4 +63,18 @@ func (repository *fileRepo) DeleteSurveyImageBulk(ctx context.Context, paths []s
 	}
 
 	return data, nil
+}
+
+func (repository *fileRepo) GetPublicImageSurvey(ctx context.Context, path *string) ([]byte, error) {
+	defer utils.GeneralRecover()
+
+	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
+
+	// Pastikan URL dan parameternya sesuai dengan endpoint di DOCAPI Anda
+	dataBytes, err := utils.HitBackendNotSecure(ctx, host, "POST", "/view-public-survey-image/:path", nil, map[string]interface{}{"path": path})
+	if err != nil {
+		return nil, errors.New("Gagal mengambil file: " + err.Error())
+	}
+
+	return dataBytes, nil
 }

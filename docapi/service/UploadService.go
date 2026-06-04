@@ -27,6 +27,7 @@ type UploadService interface {
 	Show(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
@@ -107,6 +108,24 @@ func (service *uploadService) ShowSurveyImage(ctx context.Context, req map[strin
 	defer utils.GeneralRecover()
 
 	filename, ok := slug["id"].(string)
+	spew.Dump(filename)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_RESPONDENT_SURVEY_IMAGE, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
+}
+
+func (service *uploadService) ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
 	spew.Dump(filename)
 	if !ok || filename == "" {
 		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)

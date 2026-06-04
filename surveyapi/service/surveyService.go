@@ -2,12 +2,14 @@ package service
 
 import (
 	"backend/siccore/pb"
+	"backend/surveyapi/dto"
 	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
 	"backend/surveyapi/repository"
 	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,8 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -52,6 +56,9 @@ type SurveyService interface {
 
 	RejectValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -2207,6 +2214,15 @@ func (service *surveyService) GetSurveyKewilayahan(ctx context.Context, req map[
 func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
 	search := param.Get("search")
 	page, _ := strconv.Atoi(param.Get("page"))
 	limit, _ := strconv.Atoi(param.Get("limit"))
@@ -2214,13 +2230,42 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 	orderDir := param.Get("order_dir")
 
 	tipe_wilayah, _ := strconv.Atoi(param.Get("tipe_wilayah"))
-	kecamatan_idStr, _ := strconv.Atoi(param.Get("kecamatan_id"))
-	kelurahan_idStr, _ := strconv.Atoi(param.Get("kelurahan_id"))
-	rw_idStr, _ := strconv.Atoi(param.Get("rw_id"))
 
-	kecamatan_id := int64(kecamatan_idStr)
-	kelurahan_id := int64(kelurahan_idStr)
-	rw_id := int64(rw_idStr)
+	kecamatan_idStr := param.Get("kecamatan_code")
+	kelurahan_idStr := param.Get("kelurahan_code")
+	rw_idStr := param.Get("rw_code")
+
+	var kecamatan_id int64
+	var kelurahan_id int64
+	var rw_id int64
+
+	if kecamatan_idStr != "" {
+		decodedKecamatanIds, err := h.DecodeWithError(kecamatan_idStr)
+		if err != nil {
+			return utils.SendError(errors.New("Kecamatan tidak valid"), http.StatusBadRequest)
+		}
+
+		kecamatan_id = int64(decodedKecamatanIds[0])
+	}
+
+	if kelurahan_idStr != "" {
+		decodedKelurahanIds, err := h.DecodeWithError(kelurahan_idStr)
+		if err != nil {
+			fmt.Println("Error decoding kelurahan_idStr:", err)
+			return utils.SendError(errors.New("Kelurahan tidak valid"), http.StatusBadRequest)
+		}
+
+		kelurahan_id = int64(decodedKelurahanIds[0])
+	}
+
+	if rw_idStr != "" {
+		decodedRWIds, err := h.DecodeWithError(rw_idStr)
+		if err != nil {
+			return utils.SendError(errors.New("RW tidak valid"), http.StatusBadRequest)
+		}
+
+		rw_id = int64(decodedRWIds[0])
+	}
 
 	payload := payloads.DetailSurveyKewilayahanDatatablePayload{
 		Search:      search,
@@ -2249,15 +2294,6 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentId)
 	if err != nil {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
-	}
-
-	hd := hashids.NewData()
-	hd.Salt = os.Getenv("HASHID_SALT")
-	hd.MinLength = 24
-
-	h, err := hashids.NewWithData(hd)
-	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
 	codeStr := slug["survey_code"]
@@ -2290,15 +2326,22 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 		case 0:
 			return utils.SendError(errors.New("Tipe wilayah harus diisi"), http.StatusBadRequest)
 		case 4:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
-			if *payload.KecamatanId == 0 {
-				return utils.SendError(errors.New("Kecamatan ID harus diisi untuk tipe wilayah Kecamatan"), http.StatusBadRequest)
+			var KecamatanId int64
+
+			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+				if *payload.KecamatanId == 0 {
+					return utils.SendError(errors.New("Kecamatan ID harus diisi untuk tipe wilayah Kecamatan"), http.StatusBadRequest)
+				}
+				KecamatanId = *payload.KecamatanId
+			} else {
+				KecamatanId = *respondentLogin.KecamatanId
 			}
 
-			data, err := service.wilayahRepo.GetDaftarKelurahan(ctx, *payload.KecamatanId, payloads.DatatablePayload{
+			data, err := service.wilayahRepo.GetDaftarKelurahan(ctx, KecamatanId, payloads.DatatablePayload{
 				Search:   payload.Search,
 				Page:     payload.Page,
 				Limit:    payload.Limit,
@@ -2345,15 +2388,22 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 3:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
-			if *payload.KelurahanId == 0 {
-				return utils.SendError(errors.New("Kelurahan ID harus diisi untuk tipe wilayah Kelurahan"), http.StatusBadRequest)
+			var kelurahanId int64
+
+			if *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+				if *payload.KelurahanId == 0 {
+					return utils.SendError(errors.New("Kelurahan ID harus diisi untuk tipe wilayah Kelurahan"), http.StatusBadRequest)
+				}
+				kelurahanId = *payload.KelurahanId
+			} else {
+				kelurahanId = *respondentLogin.KelurahanId
 			}
 
-			data, err := service.wilayahRepo.GetDaftarRW(ctx, *payload.KelurahanId, payloads.DatatablePayload{
+			data, err := service.wilayahRepo.GetDaftarRW(ctx, kelurahanId, payloads.DatatablePayload{
 				Search:   payload.Search,
 				Page:     payload.Page,
 				Limit:    payload.Limit,
@@ -2400,15 +2450,22 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 2:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
-			if *payload.RWId == 0 {
-				return utils.SendError(errors.New("RW ID harus diisi untuk tipe wilayah RW"), http.StatusBadRequest)
+			var rwId int64
+
+			if *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+				if *payload.RWId == 0 {
+					return utils.SendError(errors.New("RW ID harus diisi untuk tipe wilayah RW"), http.StatusBadRequest)
+				}
+				rwId = *payload.RWId
+			} else {
+				rwId = *respondentLogin.RWId
 			}
 
-			data, err := service.wilayahRepo.GetDaftarRT(ctx, *payload.RWId, payloads.DatatablePayload{
+			data, err := service.wilayahRepo.GetDaftarRT(ctx, rwId, payloads.DatatablePayload{
 				Search:   payload.Search,
 				Page:     payload.Page,
 				Limit:    payload.Limit,
@@ -3662,4 +3719,357 @@ func (service *surveyService) GetApprovalHistorySurvey(ctx context.Context, req 
 	}
 
 	return utils.SendData(dataLogs, "Riwayat persetujuan survey berhasil diambil")
+}
+
+func (service *surveyService) GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	codeStr, ok1 := slug["survey_code"].(string)
+	codeWilayahStr, ok2 := slug["code_wilayah"].(string)
+	filePathStr, ok3 := slug["path"].(string)
+	if !ok1 || !ok2 || !ok3 {
+		return utils.SendError(errors.New("Parameter URL tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedSurveyIDs, err := h.DecodeWithError(codeStr)
+	if err != nil || len(decodedSurveyIDs) == 0 {
+		return utils.SendError(errors.New("Kode survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+	surveyID := int64(decodedSurveyIDs[0])
+
+	decodedWilayahIDs, err := h.DecodeWithError(codeWilayahStr)
+	if err != nil || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Code wilayah tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+	rtId := int64(decodedWilayahIDs[0])
+
+	survey, err := service.surveyRepo.GetSurveyById(surveyID)
+	if err != nil || survey == nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(survey.ID), rtId)
+	if err != nil || surveyRespondent == nil {
+		return utils.SendError(errors.New("Data isian responden tidak ditemukan"), http.StatusNotFound)
+	}
+
+	isFileExist, err := service.surveyRepo.ValidateIsImageExists(ctx, nil, surveyRespondent.ID, filePathStr)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memvalidasi keberadaan berkas gambar"), http.StatusInternalServerError)
+	}
+	if !isFileExist {
+		return utils.SendError(errors.New("Berkas gambar tidak ditemukan"), http.StatusNotFound)
+	}
+
+	fileBytes, err := service.fileRepo.GetPublicImageSurvey(ctx, &filePathStr)
+	if err != nil {
+		spew.Dump(err)
+		return utils.SendError(errors.New("Gagal mengambil gambar survey"), http.StatusInternalServerError)
+	}
+
+	mimeType := http.DetectContentType(fileBytes)
+
+	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// 1. Dekode URL Parameter (HashIDs)
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, _ := hashids.NewWithData(hd)
+
+	codeStr, ok1 := slug["survey_code"].(string)
+	codeWilayahStr, ok2 := slug["code_wilayah"].(string)
+	if !ok1 || !ok2 {
+		return utils.SendError(errors.New("Parameter URL tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedSurveyIDs, _ := h.DecodeWithError(codeStr)
+	decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
+	if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Kode URL tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyID := int64(decodedSurveyIDs[0])
+	rtId := int64(decodedWilayahIDs[0])
+
+	// 2. Validasi Hak Akses
+	survey, err := service.surveyRepo.GetSurveyById(surveyID)
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	respondentLoginId := usr.RespondentID
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentLoginId)
+	if err != nil || respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, surveyID, respondentLogin)
+	if err != nil || !canRespondentDoSurvey {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses menindak lanjut survey ini"), http.StatusUnauthorized)
+	}
+
+	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, surveyID, rtId)
+	if err != nil || surveyRespondent == nil {
+		return utils.SendError(errors.New("Data isian responden tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if surveyRespondent.Status == nil || *surveyRespondent.Status != 2 {
+		return utils.SendError(errors.New("Responden belum menyelesaikan pengisian survey ini"), http.StatusBadRequest)
+	}
+
+	respondentSurveyDetail, err := service.userRepo.GetRespondentById(ctx, surveyRespondent.RespondentID)
+	if err != nil || respondentSurveyDetail == nil {
+		return utils.SendError(errors.New("Data responden tidak ditemukan"), http.StatusUnauthorized)
+	}
+
+	// =======================================================================
+	// 3. AMBIL DATA MASTER & JAWABAN DARI REPOSITORY
+	// =======================================================================
+	wilayahInfo, err := service.wilayahRepo.GetRTById(ctx, rtId)
+	if err != nil || wilayahInfo == nil {
+		return utils.SendError(errors.New("Gagal memuat detail wilayah"), http.StatusInternalServerError)
+	}
+
+	rawNodes, err := service.manajemenAlurRepo.GetRawNodesForPreview(int(survey.FlowDetailID), 0)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat struktur pertanyaan"), http.StatusInternalServerError)
+	}
+
+	// Ambil pilihan jawaban untuk kebutuhan multiple-choices & checkboxes
+	var blueprintFieldIDs []int
+	for _, node := range rawNodes {
+		blueprintFieldIDs = append(blueprintFieldIDs, node.FormFieldId)
+	}
+	options, _ := service.manajemenAlurRepo.GetAnswerOptionsByQuestionIDList(blueprintFieldIDs)
+
+	optionMap := make(map[int]string)
+	for _, opt := range options {
+		if opt.Option != "" {
+			optionMap[opt.ID] = opt.Option
+		}
+	}
+
+	rawJawaban, err := service.surveyRepo.GetRawJawabanForExport(ctx, surveyID, rtId)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat hasil jawaban survei"), http.StatusInternalServerError)
+	}
+
+	// =======================================================================
+	// 4. DATA GROUPING (Mengelompokkan jawaban per individu responden)
+	// =======================================================================
+	rekapMap := make(map[int64]*dto.RekapRespondenExcel)
+	var orderedRespondentIDs []int64
+
+	for _, raw := range rawJawaban {
+		if _, exists := rekapMap[raw.RespondentID]; !exists {
+			statusText := "Belum Terisi"
+			if raw.Status != nil {
+				if *raw.Status == 2 && raw.StatusApproval != nil && *raw.StatusApproval == "revisi_rt" {
+					statusText = "Revisi"
+				} else if *raw.Status == 2 {
+					statusText = "Selesai"
+				} else if *raw.Status == 1 {
+					statusText = "Draft (Sedang Berjalan)"
+				}
+			}
+
+			waktuTeks := "-"
+			if raw.WaktuSelesai != nil {
+				waktuTeks = raw.WaktuSelesai.Format("02 Jan 2006 15:04:05")
+			}
+
+			rekapMap[raw.RespondentID] = &dto.RekapRespondenExcel{
+				NamaResponden: raw.NamaResponden,
+				StatusText:    statusText,
+				WaktuSelesai:  waktuTeks,
+				JawabanMap:    make(map[int]string),
+			}
+			orderedRespondentIDs = append(orderedRespondentIDs, raw.RespondentID)
+		}
+
+		if raw.Answer != nil {
+			rekapMap[raw.RespondentID].JawabanMap[raw.FormFieldID] = *raw.Answer
+		}
+	}
+
+	// =======================================================================
+	// 5. MEMBANGUN FILE EXCEL (EXCELIZE v2)
+	// =======================================================================
+	f := excelize.NewFile()
+	defer f.Close()
+	sheetName := "Hasil Survey"
+	errRename := f.SetSheetName("Sheet1", sheetName)
+	if errRename != nil {
+		sheetName = "Sheet1"
+	}
+
+	// --- SETUP STYLING BORDERS & COLORS ---
+	styleTitle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 14},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+	})
+	styleLabel, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+	})
+	styleHeader, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#4F81BD"}, Pattern: 1},
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+	})
+	styleDataCenter, _ := f.NewStyle(&excelize.Style{
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "top"},
+	})
+	styleDataLeft, _ := f.NewStyle(&excelize.Style{
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Vertical: "top", WrapText: true},
+	})
+
+	// 🆕 Style Khusus Untuk Memaksa Format TEXT (@) di Sel Excel
+	styleDataText, _ := f.NewStyle(&excelize.Style{
+		NumFmt:    49, // Built-in format code GORM/Excel untuk murni TEXT (@)
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Vertical: "top", WrapText: true},
+	})
+
+	// --- A. WRITING HEADER TITLE ---
+	f.MergeCell(sheetName, "A1", "C3")
+	titleText := fmt.Sprintf("Hasil Jawaban %s - Responden: %s (%s %s Kelurahan %s Kecamatan %s)",
+		survey.Name, respondentSurveyDetail.Name, wilayahInfo.NamaRt, wilayahInfo.NamaRw, wilayahInfo.VillageName, wilayahInfo.SubDistrictName)
+	f.SetCellValue(sheetName, "A1", titleText)
+	f.SetCellStyle(sheetName, "A1", "C3", styleTitle)
+
+	// Informasi Baris 5-8
+	infos := []struct{ row, label, value string }{
+		{"5", "Kecamatan", wilayahInfo.SubDistrictName},
+		{"6", "Kelurahan", wilayahInfo.VillageName},
+		{"7", "RT", wilayahInfo.NamaRt},
+		{"8", "RW", wilayahInfo.NamaRw},
+	}
+	for _, info := range infos {
+		f.MergeCell(sheetName, "A"+info.row, "B"+info.row)
+		f.SetCellValue(sheetName, "A"+info.row, info.label)
+		f.SetCellValue(sheetName, "C"+info.row, ": "+info.value)
+		f.SetCellStyle(sheetName, "A"+info.row, "A"+info.row, styleLabel)
+	}
+
+	// --- B. WRITING TABLE HEADERS VERTICAL ---
+	rowHeader := 10
+	f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowHeader), "NO")
+	f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowHeader), "PERTANYAAN")
+	f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowHeader), "JAWABAN")
+	f.SetCellStyle(sheetName, fmt.Sprintf("A%d", rowHeader), fmt.Sprintf("C%d", rowHeader), styleHeader)
+
+	f.SetColWidth(sheetName, "A", "A", 6)
+	f.SetColWidth(sheetName, "B", "B", 65)
+	f.SetColWidth(sheetName, "C", "C", 55)
+
+	// Ambil Penampung Jawaban Responden Utama wilayah ini
+	var currentRespondenData *dto.RekapRespondenExcel
+	if data, exists := rekapMap[surveyRespondent.RespondentID]; exists {
+		currentRespondenData = data
+	} else if len(orderedRespondentIDs) > 0 {
+		currentRespondenData = rekapMap[orderedRespondentIDs[0]]
+	}
+
+	// --- D. WRITING TABLE DATA VERTICAL ---
+	currentRow := 11
+	for index, node := range rawNodes {
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", currentRow), index+1)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", currentRow), node.Label)
+
+		jawabanText := "-"
+		if currentRespondenData != nil {
+			if val, ok := currentRespondenData.JawabanMap[node.FormFieldId]; ok {
+				jawabanText = val
+
+				if jawabanText != "-" && jawabanText != "[SKIPPED_BY_LOGIC]" {
+					switch node.Template {
+					case "number":
+						jawabanText = "\u200B" + jawabanText
+					case "multiple-choices":
+						optID, errConv := strconv.Atoi(jawabanText)
+						if errConv == nil {
+							if labelText, exists := optionMap[optID]; exists {
+								jawabanText = labelText
+							}
+						}
+					case "checkboxes":
+						var optIDs []float64
+						if errUnm := json.Unmarshal([]byte(jawabanText), &optIDs); errUnm == nil {
+							var labelTexts []string
+							for _, idFloat := range optIDs {
+								if label, exists := optionMap[int(idFloat)]; exists {
+									labelTexts = append(labelTexts, "- "+label)
+								}
+							}
+							if len(labelTexts) > 0 {
+								jawabanText = strings.Join(labelTexts, "\n")
+							}
+						}
+					case "maps":
+						var mapsData []struct {
+							Lat float64 `json:"lat"`
+							Lng float64 `json:"lng"`
+						}
+						if errUnm := json.Unmarshal([]byte(jawabanText), &mapsData); errUnm == nil && len(mapsData) > 0 {
+							// Urutan resmi Google Maps: Latitude dulu baru Longitude
+							jawabanText = fmt.Sprintf("%f,%f", mapsData[0].Lat, mapsData[0].Lng)
+						}
+					case "image-template":
+						var jsonArray []string
+						if errUnm := json.Unmarshal([]byte(jawabanText), &jsonArray); errUnm == nil {
+							for imgIdx := range jsonArray {
+								jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/survey/show-image/" + codeStr + "/" + codeWilayahStr + "/" + jsonArray[imgIdx]
+							}
+						}
+
+						spew.Dump(jsonArray)
+					}
+				} else {
+					jawabanText = "-"
+				}
+			}
+		}
+
+		f.SetCellStr(sheetName, fmt.Sprintf("C%d", currentRow), jawabanText)
+
+		// Set cell styling basik
+		f.SetCellStyle(sheetName, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("A%d", currentRow), styleDataCenter)
+		f.SetCellStyle(sheetName, fmt.Sprintf("B%d", currentRow), fmt.Sprintf("B%d", currentRow), styleDataLeft)
+
+		// Set style untuk kolom jawaban
+		if node.Template == "number" {
+			f.SetCellStyle(sheetName, fmt.Sprintf("C%d", currentRow), fmt.Sprintf("C%d", currentRow), styleDataText)
+		} else {
+			f.SetCellStyle(sheetName, fmt.Sprintf("C%d", currentRow), fmt.Sprintf("C%d", currentRow), styleDataLeft)
+		}
+
+		currentRow++
+	}
+
+	// =======================================================================
+	// 6. OUTPUT BUFFER SEBAGAI BLOB STREAM
+	// =======================================================================
+	var buffer bytes.Buffer
+	if err := f.Write(&buffer); err != nil {
+		return utils.SendError(errors.New("Gagal menyusun file excel"), http.StatusInternalServerError)
+	}
+
+	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	return utils.SetResponseData(buffer.Bytes(), true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }

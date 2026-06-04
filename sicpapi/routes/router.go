@@ -236,6 +236,7 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/history-approval/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/show-image/:survey_code/:code_wilayah/:path", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -255,4 +256,6 @@ func SetupRoutes(e *echo.Echo) {
 	surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/approve-validate", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/approval-history/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/history-detail/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	surveyKewilayahanGroup.GET("/export-excel/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"backend/surveyapi/dto"
 	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
@@ -63,6 +64,9 @@ type SurveyRepo interface {
 	GetSurveyCompletionHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
 	GetSurveyVerificationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
 	GetSurveyValidationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
+
+	GetRawJawabanForExport(ctx context.Context, surveyID int64, rtID int64) ([]dto.ExportRawJawabanDTO, error)
+	ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error)
 }
 
 type surveyRepo struct {
@@ -1227,4 +1231,47 @@ func (repository *surveyRepo) GetSurveyValidationHistory(ctx context.Context, su
 	}
 
 	return &logDetail, nil
+}
+
+func (repository *surveyRepo) GetRawJawabanForExport(ctx context.Context, surveyID int64, rtID int64) ([]dto.ExportRawJawabanDTO, error) {
+	defer utils.GeneralRecover()
+	var results []dto.ExportRawJawabanDTO
+
+	query := `
+		SELECT 
+			r.id AS respondent_id,
+			r.name AS nama_responden,
+			sr.status,
+			sr.status_approval,
+			sr.updated_at AS waktu_selesai,
+			fr.form_field_id,
+			fr.answer
+		FROM survey_respondents sr
+		JOIN respondents r ON sr.respondent_id = r.id
+		LEFT JOIN field_responses fr ON fr.form_response_id = sr.id
+		WHERE sr.survey_id = ? AND r.rt_id = ?
+		ORDER BY sr.created_at ASC
+	`
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID, rtID).Scan(&results).Error
+	return results, err
+}
+
+func (repository *surveyRepo) ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error) {
+	defer utils.GeneralRecover()
+
+	if tx == nil {
+		tx = repository.dbSlave
+	}
+
+	var count int64
+	err := tx.WithContext(ctx).
+		Table("field_responses").
+		Where("form_response_id = ? AND answer LIKE ?", surveyRespondentId, "%"+filePath+"%").
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
