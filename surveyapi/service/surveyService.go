@@ -59,6 +59,7 @@ type SurveyService interface {
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -3926,7 +3927,7 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 	})
 	styleHeader, _ := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#4F81BD"}, Pattern: 1},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#15406a"}, Pattern: 1},
 		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
 	})
@@ -3939,7 +3940,6 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 		Alignment: &excelize.Alignment{Vertical: "top", WrapText: true},
 	})
 
-	// 🆕 Style Khusus Untuk Memaksa Format TEXT (@) di Sel Excel
 	styleDataText, _ := f.NewStyle(&excelize.Style{
 		NumFmt:    49, // Built-in format code GORM/Excel untuk murni TEXT (@)
 		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
@@ -3948,8 +3948,8 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 
 	// --- A. WRITING HEADER TITLE ---
 	f.MergeCell(sheetName, "A1", "C3")
-	titleText := fmt.Sprintf("Hasil Jawaban %s - Responden: %s (%s %s Kelurahan %s Kecamatan %s)",
-		survey.Name, respondentSurveyDetail.Name, wilayahInfo.NamaRt, wilayahInfo.NamaRw, wilayahInfo.VillageName, wilayahInfo.SubDistrictName)
+	titleText := fmt.Sprintf("Hasil Jawaban %s - %s",
+		survey.Name, respondentSurveyDetail.Name)
 	f.SetCellValue(sheetName, "A1", titleText)
 	f.SetCellStyle(sheetName, "A1", "C3", styleTitle)
 
@@ -3963,8 +3963,8 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 	for _, info := range infos {
 		f.MergeCell(sheetName, "A"+info.row, "B"+info.row)
 		f.SetCellValue(sheetName, "A"+info.row, info.label)
-		f.SetCellValue(sheetName, "C"+info.row, ": "+info.value)
-		f.SetCellStyle(sheetName, "A"+info.row, "A"+info.row, styleLabel)
+		f.SetCellValue(sheetName, "C"+info.row, "\u200B"+info.value)
+		f.SetCellStyle(sheetName, "A"+info.row, "C"+info.row, styleLabel)
 	}
 
 	// --- B. WRITING TABLE HEADERS VERTICAL ---
@@ -4032,13 +4032,19 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 						}
 					case "image-template":
 						var jsonArray []string
+						var finalJawaban string
 						if errUnm := json.Unmarshal([]byte(jawabanText), &jsonArray); errUnm == nil {
 							for imgIdx := range jsonArray {
 								jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/survey/show-image/" + codeStr + "/" + codeWilayahStr + "/" + jsonArray[imgIdx]
-							}
-						}
 
-						spew.Dump(jsonArray)
+								if imgIdx > 0 {
+									finalJawaban += "\n\n"
+								}
+
+								finalJawaban += jsonArray[imgIdx]
+							}
+							jawabanText = finalJawaban
+						}
 					}
 				} else {
 					jawabanText = "-"
@@ -4068,6 +4074,357 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 	var buffer bytes.Buffer
 	if err := f.Write(&buffer); err != nil {
 		return utils.SendError(errors.New("Gagal menyusun file excel"), http.StatusInternalServerError)
+	}
+
+	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	return utils.SetResponseData(buffer.Bytes(), true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *surveyService) ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, _ := hashids.NewWithData(hd)
+
+	// 1. Ambil Survey Code dari Path URL (Slug)
+	codeStr, ok := slug["survey_code"].(string)
+	if !ok || codeStr == "" {
+		return utils.SendError(errors.New("Kode survey tidak valid"), http.StatusBadRequest)
+	}
+
+	// 2. Ambil Level & Code Wilayah dari Query Param (?level=5&code_wilayah=xxx)
+	levelWilayahStr := param.Get("level")
+	codeWilayahStr := param.Get("code_wilayah")
+
+	if levelWilayahStr == "" || codeWilayahStr == "" {
+		return utils.SendError(errors.New("Parameter 'level' dan 'code_wilayah' wajib disertakan pada URL"), http.StatusBadRequest)
+	}
+
+	levelWilayah, err := strconv.Atoi(levelWilayahStr)
+	if err != nil || levelWilayah < 2 || levelWilayah > 5 {
+		return utils.SendError(errors.New("Parameter 'level' tidak valid"), http.StatusBadRequest)
+	}
+
+	// 3. Decode HashIDs
+	decodedSurveyIDs, _ := h.DecodeWithError(codeStr)
+	decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
+	if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Kode HashID tidak valid atau termanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyID := int64(decodedSurveyIDs[0])
+	wilayahID := int64(decodedWilayahIDs[0])
+
+	survey, err := service.surveyRepo.GetSurveyById(surveyID)
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// =====================================================================
+	// SISA KODE KE BAWAH TETAP SAMA (Ambil Struktur Soal & Generate Excel)
+	// =====================================================================
+
+	rawNodes, err := service.manajemenAlurRepo.GetRawNodesForPreview(int(survey.FlowDetailID), 0)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat struktur pertanyaan"), http.StatusInternalServerError)
+	}
+
+	var blueprintFieldIDs []int
+	for _, node := range rawNodes {
+		blueprintFieldIDs = append(blueprintFieldIDs, node.FormFieldId)
+	}
+	options, _ := service.manajemenAlurRepo.GetAnswerOptionsByQuestionIDList(blueprintFieldIDs)
+	optionMap := make(map[int]string)
+	for _, opt := range options {
+		if opt.Option != "" {
+			optionMap[opt.ID] = opt.Option
+		}
+	}
+
+	// Eksekusi pemanggilan Repository
+	rawJawaban, err := service.surveyRepo.GetRawJawabanWilayahForExport(ctx, surveyID, levelWilayah, wilayahID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat hasil jawaban survei massal"), http.StatusInternalServerError)
+	}
+
+	// 3. DATA GROUPING (Per Responden)
+	rekapMap := make(map[int64]*dto.RekapRespondenWilayahExcel)
+	var orderedRespondentIDs []int64
+
+	for _, raw := range rawJawaban {
+		if _, exists := rekapMap[raw.RespondentID]; !exists {
+			waktuTeks := "-"
+			if raw.WaktuSelesai != nil {
+				waktuTeks = raw.WaktuSelesai.Format("02 Jan 2006 15:04:05")
+			}
+			rekapMap[raw.RespondentID] = &dto.RekapRespondenWilayahExcel{
+				NamaResponden: raw.NamaResponden,
+				KecamatanName: raw.KecamatanName,
+				KelurahanName: raw.KelurahanName,
+				RwName:        raw.RwName,
+				RtName:        raw.RtName,
+				WaktuSelesai:  waktuTeks,
+				JawabanMap:    make(map[int]string),
+				RTID:          raw.RTID, // Asumsi ini ada di DTO Anda
+			}
+			orderedRespondentIDs = append(orderedRespondentIDs, raw.RespondentID)
+		}
+		if raw.Answer != nil {
+			rekapMap[raw.RespondentID].JawabanMap[raw.FormFieldID] = *raw.Answer
+		}
+	}
+
+	totalResp := len(orderedRespondentIDs)
+
+	// 4. MEMBANGUN EXCEL SHEET 1 (Data Mentah)
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheetName1 := "Rekap Hasil Per Responden"
+	f.SetSheetName("Sheet1", sheetName1)
+
+	// -- Kumpulan Style --
+	styleHeader, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#15406a"}, Pattern: 1},
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+	})
+	styleData, _ := f.NewStyle(&excelize.Style{
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+	})
+	styleLabel, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "left"},
+	})
+
+	styleInfoValue, _ := f.NewStyle(&excelize.Style{
+		Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "left"},
+	})
+
+	// --- A. WRITING INFORMASI HEADER SHEET 1 ---
+	startDateStr, endDateStr := "-", "-"
+	if !survey.StartDate.IsZero() {
+		startDateStr = survey.StartDate.Format("02 Jan 2006")
+	}
+	if !survey.EndDate.IsZero() {
+		endDateStr = survey.EndDate.Format("02 Jan 2006")
+	}
+
+	f.MergeCell(sheetName1, "A1", "B1")
+	f.MergeCell(sheetName1, "A2", "B2")
+	f.MergeCell(sheetName1, "A3", "B3")
+
+	f.MergeCell(sheetName1, "C1", "E1")
+	f.MergeCell(sheetName1, "C2", "E2")
+	f.MergeCell(sheetName1, "C3", "E3")
+
+	f.SetCellValue(sheetName1, "A1", "Nama Survey")
+	f.SetCellStyle(sheetName1, "A1", "A1", styleLabel)
+	f.SetCellValue(sheetName1, "C1", survey.Name)
+	f.SetCellStyle(sheetName1, "C1", "C1", styleInfoValue)
+	f.SetCellValue(sheetName1, "A2", "Tanggal Survey")
+	f.SetCellStyle(sheetName1, "A2", "A2", styleLabel)
+	f.SetCellValue(sheetName1, "C2", fmt.Sprintf("%s - %s", startDateStr, endDateStr))
+	f.SetCellStyle(sheetName1, "C2", "C2", styleInfoValue)
+	f.SetCellValue(sheetName1, "A3", "Total Responden")
+	f.SetCellStyle(sheetName1, "A3", "A3", styleLabel)
+	f.SetCellValue(sheetName1, "C3", totalResp)
+	f.SetCellStyle(sheetName1, "C3", "C3", styleInfoValue)
+
+	// --- B. WRITING COLUMN HEADERS (ROW 5) ---
+	staticHeaders := []string{"NO", "NAMA RESPONDEN", "KECAMATAN", "KELURAHAN", "RW", "RT"}
+	colIndex := 1
+	for _, h := range staticHeaders {
+		colName, _ := excelize.ColumnNumberToName(colIndex)
+		f.SetCellValue(sheetName1, fmt.Sprintf("%s5", colName), h)
+		f.SetCellStyle(sheetName1, fmt.Sprintf("%s5", colName), fmt.Sprintf("%s5", colName), styleHeader)
+		f.SetColWidth(sheetName1, colName, colName, 18)
+		colIndex++
+	}
+
+	for i, node := range rawNodes {
+		colName, _ := excelize.ColumnNumberToName(colIndex)
+		f.SetCellValue(sheetName1, fmt.Sprintf("%s5", colName), fmt.Sprintf("%d. %s", i+1, node.Label))
+		f.SetCellStyle(sheetName1, fmt.Sprintf("%s5", colName), fmt.Sprintf("%s5", colName), styleHeader)
+		f.SetColWidth(sheetName1, colName, colName, 35)
+		colIndex++
+	}
+
+	// --- C. WRITING DATA (ROW 6++) ---
+	currentRow := 6
+	no := 1
+	for _, respondentID := range orderedRespondentIDs {
+		data := rekapMap[respondentID]
+		rtCodeRaw := []int{int(data.RTID)}
+		rtCode, _ := h.Encode(rtCodeRaw) // Hindari break error jika encode gagal (return empty string)
+
+		f.SetCellValue(sheetName1, fmt.Sprintf("A%d", currentRow), no)
+		f.SetCellValue(sheetName1, fmt.Sprintf("B%d", currentRow), data.NamaResponden)
+		f.SetCellValue(sheetName1, fmt.Sprintf("C%d", currentRow), data.KecamatanName)
+		f.SetCellValue(sheetName1, fmt.Sprintf("D%d", currentRow), data.KelurahanName)
+		f.SetCellValue(sheetName1, fmt.Sprintf("E%d", currentRow), "\u200B"+data.RwName)
+		f.SetCellValue(sheetName1, fmt.Sprintf("F%d", currentRow), "\u200B"+data.RtName)
+
+		colIdx := 7
+		for _, node := range rawNodes {
+			jawabanText := "-"
+			if val, ok := data.JawabanMap[node.FormFieldId]; ok {
+				jawabanText = val
+				if jawabanText != "-" && jawabanText != "[SKIPPED_BY_LOGIC]" {
+					switch node.Template {
+					case "number":
+						jawabanText = "\u200B" + jawabanText
+					case "multiple-choices":
+						if optID, errConv := strconv.Atoi(jawabanText); errConv == nil {
+							if labelText, exists := optionMap[optID]; exists {
+								jawabanText = labelText
+							}
+						}
+					case "maps":
+						var mapsData []struct {
+							Lat float64 `json:"lat"`
+							Lng float64 `json:"lng"`
+						}
+						if errUnm := json.Unmarshal([]byte(jawabanText), &mapsData); errUnm == nil && len(mapsData) > 0 {
+							jawabanText = fmt.Sprintf("%f,%f", mapsData[0].Lat, mapsData[0].Lng)
+						}
+					case "image-template":
+						var jsonArray []string
+						var finalJawaban string
+						if errUnm := json.Unmarshal([]byte(jawabanText), &jsonArray); errUnm == nil {
+							for imgIdx := range jsonArray {
+								jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/survey/show-image/" + codeStr + "/" + rtCode + "/" + jsonArray[imgIdx]
+								if imgIdx > 0 {
+									finalJawaban += "\n\n"
+								}
+								finalJawaban += jsonArray[imgIdx]
+							}
+							jawabanText = finalJawaban
+						}
+					}
+				} else {
+					jawabanText = "-"
+				}
+			}
+
+			colName, _ := excelize.ColumnNumberToName(colIdx)
+			f.SetCellValue(sheetName1, fmt.Sprintf("%s%d", colName, currentRow), jawabanText)
+			colIdx++
+		}
+
+		lastColName, _ := excelize.ColumnNumberToName(colIdx - 1)
+		f.SetCellStyle(sheetName1, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("%s%d", lastColName, currentRow), styleData)
+		currentRow++
+		no++
+	}
+
+	// =======================================================================
+	// 5. MEMBANGUN SHEET 2: REKAP STATISTIK / AGREGAT
+	// =======================================================================
+	sheetStat := "Rekap Hasil Survey Per Kolom"
+	f.NewSheet(sheetStat)
+
+	styleStatTitle, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
+
+	// Header Sheet Statistik
+	f.SetCellValue(sheetStat, "A1", "Nama Survey")
+	f.SetCellValue(sheetStat, "B1", survey.Name)
+	f.SetCellValue(sheetStat, "A2", "Tanggal Survey")
+	f.SetCellValue(sheetStat, "B2", fmt.Sprintf("%s - %s", startDateStr, endDateStr))
+	f.SetCellValue(sheetStat, "A3", "Total Responden")
+	f.SetCellValue(sheetStat, "B3", fmt.Sprintf("%d Responden", totalResp))
+
+	f.SetCellStyle(sheetStat, "A1", "A3", styleStatTitle)
+	f.SetColWidth(sheetStat, "A", "A", 15)
+	f.SetColWidth(sheetStat, "B", "B", 40)
+	f.SetColWidth(sheetStat, "C", "C", 10)
+	f.SetColWidth(sheetStat, "D", "D", 10)
+
+	currentRowStat := 5
+
+	for i, node := range rawNodes {
+		qID := node.FormFieldId
+
+		// Variabel untuk menampung hitungan
+		answeredCount := 0
+		optionTallies := make(map[int]int) // Key: OptionID, Value: Count
+
+		// Hitung frekuensi jawaban
+		for _, respID := range orderedRespondentIDs {
+			if data, ok := rekapMap[respID]; ok {
+				if ans, exists := data.JawabanMap[qID]; exists && ans != "-" && ans != "[SKIPPED_BY_LOGIC]" && ans != "" {
+					answeredCount++
+
+					// Jika soal butuh kalkulasi per-opsi (PG/Checkboxes)
+					if node.Template == "multiple-choices" {
+						if optID, errConv := strconv.Atoi(ans); errConv == nil {
+							optionTallies[optID]++
+						}
+					} else if node.Template == "checkboxes" {
+						var optIDs []float64
+						if errUnm := json.Unmarshal([]byte(ans), &optIDs); errUnm == nil {
+							for _, idFloat := range optIDs {
+								optionTallies[int(idFloat)]++
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Kalkulasi persentase responden yang menjawab
+		pct := 0.0
+		if totalResp > 0 {
+			pct = (float64(answeredCount) / float64(totalResp)) * 100
+		}
+
+		// Tulis Judul Soal
+		f.SetCellValue(sheetStat, fmt.Sprintf("A%d", currentRowStat), fmt.Sprintf("Pertanyaan %d", i+1))
+		f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), node.Label)
+		f.SetCellStyle(sheetStat, fmt.Sprintf("A%d", currentRowStat), fmt.Sprintf("B%d", currentRowStat), styleStatTitle)
+		currentRowStat++
+
+		// Jika Soal Pilihan Ganda (Jabarkan Per Opsi)
+		if node.Template == "multiple-choices" || node.Template == "checkboxes" {
+			f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), "Jawaban :")
+			currentRowStat++
+
+			for _, opt := range options {
+				// CATATAN: Pastikan opt.FormFieldId (atau opt.FormFieldID) sesuai dengan struct Anda
+				if opt.FormFieldId == qID {
+					optCount := optionTallies[opt.ID]
+					optPct := 0.0
+					if totalResp > 0 {
+						optPct = (float64(optCount) / float64(totalResp)) * 100
+					}
+
+					f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), "\u200B"+opt.Option)
+					f.SetCellValue(sheetStat, fmt.Sprintf("C%d", currentRowStat), fmt.Sprintf("\u200B%d/%d", optCount, totalResp))
+					f.SetCellValue(sheetStat, fmt.Sprintf("D%d", currentRowStat), fmt.Sprintf("\u200B%.0f%%", optPct))
+					currentRowStat++
+				}
+			}
+		} else {
+			// Jika Soal Text / Lokasi / Gambar (Hanya Jumlah Responden)
+			f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), "Responden :")
+			f.SetCellValue(sheetStat, fmt.Sprintf("C%d", currentRowStat), fmt.Sprintf("\u200B%d/%d", answeredCount, totalResp))
+			f.SetCellValue(sheetStat, fmt.Sprintf("D%d", currentRowStat), fmt.Sprintf("\u200B%.0f%%", pct))
+			currentRowStat++
+		}
+
+		currentRowStat++ // Jarak 1 baris kosong antar pertanyaan
+	}
+
+	// 6. OUTPUT KE BLOB STREAM
+	f.SetActiveSheet(0) // Set default sheet kembali ke "Sheet1" ketika file dibuka
+
+	var buffer bytes.Buffer
+	if err := f.Write(&buffer); err != nil {
+		return utils.SendError(errors.New("Gagal menyusun file excel massal"), http.StatusInternalServerError)
 	}
 
 	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

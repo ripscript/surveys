@@ -125,6 +125,7 @@ func (service *uploadService) ShowSurveyImage(ctx context.Context, req map[strin
 func (service *uploadService) ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	spew.Dump(slug)
 	filename, ok := slug["path"].(string)
 	spew.Dump(filename)
 	if !ok || filename == "" {

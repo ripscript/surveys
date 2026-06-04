@@ -67,6 +67,8 @@ type SurveyRepo interface {
 
 	GetRawJawabanForExport(ctx context.Context, surveyID int64, rtID int64) ([]dto.ExportRawJawabanDTO, error)
 	ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error)
+
+	GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error)
 }
 
 type surveyRepo struct {
@@ -1274,4 +1276,53 @@ func (repository *surveyRepo) ValidateIsImageExists(ctx context.Context, tx *gor
 	}
 
 	return count > 0, nil
+}
+
+func (repository *surveyRepo) GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error) {
+	var results []dto.ExportRawJawabanWilayah
+
+	// Gunakan .Debug() sementara agar Anda bisa melihat raw SQL-nya di terminal jika masih kosong
+	query := repository.dbSlave.WithContext(ctx).Debug().Table("field_responses").
+		Select(`
+			survey_respondents.respondent_id,
+			respondents.name as nama_responden,
+			kecamatans.sub_district_name as kecamatan_name,
+			kelurahans.village_name as kelurahan_name,
+			rws.nama_rw as rw_name,
+			rts.nama_rt as rt_name,
+			rts.id as rt_id,
+			survey_respondents.status,
+			survey_respondents.status_approval,
+			survey_respondents.updated_at as waktu_selesai,
+			field_responses.form_field_id,
+			field_responses.answer
+		`).
+		// 1. Relasi dari Jawaban -> Transaksi Survei Responden
+		Joins("JOIN survey_respondents ON survey_respondents.id = field_responses.form_response_id").
+		// 2. Relasi dari Transaksi Survei -> Akun Responden (RT)
+		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
+		// 3. Tarik data wilayah milik Responden tersebut
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = respondents.kecamatan_id").
+		Joins("LEFT JOIN kelurahans ON kelurahans.id = respondents.kelurahan_id").
+		Joins("LEFT JOIN data__rws as rws ON rws.id = respondents.rw_id").
+		Joins("LEFT JOIN data__rts as rts ON rts.id = respondents.rt_id").
+		// 4. Filter bahwa ini adalah data untuk survei yang sedang di-export
+		Where("survey_respondents.survey_id = ?", surveyID).
+		Where("survey_respondents.status = ?", 2) // Pastikan tipe data status Anda benar integer/smallint 2
+
+	// 5. Filter Kewilayahan: Karena semua responden adalah RT, kita tinggal mengecek
+	// wilayah parent-nya berdasarkan level yang direquest.
+	switch level {
+	case 5: // KECAMATAN
+		query = query.Where("respondents.kecamatan_id = ?", wilayahID)
+	case 4: // KELURAHAN
+		query = query.Where("respondents.kelurahan_id = ?", wilayahID)
+	case 3: // RW
+		query = query.Where("respondents.rw_id = ?", wilayahID)
+	case 2: // RT
+		query = query.Where("respondents.rt_id = ?", wilayahID)
+	}
+
+	err := query.Find(&results).Error
+	return results, err
 }

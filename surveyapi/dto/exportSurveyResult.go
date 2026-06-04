@@ -25,3 +25,31 @@ type RekapRespondenExcel struct {
 	WaktuSelesai  string
 	JawabanMap    map[int]string
 }
+
+// ============
+type ExportRawJawabanWilayah struct {
+	RespondentID   int64
+	NamaResponden  string
+	KecamatanName  string
+	KelurahanName  string
+	RwName         string
+	RtName         string
+	RTID           int64
+	Status         *int16
+	StatusApproval *string
+	WaktuSelesai   *time.Time
+	FormFieldID    int
+	Answer         *string
+}
+
+type RekapRespondenWilayahExcel struct {
+	NamaResponden string
+	KecamatanName string
+	KelurahanName string
+	RwName        string
+	RtName        string
+	StatusText    string
+	WaktuSelesai  string
+	RTID          int64
+	JawabanMap    map[int]string
+}

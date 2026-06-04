@@ -38,6 +38,7 @@ type SurveyHandler interface {
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -141,4 +142,8 @@ func (handler *surveyHandler) GetPublicImageSurvey(ctx context.Context, req map[
 
 func (handler *surveyHandler) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.ExportExcelSurveyResultsPerRT(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.ExportExcelSurveyResultsMassal(ctx, req, usr, param, slug)
 }

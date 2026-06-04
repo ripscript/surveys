@@ -71,7 +71,7 @@ func (repository *fileRepo) GetPublicImageSurvey(ctx context.Context, path *stri
 	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
 
 	// Pastikan URL dan parameternya sesuai dengan endpoint di DOCAPI Anda
-	dataBytes, err := utils.HitBackendNotSecure(ctx, host, "POST", "/view-public-survey-image/:path", nil, map[string]interface{}{"path": path})
+	dataBytes, err := utils.HitBackendNotSecure(ctx, host, "POST", "/view-public-survey-image/:path", map[string]interface{}{"path": path}, nil)
 	if err != nil {
 		return nil, errors.New("Gagal mengambil file: " + err.Error())
 	}

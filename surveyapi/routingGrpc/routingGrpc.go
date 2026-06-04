@@ -329,6 +329,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.ExportExcelSurveyResultsPerRT,
 		MenuKey: "survey-kewilayahan",
 	}},
+	"/survey-kewilayahan/export-excel/survey/:survey_code": {"GET": {
+		Handler: surveyHandler.ExportExcelSurveyResultsMassal,
+		MenuKey: "survey-kewilayahan",
+	}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
