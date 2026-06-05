@@ -532,29 +532,35 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 	}
 
 	if len(fields) == 0 {
-		return utils.SendData(payloads.ManajemenAlurPayload{
-			ID:                         flowDetail.ID,
-			FlowCode:                   &flowDetail.Code,
-			TemplateFormulirPertanyaan: &form.Code,
-			NamaAlur:                   flowDetail.Name,
-			Pembuka:                    flowDetail.OpeningId,
-			Penutup:                    flowDetail.ClosingId,
-			HasSection:                 flowDetail.StatusSection == "1",
-			Flows:                      []payloads.FlowItem{},
+		return utils.SendData(payloads.ManajemenAlurDetailResponse{
+			ID:         flowDetail.ID,
+			FormCode:   form.Code,
+			Name:       flowDetail.Name,
+			OpeningID:  flowDetail.OpeningId,
+			ClosingID:  flowDetail.ClosingId,
+			HasSection: flowDetail.StatusSection == "1",
+			Flows:      []payloads.FlowDetailItem{},
 		}, "Detail alur berhasil diambil")
 	}
 
 	var fieldIDs []int
 	var sectionIDs []int
 	var groupIDs []int
+	var allQuestionIDs []int
 
 	uniqueSections := make(map[int]bool)
 	uniqueGroups := make(map[int]bool)
+	uniqueQMap := make(map[int]bool)
 	mapSequenceToFields := make(map[int][]models.FlowField)
 	mapGroupIDToFirstQuestionID := make(map[int]int)
 
 	for _, f := range fields {
 		fieldIDs = append(fieldIDs, f.ID)
+
+		if !uniqueQMap[f.FormFieldId] {
+			allQuestionIDs = append(allQuestionIDs, f.FormFieldId)
+			uniqueQMap[f.FormFieldId] = true
+		}
 
 		if f.SectionId != nil && !uniqueSections[*f.SectionId] {
 			uniqueSections[*f.SectionId] = true
@@ -571,6 +577,25 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		}
 
 		mapSequenceToFields[f.Sequence] = append(mapSequenceToFields[f.Sequence], f)
+	}
+
+	masterQuestions, _ := service.manajemenAlurRepo.GetFormFieldsByIDs(allQuestionIDs)
+	masterOptions, _ := service.manajemenAlurRepo.GetFormAnswerFieldsByQuestionIDs(allQuestionIDs)
+
+	mapQuestionText := make(map[int]string)
+	mapQuestionTemplate := make(map[int]string)
+	for _, mq := range masterQuestions {
+		mapQuestionText[mq.ID] = mq.Question
+		mapQuestionTemplate[mq.ID] = mq.Template
+	}
+
+	// 🆕 Kamus opsi langsung menggunakan struct OptionData baru (Value dan Label)
+	mapOptionsByQuestion := make(map[int][]payloads.OptionData)
+	for _, mo := range masterOptions {
+		mapOptionsByQuestion[mo.FormFieldId] = append(mapOptionsByQuestion[mo.FormFieldId], payloads.OptionData{
+			Value: mo.ID,
+			Label: mo.Option,
+		})
 	}
 
 	advancedLogics, _ := service.manajemenAlurRepo.GetAdvancedOptionsByFieldIDs(fieldIDs)
@@ -592,7 +617,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		mapGroupNameByID[g.ID] = g.Name
 	}
 
-	var reconstructedFlows []payloads.FlowItem
+	var reconstructedFlows []payloads.FlowDetailItem
 	var sequences []int
 	for seq := range mapSequenceToFields {
 		sequences = append(sequences, seq)
@@ -603,11 +628,9 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 	sectionCounter := 1
 	mapSectionDBIDToIndex := make(map[int]int)
 
-	// Variabel global pembantu pointer
 	rLogic := "logic"
 	rJump := "jump-to"
 
-	// Helper untuk merender pointer TargetQuestionID (menghindari memory shared bug)
 	getTargetPtr := func(child int, grpChild int) *int {
 		target := child
 		if grpChild != 0 {
@@ -626,7 +649,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		seqFields := mapSequenceToFields[seq]
 		firstField := seqFields[0]
 
-		flowItem := payloads.FlowItem{
+		flowItem := payloads.FlowDetailItem{
 			Sequence: seq,
 			IsGroup:  firstField.GroupId != 0,
 		}
@@ -649,7 +672,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			if !printedSections[secDBID] {
 				name := mapSectionNameByID[secDBID]
 				flowItem.SectionName = &name
-				printedSections[secDBID] = false // ini nanti bisa di ubah ke true kalau mau hanya tampilkan section name di field pertama tiap section, untuk sekarang biar muncul semua aja
+				printedSections[secDBID] = false
 			}
 		}
 
@@ -661,14 +684,48 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		}
 
 		mapUniqueQID := make(map[int]bool)
+		var questionsInFlow []int
+
 		for _, f := range seqFields {
 			if !mapUniqueQID[f.FormFieldId] {
 				flowItem.QuestionIDs = append(flowItem.QuestionIDs, f.FormFieldId)
+				questionsInFlow = append(questionsInFlow, f.FormFieldId)
 				mapUniqueQID[f.FormFieldId] = true
 			}
 		}
 
-		lastQuestionID := flowItem.QuestionIDs[len(flowItem.QuestionIDs)-1]
+		// 🆕 LOGIKA SESUAI REQUEST MAS ARIP
+		firstQID := questionsInFlow[0]
+		if flowItem.IsGroup {
+			flowItem.Type = "group"
+			if flowItem.GroupName != nil {
+				flowItem.Question = *flowItem.GroupName
+			} else {
+				flowItem.Question = ""
+			}
+		} else {
+			flowItem.Type = mapQuestionTemplate[firstQID]
+			flowItem.Question = mapQuestionText[firstQID]
+		}
+
+		flowItem.HaveDataOptions = []payloads.HaveDataOption{}
+		for _, qID := range questionsInFlow {
+			qText := mapQuestionText[qID]
+			qOptions := mapOptionsByQuestion[qID]
+
+			// Jika dia grup ATAU pertanyaan punya opsi (misal multiple-choices biasa), masukkan ke array have_data_options
+			if flowItem.IsGroup || len(qOptions) > 0 {
+				if qOptions == nil {
+					qOptions = []payloads.OptionData{}
+				}
+				flowItem.HaveDataOptions = append(flowItem.HaveDataOptions, payloads.HaveDataOption{
+					QuestionTitle: qText,
+					Options:       qOptions,
+				})
+			}
+		}
+
+		lastQuestionID := questionsInFlow[len(questionsInFlow)-1]
 		var exitField models.FlowField
 		for _, f := range seqFields {
 			if f.FormFieldId == lastQuestionID {
@@ -677,10 +734,10 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			}
 		}
 
-		flowItem.Routing = payloads.RoutingRule{
+		flowItem.Routing = payloads.RoutingDetailRule{
 			IsBreakdown: firstField.Breakdown,
-			Options:     []payloads.OptionRoute{},
-			Logics:      []payloads.LogicRoute{},
+			Options:     []payloads.RoutingOptionDetail{},
+			Logics:      []payloads.RoutingLogicDetail{},
 		}
 
 		if firstField.Breakdown {
@@ -694,11 +751,11 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 						optRule = &rLogic
 					}
 
-					var optLogics []payloads.LogicRoute
+					var optLogics []payloads.RoutingLogicDetail
 					if f.IsAdvancedOption {
 						if logics, exists := mapLogicsByFieldID[f.ID]; exists {
 							for _, logic := range logics {
-								optLogics = append(optLogics, payloads.LogicRoute{
+								optLogics = append(optLogics, payloads.RoutingLogicDetail{
 									LogicID:          logic.ID,
 									IfQuestionID:     logic.FormFieldId,
 									IfOptionID:       logic.Option,
@@ -709,7 +766,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 						}
 					}
 
-					flowItem.Routing.Options = append(flowItem.Routing.Options, payloads.OptionRoute{
+					flowItem.Routing.Options = append(flowItem.Routing.Options, payloads.RoutingOptionDetail{
 						FieldID:          f.ID,
 						OptionID:         *f.FormAnswerFieldId,
 						Rule:             optRule,
@@ -728,7 +785,7 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 				flowItem.Routing.Rule = &rLogic
 				if logics, exists := mapLogicsByFieldID[exitField.ID]; exists {
 					for _, logic := range logics {
-						flowItem.Routing.Logics = append(flowItem.Routing.Logics, payloads.LogicRoute{
+						flowItem.Routing.Logics = append(flowItem.Routing.Logics, payloads.RoutingLogicDetail{
 							LogicID:          logic.ID,
 							IfQuestionID:     logic.FormFieldId,
 							IfOptionID:       logic.Option,
@@ -745,15 +802,14 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		reconstructedFlows = append(reconstructedFlows, flowItem)
 	}
 
-	finalResponse := payloads.ManajemenAlurPayload{
-		ID:                         flowDetail.ID,
-		FlowCode:                   &flowDetail.Code,
-		TemplateFormulirPertanyaan: &form.Code,
-		NamaAlur:                   flowDetail.Name,
-		Pembuka:                    flowDetail.OpeningId,
-		Penutup:                    flowDetail.ClosingId,
-		HasSection:                 flowDetail.StatusSection == "1",
-		Flows:                      reconstructedFlows,
+	finalResponse := payloads.ManajemenAlurDetailResponse{
+		ID:         flowDetail.ID,
+		FormCode:   form.Code,
+		Name:       flowDetail.Name,
+		OpeningID:  flowDetail.OpeningId,
+		ClosingID:  flowDetail.ClosingId,
+		HasSection: flowDetail.StatusSection == "1",
+		Flows:      reconstructedFlows,
 	}
 
 	return utils.SendData(finalResponse, "Detail manajemen alur berhasil diambil")

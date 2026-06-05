@@ -30,6 +30,7 @@ type FlowDetailDatatableResponse struct {
 	FlowName      string    `json:"flow_name"`
 	Version       int       `json:"version"`
 	FormName      string    `json:"form_name"`
+	FormCode      string    `json:"form_code"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	CreatedBy     int       `json:"-"`
