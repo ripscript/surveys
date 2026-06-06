@@ -589,7 +589,6 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 		mapQuestionTemplate[mq.ID] = mq.Template
 	}
 
-	// 🆕 Kamus opsi langsung menggunakan struct OptionData baru (Value dan Label)
 	mapOptionsByQuestion := make(map[int][]payloads.OptionData)
 	for _, mo := range masterOptions {
 		mapOptionsByQuestion[mo.FormFieldId] = append(mapOptionsByQuestion[mo.FormFieldId], payloads.OptionData{
@@ -694,7 +693,6 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			}
 		}
 
-		// 🆕 LOGIKA SESUAI REQUEST MAS ARIP
 		firstQID := questionsInFlow[0]
 		if flowItem.IsGroup {
 			flowItem.Type = "group"
@@ -713,7 +711,6 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 			qText := mapQuestionText[qID]
 			qOptions := mapOptionsByQuestion[qID]
 
-			// Jika dia grup ATAU pertanyaan punya opsi (misal multiple-choices biasa), masukkan ke array have_data_options
 			if flowItem.IsGroup || len(qOptions) > 0 {
 				if qOptions == nil {
 					qOptions = []payloads.OptionData{}
@@ -755,12 +752,19 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 					if f.IsAdvancedOption {
 						if logics, exists := mapLogicsByFieldID[f.ID]; exists {
 							for _, logic := range logics {
+								// 🆕 MENYISIPKAN OPSI KE DALAM LOGIC BREAKDOWN
+								lOpts := mapOptionsByQuestion[logic.FormFieldId]
+								if lOpts == nil {
+									lOpts = []payloads.OptionData{}
+								}
+
 								optLogics = append(optLogics, payloads.RoutingLogicDetail{
 									LogicID:          logic.ID,
 									IfQuestionID:     logic.FormFieldId,
 									IfOptionID:       logic.Option,
 									TargetQuestionID: getTargetPtr(logic.ChildId, 0),
 									IsEnd:            logic.ChildId == 0,
+									IfOptions:        lOpts, // 👈 Dimasukkan ke sini
 								})
 							}
 						}
@@ -785,12 +789,19 @@ func (service *manajemenAlurService) GetDetailManajemenAlur(usr models.JwtCustom
 				flowItem.Routing.Rule = &rLogic
 				if logics, exists := mapLogicsByFieldID[exitField.ID]; exists {
 					for _, logic := range logics {
+						// 🆕 MENYISIPKAN OPSI KE DALAM LOGIC BIASA
+						lOpts := mapOptionsByQuestion[logic.FormFieldId]
+						if lOpts == nil {
+							lOpts = []payloads.OptionData{}
+						}
+
 						flowItem.Routing.Logics = append(flowItem.Routing.Logics, payloads.RoutingLogicDetail{
 							LogicID:          logic.ID,
 							IfQuestionID:     logic.FormFieldId,
 							IfOptionID:       logic.Option,
 							TargetQuestionID: getTargetPtr(logic.ChildId, 0),
 							IsEnd:            logic.ChildId == 0,
+							IfOptions:        lOpts, // 👈 Dimasukkan ke sini
 						})
 					}
 				}

@@ -109,11 +109,12 @@ type RoutingOptionDetail struct {
 }
 
 type RoutingLogicDetail struct {
-	LogicID          int  `json:"logic_id"`
-	IfQuestionID     int  `json:"if_question_id"`
-	IfOptionID       int  `json:"if_option_id"`
-	TargetQuestionID *int `json:"target_question_id"`
-	IsEnd            bool `json:"is_end"`
+	LogicID          int          `json:"logic_id"`
+	IfQuestionID     int          `json:"if_question_id"`
+	IfOptionID       int          `json:"if_option_id"`
+	TargetQuestionID *int         `json:"target_question_id"`
+	IsEnd            bool         `json:"is_end"`
+	IfOptions        []OptionData `json:"if_options"`
 }
 
 // KEPERLUAN UPDATE
