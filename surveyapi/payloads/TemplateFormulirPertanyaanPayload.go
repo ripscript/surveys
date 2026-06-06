@@ -19,7 +19,7 @@ type Question struct {
 	InputType     string   `json:"input_type" validate:"required,max=191"`
 	Question      string   `json:"question" validate:"required,max=191"`
 	Description   *string  `json:"description"`
-	Required      bool     `json:"required" validate:"required"`
+	Required      *bool    `json:"required" validate:"required"`
 	Options       []Option `json:"options,omitempty" validate:"omitempty,dive"`
 	ImageQuantity *int     `json:"image_quantity,omitempty"`
 }
@@ -42,7 +42,7 @@ type UpdateQuestion struct {
 	InputType     string   `json:"input_type" validate:"required,max=191"`
 	Question      string   `json:"question" validate:"required,max=191"`
 	Description   *string  `json:"description"`
-	Required      bool     `json:"required" validate:"required"`
+	Required      *bool    `json:"required" validate:"required"`
 	Options       []Option `json:"options,omitempty" validate:"omitempty,dive"`
 	ImageQuantity *int     `json:"image_quantity,omitempty"`
 }
