@@ -7,16 +7,22 @@ import (
 	"backend/userapi/repository"
 	"backend/userapi/utils"
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 
+	"github.com/speps/go-hashids/v2"
 	excelize "github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type UsersService interface {
+	GetProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetUsers(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetDetailUsers(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateUsers(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
@@ -37,6 +43,90 @@ func NewUsersService(
 	return &usersService{
 		usersRepo,
 	}
+}
+
+func (service *usersService) GetProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	userId := usr.ID
+
+	user, err := service.usersRepo.GetUserRawById(int(userId))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, coba lagi nanti"), http.StatusNotFound)
+		}
+	}
+
+	if user == nil {
+		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
+	}
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var kecamatanCodeStr *string
+	if user != nil && user.Respondent != nil && user.Respondent.KecamatanID != nil {
+		kecamatanId := []int{int(*user.Respondent.KecamatanID)}
+
+		kecamatanCode, err := h.Encode(kecamatanId)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		kecamatanCodeStr = &kecamatanCode
+	}
+
+	user.Respondent.KecamatanCode = kecamatanCodeStr
+
+	var kelurahanCodeStr *string
+	if user != nil && user.Respondent != nil && user.Respondent.KelurahanID != nil {
+		kelurahanId := []int{int(*user.Respondent.KelurahanID)}
+
+		kelurahanCode, err := h.Encode(kelurahanId)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		kelurahanCodeStr = &kelurahanCode
+	}
+
+	user.Respondent.KelurahanCode = kelurahanCodeStr
+
+	var RwCodeStr *string
+	if user != nil && user.Respondent != nil && user.Respondent.RwID != nil {
+		rwId := []int{int(*user.Respondent.RwID)}
+
+		rwCode, err := h.Encode(rwId)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		RwCodeStr = &rwCode
+	}
+
+	user.Respondent.RwCode = RwCodeStr
+
+	var RtCodeStr *string
+	if user != nil && user.Respondent != nil && user.Respondent.RtID != nil {
+		rtId := []int{int(*user.Respondent.RtID)}
+
+		rtCode, err := h.Encode(rtId)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		RtCodeStr = &rtCode
+	}
+
+	user.Respondent.RtCode = RtCodeStr
+
+	return utils.SendData(user, "Data Profil Pengguna Berhasil Ditemukan")
 }
 
 func (service *usersService) GetUsers(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error) {

@@ -24,7 +24,7 @@ type RespondentRepo interface {
 	BeginTx() *gorm.DB
 	StoreUsers(tx *gorm.DB, data models.CreateRespondents) error
 	GetRespondenById(id int) (*models.RawRespondents, error)
-	SurveyorOption() ([]models.Surveyor, error)
+	SurveyorOption() ([]models.SurveyorOptions, error)
 	CheckRespondent(idRespondent int64) (models.BlockRespondent, error)
 	RespondentBlock(data models.BlockRespondent) error
 	GetOptionsRespondent(param url.Values) ([]models.RespondentOptions, error)
@@ -364,9 +364,9 @@ func (r *respondentRepo) GetRespondenById(id int) (*models.RawRespondents, error
 	return &responden, nil
 }
 
-func (r *respondentRepo) SurveyorOption() ([]models.Surveyor, error) {
+func (r *respondentRepo) SurveyorOption() ([]models.SurveyorOptions, error) {
 	defer utils.GeneralRecover()
-	var data []models.Surveyor
+	var data []models.SurveyorOptions
 	db := r.dbSlave
 
 	err := db.Where("role_id = ?", 8).Find(&data).Error
