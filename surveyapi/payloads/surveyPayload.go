@@ -27,6 +27,11 @@ type SurveyDatatablePayload struct {
 	OrderBy       string `json:"order_by"`
 	OrderDir      string `json:"order_dir"`
 	SurveyDiikuti bool   `json:"survey_diikuti"`
+
+	Status     string `json:"status" validate:"omitempty,oneof=upcoming ongoing finished"`
+	IsApproval bool   `json:"is_approval" validate:"omitempty"`
+	StartDate  string `json:"start_date" validate:"omitempty,datetime=2006-01-02"`
+	EndDate    string `json:"end_date" validate:"omitempty,datetime=2006-01-02"`
 }
 
 type ApprovalSurveyRequest struct {

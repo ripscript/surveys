@@ -195,6 +195,31 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 		db = db.Where("surveys.created_by = ?", userLogin.ID)
 	}
 
+	// ==========================================
+	// 🆕 FILTER OPSIONAL (OVERLAP DATE RANGE LOGIC)
+	// ==========================================
+	if req.Status != "" {
+		db = db.Where("surveys.status = ?", req.Status)
+	}
+
+	if req.IsApproval {
+		db = db.Where("surveys.approval_survey = ?", string(enums.STATUS_APPROVAL_SURVEY_WAITING))
+	}
+
+	if req.StartDate != "" && req.EndDate != "" {
+		// LOGIKA OVERLAP (IRISAN WAKTU)
+		// Survei mulai SEBELUM atau PAS filter End Date, DAN
+		// Survei selesai SESUDAH atau PAS filter Start Date
+		db = db.Where("DATE(surveys.start_date) <= DATE(?) AND DATE(surveys.end_date) >= DATE(?)", req.EndDate, req.StartDate)
+	} else if req.StartDate != "" {
+		// Jika hanya difilter Start Date: Cari survei yang akhir-nya belum lewat dari Start Date pencarian
+		db = db.Where("DATE(surveys.end_date) >= DATE(?)", req.StartDate)
+	} else if req.EndDate != "" {
+		// Jika hanya difilter End Date: Cari survei yang mulai-nya sebelum End Date pencarian
+		db = db.Where("DATE(surveys.start_date) <= DATE(?)", req.EndDate)
+	}
+	// ==========================================
+
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
 		searchStr := strings.TrimSpace(req.Search)

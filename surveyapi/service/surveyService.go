@@ -459,10 +459,21 @@ func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]
 	orderBy := param.Get("order_by")
 	orderDir := param.Get("order_dir")
 
+	// Tangkap parameter filter baru
+	status := param.Get("status")
+	startDateStr := param.Get("start_date")
+	endDateStr := param.Get("end_date")
+
 	surveyDiikutiStr := param.Get("survey_diikuti")
 	surveyDiikuti := false
 	if surveyDiikutiStr == "true" {
 		surveyDiikuti = true
+	}
+
+	isApprovalStr := param.Get("is_approval")
+	isApproval := false
+	if isApprovalStr == "true" {
+		isApproval = true
 	}
 
 	payload := payloads.SurveyDatatablePayload{
@@ -472,6 +483,19 @@ func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]
 		OrderBy:       orderBy,
 		OrderDir:      orderDir,
 		SurveyDiikuti: surveyDiikuti,
+		Status:        status,
+		IsApproval:    isApproval,
+		StartDate:     startDateStr,
+		EndDate:       endDateStr,
+	}
+
+	var validate = validator.New()
+	err := validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
 	}
 
 	if payload.Page <= 0 {
@@ -503,7 +527,7 @@ func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]
 	now := time.Now()
 
 	for i := range data {
-		surveyId := []int{data[i].ID}
+		surveyId := []int{int(data[i].ID)}
 
 		surveyCode, err := h.Encode(surveyId)
 		if err != nil {

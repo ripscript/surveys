@@ -5,6 +5,7 @@ import (
 	"backend/userapi/models"
 	"backend/userapi/payloads"
 	"backend/userapi/repository"
+	"backend/userapi/response"
 	"backend/userapi/utils"
 	"context"
 	"encoding/base64"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	excelize "github.com/xuri/excelize/v2"
@@ -29,7 +31,7 @@ type RespondentService interface {
 	GetExampleImport() (*pb.ProxyResponse, error)
 	ImportRespondent(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
-	SurveyorOption() (*pb.ProxyResponse, error)
+	SurveyorOption(param url.Values) (*pb.ProxyResponse, error)
 	BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetOptionsRespondent(param url.Values) (*pb.ProxyResponse, error)
 
@@ -508,15 +510,59 @@ func (service *respondentService) GetRawDetailRespondent(slug map[string]interfa
 	return utils.SendData(detailRespondent)
 }
 
-func (service *respondentService) SurveyorOption() (*pb.ProxyResponse, error) {
+func (service *respondentService) SurveyorOption(param url.Values) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	data, err := service.respondentRepo.SurveyorOption()
-	if err != nil {
-		return utils.SendError(fmt.Errorf("Gagal Mendapatkan Data Surveyor"), http.StatusInternalServerError)
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
 	}
 
-	return utils.SendData(data)
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var rawIDs []string
+	if len(param["id[]"]) > 0 {
+		rawIDs = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		rawIDs = param["id"]
+	}
+
+	var parsedIDs []int64
+	for _, rawID := range rawIDs {
+		if id, err := strconv.ParseInt(rawID, 10, 64); err == nil {
+			parsedIDs = append(parsedIDs, id)
+		}
+	}
+
+	_req := payloads.SurveyorOptionsPayload{
+		Q:     param.Get("q"),
+		Page:  page,
+		Limit: limit,
+		IDs:   parsedIDs,
+	}
+
+	data, totalData, err := service.respondentRepo.GetSurveyorOptions(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi surveyor")
 }
 
 func (service *respondentService) BlockRespondent(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error) {
