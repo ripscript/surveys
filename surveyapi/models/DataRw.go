@@ -42,6 +42,7 @@ func (u *DataRwDetail) TableName() string {
 }
 
 type RwDatatableResponse struct {
+	No              int64          `json:"no"`
 	ID              int64          `json:"id"`
 	KodeWilayah     *string        `json:"kode_wilayah"`
 	SubDistrictName string         `json:"sub_district_name"`

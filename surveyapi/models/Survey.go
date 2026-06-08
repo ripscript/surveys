@@ -26,6 +26,7 @@ func (u *Survey) TableName() string {
 }
 
 type SurveyDatatableResponse struct {
+	No              int64     `json:"no"`
 	ID              int       `json:"-" gorm:"column:id"`
 	SurveyCode      string    `json:"survey_code" gorm:"column:survey_code"`
 	SurveyName      string    `json:"survey_name" gorm:"column:survey_name"`
@@ -44,6 +45,7 @@ type SurveyDatatableResponse struct {
 }
 
 type SurveyWilayahDatatableResponse struct {
+	No             int64     `json:"no"`
 	ID             int       `json:"id" gorm:"column:id"`
 	SurveyCode     string    `json:"survey_code" gorm:"column:survey_code"`
 	SurveyName     string    `json:"survey_name" gorm:"column:survey_name"`
@@ -68,6 +70,7 @@ type SurveyWilayahDatatableResponse struct {
 }
 
 type SurveyKewilayahanDatatableResponse struct {
+	No             int64     `json:"no"`
 	ID             int       `json:"-" gorm:"column:id"`
 	SurveyCode     string    `json:"survey_code" gorm:"column:survey_code"`
 	SurveyName     string    `json:"survey_name" gorm:"column:survey_name"`

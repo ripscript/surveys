@@ -283,6 +283,10 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 		return nil, 0, err
 	}
 
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
+	}
+
 	return data, totalData, nil
 }
 
@@ -467,7 +471,6 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		finalOrderBy := "surveys.created_at"
 		finalOrderDir := "desc"
 
-		// 3. Tambahkan 3 kolom baru ke whitelist order by (Agar datatable bisa di sorting)
 		allowedOrderCols := map[string]string{
 			"id":                 "surveys.id",
 			"survey_name":        "surveys.name",
@@ -502,6 +505,10 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -866,6 +873,10 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil

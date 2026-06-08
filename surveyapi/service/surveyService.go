@@ -2374,6 +2374,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						return utils.SendError(err, http.StatusInternalServerError)
 					}
 					newKelurahan := response.DetailSurveyKewilayahanResponse{
+						No:              kelurahan.No,
 						ID:              kelurahan.ID,
 						NamaWilayah:     kelurahan.VillageName,
 						IsPosibleDetail: true,
@@ -2436,6 +2437,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						return utils.SendError(err, http.StatusInternalServerError)
 					}
 					newRw := response.DetailSurveyKewilayahanResponse{
+						No:              rw.No,
 						ID:              rw.ID,
 						NamaWilayah:     rw.NamaRw,
 						IsPosibleDetail: true,
@@ -2498,6 +2500,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						return utils.SendError(err, http.StatusInternalServerError)
 					}
 					newRt := response.DetailSurveyKewilayahanResponse{
+						No:          rt.No,
 						ID:          rt.ID,
 						NamaWilayah: rt.NamaRt,
 						Code:        kodeWilayah,
