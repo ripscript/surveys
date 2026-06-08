@@ -13,7 +13,7 @@ type SurveyRequest struct {
 	Deskripsi                string                  `json:"description" validate:"required"`
 	Alur                     string                  `json:"flow_detail_code" validate:"required"`
 	RespondenSurvey          int                     `json:"responden_survey" validate:"required,oneof=1 2"`
-	TingkatPelaksanaan       int                     `json:"tingkat_pelaksanaan_id" validate:"required,gt=0"`
+	TingkatPelaksanaan       *int                    `json:"tingkat_pelaksanaan_id,omitempty" validate:"omitempty"`
 	Kecamatan                []int64                 `json:"kecamatan_ids"`
 	Kelurahan                []int64                 `json:"kelurahan_ids"`
 	RW                       []int64                 `json:"rw_ids"`

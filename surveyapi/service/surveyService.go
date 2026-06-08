@@ -223,11 +223,13 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 	}
 
 	if payload.RespondenSurvey == 2 {
-		if !enums.IsWilayahExist(enums.WilayahID(payload.TingkatPelaksanaan)) {
-			return utils.SendError(errors.New("Tingkat pelaksanaan survey tidak valid"), http.StatusBadRequest)
+		if payload.TingkatPelaksanaan != nil {
+			if !enums.IsWilayahExist(enums.WilayahID(*payload.TingkatPelaksanaan)) {
+				return utils.SendError(errors.New("Tingkat pelaksanaan survey tidak valid"), http.StatusBadRequest)
+			}
 		}
 
-		if payload.TingkatPelaksanaan == int(enums.KECAMATAN) {
+		if *payload.TingkatPelaksanaan == int(enums.KECAMATAN) {
 			if len(payload.Kecamatan) == 0 {
 				return utils.SendError(errors.New("Kecamatan harus diisi untuk tingkat pelaksanaan kecamatan"), http.StatusBadRequest)
 			}
@@ -240,7 +242,7 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 
 			}
 
-		} else if payload.TingkatPelaksanaan == int(enums.KELURAHAN) {
+		} else if *payload.TingkatPelaksanaan == int(enums.KELURAHAN) {
 			if len(payload.Kecamatan) == 0 {
 				return utils.SendError(errors.New("Kecamatan harus diisi untuk tingkat pelaksanaan kelurahan"), http.StatusBadRequest)
 			}
@@ -262,7 +264,7 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 					return utils.SendError(fmt.Errorf("Kelurahan dengan ID %d tidak ditemukan", kelurahanId), http.StatusBadRequest)
 				}
 			}
-		} else if payload.TingkatPelaksanaan == int(enums.RW) {
+		} else if *payload.TingkatPelaksanaan == int(enums.RW) {
 			if len(payload.Kecamatan) == 0 {
 				return utils.SendError(errors.New("Kecamatan harus diisi untuk tingkat pelaksanaan rw"), http.StatusBadRequest)
 			}
@@ -373,10 +375,10 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 			}
 		}
 
-		tingkatWilayahStr := strconv.FormatInt(int64(payload.TingkatPelaksanaan), 10)
+		tingkatWilayahStr := strconv.FormatInt(int64(*payload.TingkatPelaksanaan), 10)
 
 		if payload.RespondenSurvey == 2 {
-			if payload.TingkatPelaksanaan == int(enums.KECAMATAN) {
+			if *payload.TingkatPelaksanaan == int(enums.KECAMATAN) {
 				for _, kecamatanId := range payload.Kecamatan {
 					surveyWilayah := models.SurveyWilayah{
 						TingkatWilayah: tingkatWilayahStr,
@@ -390,7 +392,7 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 					}
 
 				}
-			} else if payload.TingkatPelaksanaan == int(enums.KELURAHAN) {
+			} else if *payload.TingkatPelaksanaan == int(enums.KELURAHAN) {
 				for _, kelurahanId := range payload.Kelurahan {
 					kelurahanDetail, err := service.wilayahRepo.GetKelurahanById(ctx, kelurahanId)
 					if err != nil {
@@ -409,7 +411,7 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 						return err
 					}
 				}
-			} else if payload.TingkatPelaksanaan == int(enums.RW) {
+			} else if *payload.TingkatPelaksanaan == int(enums.RW) {
 				for _, rwId := range payload.RW {
 					rwDetail, err := service.wilayahRepo.GetRWById(ctx, rwId)
 					if err != nil {
