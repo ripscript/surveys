@@ -69,6 +69,9 @@ type SurveyRepo interface {
 	ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error)
 
 	GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error)
+
+	GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error)
+	GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error)
 }
 
 type surveyRepo struct {
@@ -1336,4 +1339,16 @@ func (repository *surveyRepo) GetRawJawabanWilayahForExport(ctx context.Context,
 
 	err := query.Find(&results).Error
 	return results, err
+}
+
+func (repository *surveyRepo) GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error) {
+	var wilayahs []models.SurveyWilayah
+	err := repository.dbSlave.Where("survey_id = ?", surveyId).Find(&wilayahs).Error
+	return wilayahs, err
+}
+
+func (repository *surveyRepo) GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error) {
+	var surveyors []models.SurveySurveyor
+	err := repository.dbSlave.Where("survey_id = ?", surveyId).Find(&surveyors).Error
+	return surveyors, err
 }

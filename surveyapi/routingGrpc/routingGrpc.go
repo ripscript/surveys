@@ -239,6 +239,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.CreateSurvey,
 		MenuKey: "list-survey",
 	}},
+	"/survey/detail/:survey_code": {"GET": {
+		Handler: surveyHandler.DetailSurvey,
+		MenuKey: "list-survey",
+	}},
 	"/survey/periode-options": {"GET": {
 		Handler: surveyHandler.OptionsPeriodeSurvey,
 		MenuKey: "list-survey",

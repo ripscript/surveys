@@ -44,6 +44,8 @@ type ManajemenAlurRepo interface {
 
 	GetFormFieldsByIDs(ids []int) ([]models.FormField, error)
 	GetFormAnswerFieldsByQuestionIDs(ids []int) ([]models.FormAnswerField, error)
+
+	GetFlowDetailById(id int64) (*models.FlowDetail, error)
 }
 
 type manajemenAlurRepo struct {
@@ -521,4 +523,10 @@ func (repository *manajemenAlurRepo) GetFormAnswerFieldsByQuestionIDs(ids []int)
 	var options []models.FormAnswerField
 	err := repository.dbSlave.Where("form_field_id IN ?", ids).Order("id ASC").Find(&options).Error
 	return options, err
+}
+
+func (repository *manajemenAlurRepo) GetFlowDetailById(id int64) (*models.FlowDetail, error) {
+	var detail models.FlowDetail
+	err := repository.dbSlave.Where("id = ?", id).First(&detail).Error
+	return &detail, err
 }

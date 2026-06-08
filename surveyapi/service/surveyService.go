@@ -32,6 +32,7 @@ import (
 type SurveyService interface {
 	OptionsPeriodeSurvey(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	CreateSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
+	GetDetailSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ApprovalSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
@@ -555,6 +556,118 @@ func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]
 	}
 
 	return utils.SendData(result, "Berhasil mengambil list survey")
+}
+
+func (service *surveyService) GetDetailSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	codeStr := slug["survey_code"]
+	surveyCode, ok := codeStr.(string)
+	if !ok {
+		return utils.SendError(errors.New("Kode survey tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedSurveyIDs, err := h.DecodeWithError(surveyCode)
+	if err != nil || len(decodedSurveyIDs) == 0 {
+		return utils.SendError(errors.New("Kode survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyId := int64(decodedSurveyIDs[0])
+
+	// 1. Ambil Data Utama Survey
+	survey, err := service.surveyRepo.GetSurveyById(surveyId)
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// 2. Ambil Kode Alur (Flow Detail) berdasarkan ID
+	// Catatan: Pastikan Anda memiliki fungsi GetFlowDetailById di manajemenAlurRepo
+	flowDetail, err := service.manajemenAlurRepo.GetFlowDetailById(survey.FlowDetailID)
+	if err != nil {
+		return utils.SendError(errors.New("Data alur survey tidak ditemukan"), http.StatusInternalServerError)
+	}
+
+	// 3. Tarik Data Relasi
+	wilayahs, _ := service.surveyRepo.GetSurveyWilayahsBySurveyId(surveyId)
+	surveyors, _ := service.surveyRepo.GetSurveyorsBySurveyId(surveyId)
+
+	// 4. Inisialisasi Default State untuk Frontend (Array Kosong BUKAN nil)
+	respondenSurvey := 1 // Default: 1 (Berlaku untuk semua responden / wilayah universal)
+	var tingkatPelaksanaan *int
+
+	kecamatanMap := make(map[int64]bool)
+	kelurahanMap := make(map[int64]bool)
+	rwMap := make(map[int64]bool)
+
+	kecamatanIDs := make([]int64, 0)
+	kelurahanIDs := make([]int64, 0)
+	rwIDs := make([]int64, 0)
+
+	// 5. Rekonstruksi Wilayah (Jika ada data, berarti target spesifik)
+	if len(wilayahs) > 0 {
+		respondenSurvey = 2 // 2 (Berlaku berdasarkan wilayah)
+
+		// Ambil tingkat_pelaksanaan_id dari row pertama.
+		// (Sebab pada Create, semua diseragamkan levelnya)
+		if wilayahs[0].TingkatWilayah != "" {
+			tingkatInt, _ := strconv.Atoi(wilayahs[0].TingkatWilayah)
+			tingkatPelaksanaan = &tingkatInt
+		}
+
+		for _, w := range wilayahs {
+			// Rekonstruksi ID unik menggunakan map agar tidak ada array duplicate
+			if w.KecamatanId > 0 && !kecamatanMap[w.KecamatanId] {
+				kecamatanMap[w.KecamatanId] = true
+				kecamatanIDs = append(kecamatanIDs, w.KecamatanId)
+			}
+			if w.KelurahanId != nil && *w.KelurahanId > 0 && !kelurahanMap[*w.KelurahanId] {
+				kelurahanMap[*w.KelurahanId] = true
+				kelurahanIDs = append(kelurahanIDs, *w.KelurahanId)
+			}
+			if w.RWId != nil && *w.RWId > 0 && !rwMap[*w.RWId] {
+				rwMap[*w.RWId] = true
+				rwIDs = append(rwIDs, *w.RWId)
+			}
+		}
+	}
+
+	// 6. Rekonstruksi Data Surveyor Terpilih
+	surveyorIDs := make([]int64, 0)
+	for _, s := range surveyors {
+		surveyorIDs = append(surveyorIDs, s.RespondentId)
+	}
+
+	// 7. Casting & Format Ulang Tipe Data untuk Struct Frontend
+	periodeVal, _ := strconv.Atoi(survey.Type)
+	startDateStr := survey.StartDate.Format("2006-01-02 15:04:05")
+	endDateStr := survey.EndDate.Format("2006-01-02 15:04:05")
+
+	// 8. Susun dan Kembalikan DTO
+	response := models.SurveyDetailResponse{
+		SurveyCode:               surveyCode,
+		NamaSurvey:               survey.Name,
+		TanggalPelaksanaanSurvey: int32(periodeVal),
+		TanggalSurveyDimulai:     startDateStr,
+		TanggalSurveyBerakhir:    endDateStr,
+		Deskripsi:                survey.Deskripsi,
+		Alur:                     flowDetail.Code,
+		RespondenSurvey:          respondenSurvey,
+		TingkatPelaksanaan:       tingkatPelaksanaan,
+		Kecamatan:                kecamatanIDs,
+		Kelurahan:                kelurahanIDs,
+		RW:                       rwIDs,
+		Surveyor:                 surveyorIDs,
+	}
+
+	return utils.SendData(response, "Detail survey berhasil diambil")
 }
 
 func (service *surveyService) ApprovalSurvey(ctx context.Context, usr models.JwtCustomClaims, req map[string]interface{}, slug map[string]interface{}) (*pb.ProxyResponse, error) {

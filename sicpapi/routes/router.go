@@ -233,6 +233,7 @@ func SetupRoutes(e *echo.Echo) {
 
 	surveyGroup := e.Group("/survey")
 	surveyGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/periode-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })

@@ -25,6 +25,22 @@ func (u *Survey) TableName() string {
 	return "surveys"
 }
 
+type SurveyDetailResponse struct {
+	SurveyCode               string  `json:"survey_code"`
+	NamaSurvey               string  `json:"name"`
+	TanggalPelaksanaanSurvey int32   `json:"periode_survey_id"`
+	TanggalSurveyDimulai     string  `json:"start_date"`
+	TanggalSurveyBerakhir    string  `json:"end_date"`
+	Deskripsi                string  `json:"description"`
+	Alur                     string  `json:"flow_detail_code"`
+	RespondenSurvey          int     `json:"responden_survey"`
+	TingkatPelaksanaan       *int    `json:"tingkat_pelaksanaan_id"`
+	Kecamatan                []int64 `json:"kecamatan_ids"`
+	Kelurahan                []int64 `json:"kelurahan_ids"`
+	RW                       []int64 `json:"rw_ids"`
+	Surveyor                 []int64 `json:"surveyor_ids"`
+}
+
 type SurveyDatatableResponse struct {
 	No              int64     `json:"no"`
 	ID              int       `json:"-" gorm:"column:id"`
