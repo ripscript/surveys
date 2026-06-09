@@ -24,7 +24,7 @@ func MenuSeed(db *gorm.DB) error {
 		},
 		{
 			MenuName:  "Pengelola Survey",
-			Key:       "master-data",
+			Key:       "pengelola-survey",
 			Icon:      "questionnaire-tablet",
 			CreatedBy: 0,
 			UpdatedBy: 0,
@@ -76,6 +76,24 @@ func MenuSeed(db *gorm.DB) error {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+		{
+			MenuName:  "Survey Kewilayahan",
+			Key:       "survey-kewilayahan",
+			Icon:      "geolocation",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			MenuName:  "user",
+			Key:       "user",
+			Icon:      "-",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
 	}
 
 	err := db.Clauses(clause.OnConflict{
@@ -89,7 +107,7 @@ func MenuSeed(db *gorm.DB) error {
 
 	// Create Child Menus
 	parentMenus := []models.Menu{}
-	err = db.Where("key IN ?", []string{"master-data", "template", "management-alur", "beranda", "user", "laporan", "monitoring", "admin"}).Find(&parentMenus).Error
+	err = db.Where("key IN ?", []string{"pengelola-survey", "template", "management-alur", "beranda", "user", "laporan", "monitoring", "admin"}).Find(&parentMenus).Error
 	if err != nil {
 		return err
 	}
@@ -98,7 +116,7 @@ func MenuSeed(db *gorm.DB) error {
 		menuIDMap[menu.Key] = uint(menu.ID)
 	}
 	// templateID := int(menuIDMap["template"])
-	masterData := int(menuIDMap["master-data"])
+	pengelolaSurvey := int(menuIDMap["pengelola-survey"])
 	// surveyID := int(menuIDMap["survey"])
 	pengaturanID := int(menuIDMap["user"])
 	monitoringID := int(menuIDMap["monitoring"])
@@ -107,7 +125,7 @@ func MenuSeed(db *gorm.DB) error {
 		{
 			MenuName:  "Template Pertanyaan",
 			Key:       "template-pertanyaan",
-			ParentID:  &masterData,
+			ParentID:  &pengelolaSurvey,
 			Icon:      "-",
 			CreatedBy: 0,
 			UpdatedBy: 0,
@@ -117,7 +135,7 @@ func MenuSeed(db *gorm.DB) error {
 		{
 			MenuName:  "Manajemen Alur",
 			Key:       "management-alur",
-			ParentID:  &masterData,
+			ParentID:  &pengelolaSurvey,
 			Icon:      "-",
 			CreatedBy: 0,
 			UpdatedBy: 0,
@@ -127,7 +145,7 @@ func MenuSeed(db *gorm.DB) error {
 		{
 			MenuName:  "Template Ucapan",
 			Key:       "template-ucapan",
-			ParentID:  &masterData,
+			ParentID:  &pengelolaSurvey,
 			Icon:      "-",
 			CreatedBy: 0,
 			UpdatedBy: 0,
@@ -137,7 +155,7 @@ func MenuSeed(db *gorm.DB) error {
 		{
 			MenuName:  "Survey",
 			Key:       "survey",
-			ParentID:  &masterData,
+			ParentID:  &pengelolaSurvey,
 			Icon:      "-",
 			CreatedBy: 0,
 			UpdatedBy: 0,
@@ -234,6 +252,26 @@ func MenuSeed(db *gorm.DB) error {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+		{
+			MenuName:  "Survey",
+			Key:       "master-data",
+			ParentID:  &pengelolaSurvey,
+			Icon:      "-",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			MenuName:  "Profile",
+			Key:       "profile",
+			ParentID:  &pengelolaSurvey,
+			Icon:      "-",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
 	}
 
 	err = db.Clauses(clause.OnConflict{
@@ -248,7 +286,7 @@ func MenuSeed(db *gorm.DB) error {
 	// Create Grandchild xixixi
 
 	childMenus := []models.Menu{}
-	err = db.Where("key IN ?", []string{"management-pengguna", "manage-wilayah", "management-artikel"}).Find(&childMenus).Error
+	err = db.Where("key IN ?", []string{"management-pengguna", "manage-wilayah", "management-artikel", "master-data"}).Find(&childMenus).Error
 	if err != nil {
 		return err
 	}
@@ -259,6 +297,7 @@ func MenuSeed(db *gorm.DB) error {
 	manajemenPenggunaID := int(childMenuIDMap["management-pengguna"])
 	manajemenWilayahID := int(childMenuIDMap["manage-wilayah"])
 	manajemenArtikelID := int(childMenuIDMap["management-artikel"])
+	masterDataID := int(childMenuIDMap["master-data"])
 
 	GrindChildMenus := []models.Menu{
 		{
@@ -335,6 +374,26 @@ func MenuSeed(db *gorm.DB) error {
 			MenuName:  "Kategori",
 			Key:       "kategori",
 			ParentID:  &manajemenArtikelID,
+			Icon:      "-",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			MenuName:  "Hasil Survey",
+			Key:       "hasil-survey",
+			ParentID:  &masterDataID,
+			Icon:      "-",
+			CreatedBy: 0,
+			UpdatedBy: 0,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			MenuName:  "List Survey",
+			Key:       "list-survey",
+			ParentID:  &masterDataID,
 			Icon:      "-",
 			CreatedBy: 0,
 			UpdatedBy: 0,
