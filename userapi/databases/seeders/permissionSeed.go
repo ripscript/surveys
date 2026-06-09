@@ -13,7 +13,7 @@ func PermissionSeed(db *gorm.DB) error {
 		"admin", "template-pertanyaan", "template-ucapan", "survey", "management-pengguna", "manage-wilayah",
 		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
 		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
-		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan",
+		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan", "pengelola-survey",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -69,6 +69,7 @@ func PermissionSeed(db *gorm.DB) error {
 		mWilayah           = menuIDs.ManajemenWilayahChild
 		profile            = menuIDs.Profile
 		SurveyKewilayahan  = menuIDs.SurveyKewilayahan
+		PengelolaSurvey    = menuIDs.PengelolaSurvey
 
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
@@ -82,10 +83,15 @@ func PermissionSeed(db *gorm.DB) error {
 	)
 
 	MenuPermission := []P{
+
+		viewOnly(PengelolaSurvey, public), viewOnly(PengelolaSurvey, rt), viewOnly(PengelolaSurvey, rw), viewOnly(PengelolaSurvey, lurah),
+		viewOnly(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
+		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
+
 		// Survey Kewilayahan
 		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), viewOnly(SurveyKewilayahan, rw), viewOnly(SurveyKewilayahan, lurah),
 		viewOnly(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
-		viewOnly(SurveyKewilayahan, surveyor), viewOnly(profile, walikota),
+		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
 
 		// List Survey
 		full(profile, public), full(profile, rt), full(profile, rw), full(profile, lurah),
@@ -248,6 +254,7 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		MasterData:            m["master-data"],
 		Profile:               m["profile"],
 		SurveyKewilayahan:     m["survey-kewilayahan"],
+		PengelolaSurvey:       m["pengelola-survey"],
 	}
 }
 
