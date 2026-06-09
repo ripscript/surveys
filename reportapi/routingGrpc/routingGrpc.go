@@ -33,8 +33,9 @@ var (
 )
 
 var (
-	homeRepo repository.HomeRepo = repository.NewHomeRepo(dbSlave, dbMaster)
-	logRepo  repository.LogRepo  = repository.NewLogRepo(dbSlave, dbMaster)
+	homeRepo   repository.HomeRepo   = repository.NewHomeRepo(dbSlave, dbMaster)
+	logRepo    repository.LogRepo    = repository.NewLogRepo(dbSlave, dbMaster)
+	surveyRepo repository.SurveyRepo = repository.NewSurveyRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -44,6 +45,9 @@ var (
 	logService service.LogService = service.NewLogService(
 		logRepo,
 	)
+	surveyService service.SurveyService = service.NewSurveyService(
+		surveyRepo,
+	)
 )
 
 var (
@@ -52,6 +56,9 @@ var (
 	)
 	logHandler handlers.LogHandler = handlers.NewLogHandler(
 		logService,
+	)
+	surveyHandler handlers.SurveyHandler = handlers.NewSurveyHandler(
+		surveyService,
 	)
 )
 
@@ -105,6 +112,8 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/count/survey/finished": {"GET": {Handler: homeHandler.CountSurveyFinished, MenuKey: ""}},
 	"/save/log/activities":   {"POST": {Handler: logHandler.SaveLogActivities, MenuKey: ""}},
 	"/log/activities":        {"GET": {Handler: logHandler.GetLogActivities, MenuKey: ""}},
+	"/survey/activities":     {"GET": {Handler: surveyHandler.SurveyActivities, MenuKey: ""}},
+	"/log/surveys":           {"GET": {Handler: surveyHandler.LogSurveys, MenuKey: ""}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
