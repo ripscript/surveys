@@ -85,6 +85,7 @@ type MenuIDs struct {
 	MasterData            int
 	ListSurvey            int
 	Profile               int
+	SurveyKewilayahan     int
 }
 
 type RoleIDs struct {
