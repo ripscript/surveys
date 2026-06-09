@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -560,22 +561,23 @@ func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]
 		}
 	}
 
-	showingFrom := (payload.Page-1)*payload.Limit + 1
-	showingTo := showingFrom + len(data) - 1
+	// showingFrom := (payload.Page-1)*payload.Limit + 1
+	// showingTo := showingFrom + len(data) - 1
 
-	if totalData == 0 {
-		showingFrom = 0
-		showingTo = 0
-	}
+	// if totalData == 0 {
+	// 	showingFrom = 0
+	// 	showingTo = 0
+	// }
+
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
 
 	result := map[string]interface{}{
 		"data": data,
 		"meta": map[string]interface{}{
-			"total_entries": totalData,
-			"current_page":  payload.Page,
-			"per_page":      payload.Limit,
-			"showing_from":  showingFrom,
-			"showing_to":    showingTo,
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
 		},
 	}
 
