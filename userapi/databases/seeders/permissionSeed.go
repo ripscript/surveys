@@ -85,7 +85,7 @@ func PermissionSeed(db *gorm.DB) error {
 	MenuPermission := []P{
 
 		viewOnly(PengelolaSurvey, public), viewOnly(PengelolaSurvey, rt), viewOnly(PengelolaSurvey, rw), viewOnly(PengelolaSurvey, lurah),
-		viewOnly(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
+		full(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
 		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
 
 		// Survey Kewilayahan
@@ -109,9 +109,9 @@ func PermissionSeed(db *gorm.DB) error {
 		none(ManajemenResponden, surveyor), none(ManajemenResponden, walikota),
 
 		// Manajemen Wilayah
-		none(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
-		viewOnly(ManajemenWilayah, camat), none(ManajemenWilayah, pemkot), viewOnly(ManajemenWilayah, admin),
-		none(ManajemenWilayah, surveyor), none(ManajemenWilayah, walikota),
+		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), viewOnly(ManajemenWilayah, lurah),
+		viewOnly(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), viewOnly(ManajemenWilayah, admin),
+		viewOnly(ManajemenWilayah, surveyor), viewOnly(ManajemenWilayah, walikota),
 
 		// Beranda
 		none(beranda, public), none(beranda, rt), none(beranda, rw), full(beranda, lurah),
