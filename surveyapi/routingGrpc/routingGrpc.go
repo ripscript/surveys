@@ -237,31 +237,31 @@ var grpcMap = map[string]map[string]RouteConfig{
 	// SURVEY ===========================================
 	"/survey/create": {"POST": {
 		Handler: surveyHandler.CreateSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/detail/:survey_code": {"GET": {
 		Handler: surveyHandler.DetailSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/periode-options": {"GET": {
 		Handler: surveyHandler.OptionsPeriodeSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/list": {"GET": {
 		Handler: surveyHandler.GetListSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/approval/:code": {"POST": {
 		Handler: surveyHandler.ApprovalSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/history-approval/survey/:survey_code": {"GET": {
 		Handler: surveyHandler.GetHistoryApprovalSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": {
 		Handler: surveyHandler.GetPublicImageSurvey,
-		MenuKey: "list-survey",
+		MenuKey: "pengelola-survey",
 	}},
 
 	// SURVEY WILAYAH ===========================================
