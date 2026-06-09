@@ -62,17 +62,32 @@ type ManajemenAlurDetailResponse struct {
 	Flows      []FlowDetailItem `json:"flows"`
 }
 
+type OptionData struct {
+	Label string `json:"label"`
+	Value int    `json:"value"` // Sesuai request: menggunakan 'value' untuk ID opsi
+}
+
+type HaveDataOption struct {
+	QuestionTitle string       `json:"question_title"`
+	Options       []OptionData `json:"options"`
+}
+
 type FlowDetailItem struct {
-	Sequence     int               `json:"sequence"`
-	SectionID    *int              `json:"section_id,omitempty"`
-	SectionIndex *int              `json:"section_index,omitempty"`
-	SectionName  *string           `json:"section_name,omitempty"`
-	IsGroup      bool              `json:"is_group"`
-	GroupID      *int              `json:"group_id,omitempty"`
-	GroupName    *string           `json:"group_name,omitempty"`
-	QuestionIDs  []int             `json:"question_ids"`
-	FieldIDs     []int             `json:"field_ids"`
-	Routing      RoutingDetailRule `json:"routing"`
+	Sequence     int     `json:"sequence"`
+	SectionID    *int    `json:"section_id,omitempty"`
+	SectionIndex *int    `json:"section_index,omitempty"`
+	SectionName  *string `json:"section_name,omitempty"`
+	IsGroup      bool    `json:"is_group"`
+	GroupID      *int    `json:"group_id,omitempty"`
+	GroupName    *string `json:"group_name,omitempty"`
+
+	QuestionIDs     []int            `json:"question_ids"`
+	Question        string           `json:"question"`
+	Type            string           `json:"type"`
+	HaveDataOptions []HaveDataOption `json:"have_data_options"`
+
+	FieldIDs []int             `json:"field_ids"`
+	Routing  RoutingDetailRule `json:"routing"`
 }
 
 type RoutingDetailRule struct {
@@ -94,11 +109,12 @@ type RoutingOptionDetail struct {
 }
 
 type RoutingLogicDetail struct {
-	LogicID          int  `json:"logic_id"`
-	IfQuestionID     int  `json:"if_question_id"`
-	IfOptionID       int  `json:"if_option_id"`
-	TargetQuestionID *int `json:"target_question_id"`
-	IsEnd            bool `json:"is_end"`
+	LogicID          int          `json:"logic_id"`
+	IfQuestionID     int          `json:"if_question_id"`
+	IfOptionID       int          `json:"if_option_id"`
+	TargetQuestionID *int         `json:"target_question_id"`
+	IsEnd            bool         `json:"is_end"`
+	IfOptions        []OptionData `json:"if_options"`
 }
 
 // KEPERLUAN UPDATE

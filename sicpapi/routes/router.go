@@ -113,6 +113,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.PUT("/respondent/block", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/respondent/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// Users Management
+	e.GET("/get-profile", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.POST("/users", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/users/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
@@ -234,9 +235,12 @@ func SetupRoutes(e *echo.Echo) {
 
 	surveyGroup := e.Group("/survey")
 	surveyGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/periode-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/history-approval/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/show-image/:survey_code/:code_wilayah/:path", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -244,15 +248,19 @@ func SetupRoutes(e *echo.Echo) {
 	surveyWilayahGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyWilayahGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyWilayahGroup.PUT("/update-status/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyWilayahGroup.GET("/approval-history/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	surveyWilayahGroup.GET("/history-detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyKewilayahanGroup := e.Group("/survey-kewilayahan")
 	surveyKewilayahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/survey/:survey_code/result-index/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/survey/:survey_code/result-index/:code/section/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	// surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/section/:section_code/verify", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
-	// surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/section/:section_code/reject", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/approve-verify", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/reject-verify", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/reject-validate", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.PUT("/survey/:survey_code/result-index/:code/approve-validate", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/approval-history/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/history-detail/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
+	surveyKewilayahanGroup.GET("/export-excel/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanGroup.GET("/export-excel/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

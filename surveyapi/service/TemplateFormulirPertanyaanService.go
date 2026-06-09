@@ -158,13 +158,18 @@ func (service *templateFormulirPertanyaanService) CreateTemplateFormulirPertanya
 			})
 		}
 
+		_Required := false
+		if v.Required != nil {
+			_Required = *v.Required
+		}
+
 		formField := models.FormFieldWithOption{
 			FormField: models.FormField{
 				Template:      v.InputType,
 				Attribute:     newAttribute,
 				Question:      v.Question,
 				Deskripsi:     v.Description,
-				Required:      v.Required,
+				Required:      _Required,
 				ImageQuantity: imageQtyStr,
 				Sequence:      index + 1,
 			},
@@ -374,6 +379,11 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 				return utils.SendError(errors.New("Hanya tipe pertanyaan image-template yang boleh memiliki kuantitas gambar"), http.StatusBadRequest)
 			}
 
+			_Required := false
+			if q.Required != nil {
+				_Required = *q.Required
+			}
+
 			formFields = append(formFields, models.UpdateFormFieldWithOption{
 				FormField: models.FormField{
 					ID:            formFieldID,
@@ -381,7 +391,7 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 					Template:      q.InputType,
 					Question:      q.Question,
 					Deskripsi:     q.Description,
-					Required:      q.Required,
+					Required:      _Required,
 					ImageQuantity: imageQty,
 					Attribute:     currentAttribute,
 					Sequence:      seqIndex + 1,

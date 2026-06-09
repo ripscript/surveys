@@ -19,6 +19,7 @@ type WilayahRepo interface {
 	GetKecamatanById(ctx context.Context, id int64) (*models.Kecamatan, error)
 	GetKelurahanById(ctx context.Context, id int64) (*models.Kelurahan, error)
 	GetRWById(ctx context.Context, id int64) (*models.DataRwDetail, error)
+	GetRTById(ctx context.Context, id int64) (*models.DataRtDetail, error)
 
 	GetDaftarRT(ctx context.Context, rw_id int64, payload payloads.DatatablePayload) (response.RTDatatableResponse, error)
 	GetDaftarRW(ctx context.Context, kelurahan_id int64, payload payloads.DatatablePayload) (response.RWDatatableResponse, error)
@@ -88,6 +89,24 @@ func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models
 	var data models.DataRwDetail
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
 		return nil, errors.New("Gagal memparsing data RW dari MasterAPI")
+	}
+	return &data, nil
+}
+
+func (repository *wilayahRepo) GetRTById(ctx context.Context, id int64) (*models.DataRtDetail, error) {
+	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
+
+	newSlug := map[string]interface{}{"rt_id": strconv.FormatInt(id, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rt/detail/:rt_id", newSlug, nil)
+	if err != nil {
+		spew.Dump(err)
+		return nil, errors.New("Gagal mendapatkan data RT dari MasterAPI")
+	}
+
+	var data models.DataRtDetail
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data RT dari MasterAPI")
 	}
 	return &data, nil
 }

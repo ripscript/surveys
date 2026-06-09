@@ -23,6 +23,7 @@ type UsersRepo interface {
 	CheckEmail(email string) (int64, int64, error)
 	CheckPhoneNumber(phoneNumber string) (int64, error)
 	CheckNik(nik string) (int64, int64, error)
+	GetUserRawById(id int) (*models.UserProfile, error)
 }
 
 type usersRepo struct {
@@ -298,4 +299,16 @@ func (r *usersRepo) StoreUsers(data models.CreateRespondent) error {
 	}
 
 	return tx.Commit().Error
+}
+
+func (r *usersRepo) GetUserRawById(id int) (*models.UserProfile, error) {
+	defer utils.GeneralRecover()
+
+	var user models.UserProfile
+	err := r.dbSlave.Preload("Respondent").Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }

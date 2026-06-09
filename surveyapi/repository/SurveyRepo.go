@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"backend/surveyapi/dto"
 	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
@@ -39,8 +40,10 @@ type SurveyRepo interface {
 	UpdateStatusSurvey(ctx context.Context, tx *gorm.DB, formResponseID int64, updatedStatus int) error
 	GetUnansweredRequiredCount(tx *gorm.DB, respondentID int64, surveyID int64) (int, error)
 	MakeLogSurvey(ctx context.Context, tx *gorm.DB, logSurvey models.LogSurvey) error
+	MakeLogSurveyBulk(ctx context.Context, tx *gorm.DB, logSurveys []models.LogSurvey) error
 
 	GetHistoryApproval(ctx context.Context, tx *gorm.DB, surveyID int64) ([]models.LogSurveyDetail, error)
+	GetHistoryApprovalPerWilayah(ctx context.Context, tx *gorm.DB, surveyID int64, rtId int64) ([]models.LogSurveyDetail, error)
 	GetSurveyKewilayahan(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent, req payloads.SurveyWilayahDatatablePayload) ([]models.SurveyKewilayahanDatatableResponse, int64, error)
 
 	GetStatusKeterisianBulkRT(ctx context.Context, surveyID int64, rtIDs []int64) (map[int64]string, error)
@@ -50,8 +53,25 @@ type SurveyRepo interface {
 
 	WipeAndReplaceAllFieldResponses(ctx context.Context, respondentID int64, newResponses []models.FieldResponse) error
 	GetAllOldResponsesByRespondent(ctx context.Context, respondentID int64) ([]models.FieldResponse, error)
+	CreateFlaggingEdit(ctx context.Context, flags []models.FlaggingEditPertanyaanSurvey) error
+	ResetFlaggingEditStatus(ctx context.Context, respondentID int64) error
+	UpdateRespondentApprovalStatus(ctx context.Context, respondentID int64, status int, statusApproval string, isEditPertanyaan string) error
 	ClearAndCreateFlaggingEdit(ctx context.Context, respondentID int64, flags []models.FlaggingEditPertanyaanSurvey) error
-	UpdateRespondentApprovalStatus(ctx context.Context, respondentID int64, statusApproval string, isEditPertanyaan string) error
+
+	UpdateRespondentApprovalState(ctx context.Context, tx *gorm.DB, respondentID int64, status int, statusApproval *string, isEditPertanyaan string) error
+	ResetFlaggingEditStatusTx(ctx context.Context, tx *gorm.DB, respondentID int64) error
+
+	GetSurveyCompletionHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
+	GetSurveyVerificationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
+	GetSurveyValidationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error)
+
+	GetRawJawabanForExport(ctx context.Context, surveyID int64, rtID int64) ([]dto.ExportRawJawabanDTO, error)
+	ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error)
+
+	GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error)
+
+	GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error)
+	GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error)
 }
 
 type surveyRepo struct {
@@ -175,6 +195,31 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 		db = db.Where("surveys.created_by = ?", userLogin.ID)
 	}
 
+	// ==========================================
+	// 🆕 FILTER OPSIONAL (OVERLAP DATE RANGE LOGIC)
+	// ==========================================
+	if req.Status != "" {
+		db = db.Where("surveys.status = ?", req.Status)
+	}
+
+	if req.IsApproval {
+		db = db.Where("surveys.approval_survey = ?", string(enums.STATUS_APPROVAL_SURVEY_WAITING))
+	}
+
+	if req.StartDate != "" && req.EndDate != "" {
+		// LOGIKA OVERLAP (IRISAN WAKTU)
+		// Survei mulai SEBELUM atau PAS filter End Date, DAN
+		// Survei selesai SESUDAH atau PAS filter Start Date
+		db = db.Where("DATE(surveys.start_date) <= DATE(?) AND DATE(surveys.end_date) >= DATE(?)", req.EndDate, req.StartDate)
+	} else if req.StartDate != "" {
+		// Jika hanya difilter Start Date: Cari survei yang akhir-nya belum lewat dari Start Date pencarian
+		db = db.Where("DATE(surveys.end_date) >= DATE(?)", req.StartDate)
+	} else if req.EndDate != "" {
+		// Jika hanya difilter End Date: Cari survei yang mulai-nya sebelum End Date pencarian
+		db = db.Where("DATE(surveys.start_date) <= DATE(?)", req.EndDate)
+	}
+	// ==========================================
+
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
 		searchStr := strings.TrimSpace(req.Search)
@@ -264,6 +309,10 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -376,13 +425,11 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		return nil, 0, err
 	}
 
-	// 1. Ambil ID Responden untuk Query Isian (Hindari nil pointer)
 	var respID int64 = 0
 	if respondentLogin != nil {
 		respID = respondentLogin.ID
 	}
 
-	// 2. Blok Select dengan 3 Subquery presisi tinggi berdasarkan skema baru
 	selectQuery := fmt.Sprintf(`
 		surveys.id,
 		surveys.name AS survey_name,
@@ -397,14 +444,12 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		surveys.status,
 		surveys.approval_survey,
 
-		-- Subquery 1: Menghitung Total Soal
 		(
 			SELECT COUNT(DISTINCT form_field_id) 
 			FROM flow_fields 
 			WHERE flow_detail_id = surveys.flow_detail_id
 		) AS jumlah_total_soal,
 
-		-- Subquery 2: Menghitung Soal Terisi oleh Responden ini
 		(
 			SELECT COUNT(DISTINCT fr.form_field_id) 
 			FROM field_responses fr 
@@ -412,7 +457,6 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 			WHERE sr.survey_id = surveys.id AND sr.respondent_id = %d
 		) AS jumlah_soal_terisi,
 
-		-- Subquery 3: Tentukan Status Keterisian (Belum, Sedang Berjalan, Sudah Terisi)
 		CASE 
 			WHEN (
 				SELECT COUNT(DISTINCT fr.form_field_id) 
@@ -435,11 +479,12 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 			ELSE 'Sedang Berjalan' 
 		END AS status_keterisian,
 
-		-- 🆕 Subquery 4 (FIXED): Mapping Status secara langsung ke String
 		(
-			SELECT CASE status 
-				WHEN 1 THEN 'draft' 
-				WHEN 2 THEN 'selesai' 
+			SELECT CASE 
+				-- Pengecekan status revisi HARUS di atas agar dicek lebih dulu
+				WHEN status = 2 AND status_approval = 'revisi_rt' THEN 'revisi'
+				WHEN status = 2 THEN 'selesai'
+				WHEN status = 1 THEN 'draft'
 			END
 			FROM survey_respondents 
 			WHERE survey_id = surveys.id AND respondent_id = %d
@@ -454,7 +499,6 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		finalOrderBy := "surveys.created_at"
 		finalOrderDir := "desc"
 
-		// 3. Tambahkan 3 kolom baru ke whitelist order by (Agar datatable bisa di sorting)
 		allowedOrderCols := map[string]string{
 			"id":                 "surveys.id",
 			"survey_name":        "surveys.name",
@@ -489,6 +533,10 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
 	if err != nil {
 		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
 	}
 
 	return data, totalData, nil
@@ -671,7 +719,26 @@ func (r *surveyRepo) GetUnansweredRequiredCount(tx *gorm.DB, respondentID int64,
 func (repository *surveyRepo) MakeLogSurvey(ctx context.Context, tx *gorm.DB, logSurvey models.LogSurvey) error {
 	defer utils.GeneralRecover()
 
+	if tx == nil {
+		tx = repository.dbMaster
+	}
+
 	err := tx.WithContext(ctx).Create(&logSurvey).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repository *surveyRepo) MakeLogSurveyBulk(ctx context.Context, tx *gorm.DB, logSurveys []models.LogSurvey) error {
+	defer utils.GeneralRecover()
+
+	if tx == nil {
+		tx = repository.dbMaster
+	}
+
+	err := tx.WithContext(ctx).Create(&logSurveys).Error
 	if err != nil {
 		return err
 	}
@@ -687,7 +754,31 @@ func (repository *surveyRepo) GetHistoryApproval(ctx context.Context, tx *gorm.D
 	}
 
 	var logs []models.LogSurveyDetail
-	err := tx.WithContext(ctx).Where("survey_id = ?", surveyID).Order("created_at DESC").Find(&logs).Error
+	err := tx.WithContext(ctx).
+		Joins("JOIN respondents ON respondents.id = log__surveys.respondent_id").
+		Where("log__surveys.survey_id = ?", surveyID).
+		Order("log__surveys.created_at DESC").
+		Find(&logs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return logs, nil
+}
+
+func (repository *surveyRepo) GetHistoryApprovalPerWilayah(ctx context.Context, tx *gorm.DB, surveyID int64, rtId int64) ([]models.LogSurveyDetail, error) {
+	defer utils.GeneralRecover()
+
+	if tx == nil {
+		tx = repository.dbSlave
+	}
+
+	var logs []models.LogSurveyDetail
+	err := tx.WithContext(ctx).
+		Joins("JOIN respondents ON respondents.id = log__surveys.respondent_id").
+		Where("log__surveys.survey_id = ? AND respondents.rt_id = ?", surveyID, rtId).
+		Order("log__surveys.created_at DESC").
+		Find(&logs).Error
 	if err != nil {
 		return nil, err
 	}
@@ -812,6 +903,10 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 		return nil, 0, err
 	}
 
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
+	}
+
 	return data, totalData, nil
 }
 
@@ -821,21 +916,16 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRT(ctx context.Context, sur
 		StatusApproval *string
 	}
 
-	// 1. Cek apakah survei ini memiliki spesifik wilayah (Targeted) atau tidak (Universal)
 	var countWilayah int64
 	repository.dbSlave.Table("survey_wilayahs").Where("survey_id = ?", surveyID).Count(&countWilayah)
 
-	// Mulai merakit Query utama
 	query := repository.dbSlave.Table("survey_respondents").
 		Select("respondents.rt_id, MAX(survey_respondents.status_approval) as status_approval").
 		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
 		Where("survey_respondents.survey_id = ?", surveyID).
 		Where("respondents.rt_id IN ?", rtIDs).
-		// 🆕 PENGAMANAN ROLE: Hanya hitung jika responden saat ini memang menjabat sebagai RT (Role ID = 2)
 		Where("respondents.role_id = ?", int64(enums.ROLE_RT))
 
-	// 2. Jika survei bersifat Targeted (ada record di survey_wilayahs)
-	// Pastikan kita HANYA menghitung data dari RT yang wilayah kecamatannya/kelurahannya cocok dengan target survei!
 	if countWilayah > 0 {
 		query = query.Where(`
 			EXISTS (
@@ -856,12 +946,10 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRT(ctx context.Context, sur
 
 	statusMap := make(map[int64]string)
 
-	// Set Default
 	for _, rtID := range rtIDs {
 		statusMap[rtID] = "Tidak ada responden"
 	}
 
-	// Mapping Data
 	for _, res := range results {
 		if res.StatusApproval != nil {
 			switch *res.StatusApproval {
@@ -869,6 +957,10 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRT(ctx context.Context, sur
 				statusMap[res.RtId] = "Sudah Diverifikasi Oleh RW"
 			case "validated_lurah":
 				statusMap[res.RtId] = "Sudah Divalidasi Oleh Kelurahan"
+			case "revisi_rt":
+				statusMap[res.RtId] = "Sedang Proses Revisi Oleh RT"
+			case "revisi_rw":
+				statusMap[res.RtId] = "Sedang Proses Revisi Oleh RW"
 			default:
 				statusMap[res.RtId] = *res.StatusApproval
 			}
@@ -1035,7 +1127,7 @@ func (repository *surveyRepo) GetRespondentSurveyByRTId(ctx context.Context, sur
 func (repository *surveyRepo) WipeAndReplaceAllFieldResponses(ctx context.Context, respondentID int64, newResponses []models.FieldResponse) error {
 	defer utils.GeneralRecover()
 
-	// Hapus total tanpa syarat IN question_ids karena mencakup 1 survei penuh
+	// Hapus total jawaban survei lama tanpa filter per section
 	err := repository.dbMaster.WithContext(ctx).
 		Where("form_response_id = ?", respondentID).
 		Delete(&models.FieldResponse{}).Error
@@ -1051,33 +1143,237 @@ func (repository *surveyRepo) WipeAndReplaceAllFieldResponses(ctx context.Contex
 
 func (repository *surveyRepo) GetAllOldResponsesByRespondent(ctx context.Context, respondentID int64) ([]models.FieldResponse, error) {
 	var responses []models.FieldResponse
-	err := repository.dbSlave.WithContext(ctx).
-		Where("form_response_id = ?", respondentID).
-		Find(&responses).Error
+	err := repository.dbSlave.WithContext(ctx).Where("form_response_id = ?", respondentID).Find(&responses).Error
 	return responses, err
 }
 
-func (repository *surveyRepo) ClearAndCreateFlaggingEdit(ctx context.Context, respondentID int64, flags []models.FlaggingEditPertanyaanSurvey) error {
-	// Hapus riwayat flagging penolakan sebelumnya agar tidak duplikat
-	err := repository.dbMaster.WithContext(ctx).
-		Where("survey_respondent_id = ?", respondentID).
-		Delete(&models.FlaggingEditPertanyaanSurvey{}).Error
-	if err != nil {
-		return err
-	}
-
+func (repository *surveyRepo) CreateFlaggingEdit(ctx context.Context, flags []models.FlaggingEditPertanyaanSurvey) error {
 	if len(flags) == 0 {
 		return nil
 	}
 	return repository.dbMaster.WithContext(ctx).Create(&flags).Error
 }
 
-func (repository *surveyRepo) UpdateRespondentApprovalStatus(ctx context.Context, respondentID int64, statusApproval string, isEditPertanyaan string) error {
+func (repository *surveyRepo) ResetFlaggingEditStatus(ctx context.Context, respondentID int64) error {
+	defer utils.GeneralRecover()
+
+	// Mengubah is_revisied menjadi 'false' untuk semua flagging milik responden ini
+	return repository.dbMaster.WithContext(ctx).
+		Table("flagging_edit_pertanyaan_surveys").
+		Where("survey_respondent_id = ?", respondentID).
+		Update("is_revisied", "false").Error
+}
+
+func (repository *surveyRepo) UpdateRespondentApprovalStatus(ctx context.Context, respondentID int64, status int, statusApproval string, isEditPertanyaan string) error {
 	return repository.dbMaster.WithContext(ctx).
 		Table("survey_respondents").
 		Where("id = ?", respondentID).
 		Updates(map[string]interface{}{
+			"status":             status,
 			"status_approval":    statusApproval,
 			"is_edit_pertanyaan": isEditPertanyaan,
 		}).Error
+}
+
+func (repository *surveyRepo) ClearAndCreateFlaggingEdit(ctx context.Context, respondentID int64, flags []models.FlaggingEditPertanyaanSurvey) error {
+	defer utils.GeneralRecover()
+
+	// 1. Hapus seluruh flagging lama milik responden ini agar tidak duplikat
+	err := repository.dbMaster.WithContext(ctx).
+		Where("survey_respondent_id = ?", respondentID).
+		Delete(&models.FlaggingEditPertanyaanSurvey{}).Error
+
+	if err != nil {
+		return err
+	}
+
+	// 2. Masukkan daftar pertanyaan baru yang harus direvisi (Bulk Insert)
+	if len(flags) > 0 {
+		err = repository.dbMaster.WithContext(ctx).Create(&flags).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (repository *surveyRepo) UpdateRespondentApprovalState(ctx context.Context, tx *gorm.DB, respondentID int64, status int, statusApproval *string, isEditPertanyaan string) error {
+	defer utils.GeneralRecover()
+
+	return tx.WithContext(ctx).
+		Table("survey_respondents").
+		Where("id = ?", respondentID).
+		Updates(map[string]interface{}{
+			"status":             status,
+			"status_approval":    statusApproval,
+			"is_edit_pertanyaan": isEditPertanyaan,
+		}).Error
+}
+
+func (repository *surveyRepo) ResetFlaggingEditStatusTx(ctx context.Context, tx *gorm.DB, respondentID int64) error {
+	defer utils.GeneralRecover()
+
+	return tx.WithContext(ctx).
+		Table("flagging_edit_pertanyaan_surveys").
+		Where("survey_respondent_id = ?", respondentID).
+		Update("is_revisied", "false").Error
+}
+
+func (repository *surveyRepo) GetSurveyCompletionHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error) {
+	defer utils.GeneralRecover()
+
+	var logDetail models.LogSurveyDetail
+	err := repository.dbSlave.WithContext(ctx).
+		Joins("JOIN respondents ON respondents.id = log__surveys.respondent_id").
+		Where("log__surveys.survey_id = ? AND log__surveys.respondent_id = ?", surveyID, respondentID).
+		Where("log__surveys.keterangan LIKE ? OR log__surveys.keterangan LIKE ?", "%telah menyelesaikan survey%", "%telah menyelesaikan revisi%").
+		Order("log__surveys.created_at DESC").
+		First(&logDetail).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &logDetail, nil
+}
+
+func (repository *surveyRepo) GetSurveyVerificationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error) {
+	defer utils.GeneralRecover()
+
+	var logDetail models.LogSurveyDetail
+	err := repository.dbSlave.WithContext(ctx).
+		Joins("JOIN respondents ON respondents.id = log__surveys.respondent_id").
+		Where("log__surveys.survey_id = ? AND log__surveys.respondent_id = ?", surveyID, respondentID).
+		Where("log__surveys.keterangan LIKE ?", "%telah melakukan verifikasi%").
+		Order("log__surveys.created_at DESC").
+		First(&logDetail).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &logDetail, nil
+}
+
+func (repository *surveyRepo) GetSurveyValidationHistory(ctx context.Context, surveyID int64, respondentID int64) (*models.LogSurveyDetail, error) {
+	defer utils.GeneralRecover()
+
+	var logDetail models.LogSurveyDetail
+	err := repository.dbSlave.WithContext(ctx).
+		Joins("JOIN respondents ON respondents.id = log__surveys.respondent_id").
+		Where("log__surveys.survey_id = ? AND log__surveys.respondent_id = ?", surveyID, respondentID).
+		Where("log__surveys.keterangan LIKE ?", "%telah melakukan validasi%").
+		Order("log__surveys.created_at DESC").
+		First(&logDetail).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &logDetail, nil
+}
+
+func (repository *surveyRepo) GetRawJawabanForExport(ctx context.Context, surveyID int64, rtID int64) ([]dto.ExportRawJawabanDTO, error) {
+	defer utils.GeneralRecover()
+	var results []dto.ExportRawJawabanDTO
+
+	query := `
+		SELECT 
+			r.id AS respondent_id,
+			r.name AS nama_responden,
+			sr.status,
+			sr.status_approval,
+			sr.updated_at AS waktu_selesai,
+			fr.form_field_id,
+			fr.answer
+		FROM survey_respondents sr
+		JOIN respondents r ON sr.respondent_id = r.id
+		LEFT JOIN field_responses fr ON fr.form_response_id = sr.id
+		WHERE sr.survey_id = ? AND r.rt_id = ?
+		ORDER BY sr.created_at ASC
+	`
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID, rtID).Scan(&results).Error
+	return results, err
+}
+
+func (repository *surveyRepo) ValidateIsImageExists(ctx context.Context, tx *gorm.DB, surveyRespondentId int64, filePath string) (bool, error) {
+	defer utils.GeneralRecover()
+
+	if tx == nil {
+		tx = repository.dbSlave
+	}
+
+	var count int64
+	err := tx.WithContext(ctx).
+		Table("field_responses").
+		Where("form_response_id = ? AND answer LIKE ?", surveyRespondentId, "%"+filePath+"%").
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *surveyRepo) GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error) {
+	var results []dto.ExportRawJawabanWilayah
+
+	// Gunakan .Debug() sementara agar Anda bisa melihat raw SQL-nya di terminal jika masih kosong
+	query := repository.dbSlave.WithContext(ctx).Debug().Table("field_responses").
+		Select(`
+			survey_respondents.respondent_id,
+			respondents.name as nama_responden,
+			kecamatans.sub_district_name as kecamatan_name,
+			kelurahans.village_name as kelurahan_name,
+			rws.nama_rw as rw_name,
+			rts.nama_rt as rt_name,
+			rts.id as rt_id,
+			survey_respondents.status,
+			survey_respondents.status_approval,
+			survey_respondents.updated_at as waktu_selesai,
+			field_responses.form_field_id,
+			field_responses.answer
+		`).
+		// 1. Relasi dari Jawaban -> Transaksi Survei Responden
+		Joins("JOIN survey_respondents ON survey_respondents.id = field_responses.form_response_id").
+		// 2. Relasi dari Transaksi Survei -> Akun Responden (RT)
+		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
+		// 3. Tarik data wilayah milik Responden tersebut
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = respondents.kecamatan_id").
+		Joins("LEFT JOIN kelurahans ON kelurahans.id = respondents.kelurahan_id").
+		Joins("LEFT JOIN data__rws as rws ON rws.id = respondents.rw_id").
+		Joins("LEFT JOIN data__rts as rts ON rts.id = respondents.rt_id").
+		// 4. Filter bahwa ini adalah data untuk survei yang sedang di-export
+		Where("survey_respondents.survey_id = ?", surveyID).
+		Where("survey_respondents.status = ?", 2) // Pastikan tipe data status Anda benar integer/smallint 2
+
+	// 5. Filter Kewilayahan: Karena semua responden adalah RT, kita tinggal mengecek
+	// wilayah parent-nya berdasarkan level yang direquest.
+	switch level {
+	case 5: // KECAMATAN
+		query = query.Where("respondents.kecamatan_id = ?", wilayahID)
+	case 4: // KELURAHAN
+		query = query.Where("respondents.kelurahan_id = ?", wilayahID)
+	case 3: // RW
+		query = query.Where("respondents.rw_id = ?", wilayahID)
+	case 2: // RT
+		query = query.Where("respondents.rt_id = ?", wilayahID)
+	}
+
+	err := query.Find(&results).Error
+	return results, err
+}
+
+func (repository *surveyRepo) GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error) {
+	var wilayahs []models.SurveyWilayah
+	err := repository.dbSlave.Where("survey_id = ?", surveyId).Find(&wilayahs).Error
+	return wilayahs, err
+}
+
+func (repository *surveyRepo) GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error) {
+	var surveyors []models.SurveySurveyor
+	err := repository.dbSlave.Where("survey_id = ?", surveyId).Find(&surveyors).Error
+	return surveyors, err
 }

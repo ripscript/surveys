@@ -6,7 +6,6 @@ import "fmt"
 var Whitelist = map[string]map[string]bool{
 	"/login":             {"POST": true},
 	"/userapi/healthy":   {"GET": true},
-	"/docapi/healthy":    {"GET": true},
 	"/reportapi/healthy": {"GET": true},
 
 	"/kecamatan/options": {"GET": true},
@@ -14,11 +13,16 @@ var Whitelist = map[string]map[string]bool{
 	"/rw/options":        {"GET": true},
 	"/rt/options":        {"GET": true},
 
+	// DOCAPI SERVICE
+	"/docapi/healthy":                 {"GET": true},
+	"/view-public-survey-image/:path": {"GET": true},
+
 	// MASTERAPI SERVICE
 	"/masterapi/healthy": {"GET": true},
 
 	// SURVEYAPI SERVICE
 	"/surveyapi/healthy": {"GET": true},
+	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": true},
 	// Tambahkan URL dan metode lainnya sesuai kebutuhan Anda
 }
 

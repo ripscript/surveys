@@ -167,6 +167,15 @@ type Surveyor struct {
 	Name string `json:"name"`
 }
 
+type SurveyorOptions struct {
+	ID   int    `json:"value"`
+	Name string `json:"label"`
+}
+
+func (u *SurveyorOptions) TableName() string {
+	return "respondents"
+}
+
 func (u *RespondentOptions) TableName() string {
 	return "respondents"
 }

@@ -239,6 +239,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.CreateSurvey,
 		MenuKey: "list-survey",
 	}},
+	"/survey/detail/:survey_code": {"GET": {
+		Handler: surveyHandler.DetailSurvey,
+		MenuKey: "list-survey",
+	}},
 	"/survey/periode-options": {"GET": {
 		Handler: surveyHandler.OptionsPeriodeSurvey,
 		MenuKey: "list-survey",
@@ -249,6 +253,14 @@ var grpcMap = map[string]map[string]RouteConfig{
 	}},
 	"/survey/approval/:code": {"POST": {
 		Handler: surveyHandler.ApprovalSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/history-approval/survey/:survey_code": {"GET": {
+		Handler: surveyHandler.GetHistoryApprovalSurvey,
+		MenuKey: "list-survey",
+	}},
+	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": {
+		Handler: surveyHandler.GetPublicImageSurvey,
 		MenuKey: "list-survey",
 	}},
 
@@ -276,15 +288,6 @@ var grpcMap = map[string]map[string]RouteConfig{
 		MenuKey: "survey-kewilayahan",
 	}},
 
-	"/survey-wilayah/approval-history/:survey_code": {"GET": {
-		Handler: surveyHandler.GetApprovalHistorySurvey,
-		MenuKey: "survey-kewilayahan",
-	}},
-	"/survey-wilayah/history-detail/:survey_code": {"GET": {
-		Handler: surveyHandler.GetHistoryDetail,
-		MenuKey: "survey-kewilayahan",
-	}},
-
 	"/survey-kewilayahan/list": {"GET": {
 		Handler: surveyHandler.GetSurveyKewilayahan,
 		MenuKey: "survey-kewilayahan",
@@ -301,14 +304,39 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.SurveyResultSectionDetail,
 		MenuKey: "survey-kewilayahan",
 	}},
-	// "/survey-kewilayahan/survey/:survey_code/result-index/:code/section/:section_code/verify": {"PUT": {
-	// 	Handler: surveyHandler.VerifySurveyAnswers,
-	// 	MenuKey: "survey-kewilayahan",
-	// }},
-	// "/survey-kewilayahan/survey/:survey_code/result-index/:code/section/:section_code/reject": {"PUT": {
-	// 	Handler: surveyHandler.RejectSurveyAnswers,
-	// 	MenuKey: "survey-kewilayahan",
-	// }},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-verify": {"PUT": {
+		Handler: surveyHandler.VerifySurveyAnswers,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-verify": {"PUT": {
+		Handler: surveyHandler.RejectSurveyAnswers,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-validate": {"PUT": {
+		Handler: surveyHandler.RejectValidateSurveyAnswers,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-validate": {"PUT": {
+		Handler: surveyHandler.ValidateSurveyAnswers,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/approval-history/survey/:survey_code/wilayah/:code_wilayah": {"GET": {
+		Handler: surveyHandler.GetApprovalHistorySurvey,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/history-detail/survey/:survey_code/wilayah/:code_wilayah": {"GET": {
+		Handler: surveyHandler.GetHistoryDetailPerWilayah,
+		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/survey-kewilayahan/export-excel/survey/:survey_code/wilayah/:code_wilayah": {"GET": {
+		Handler: surveyHandler.ExportExcelSurveyResultsPerRT,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/export-excel/survey/:survey_code": {"GET": {
+		Handler: surveyHandler.ExportExcelSurveyResultsMassal,
+		MenuKey: "survey-kewilayahan",
+	}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

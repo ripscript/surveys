@@ -23,6 +23,7 @@ func (u *Kecamatan) TableName() string {
 }
 
 type KecamatanDatatableResponse struct {
+	No              int64          `json:"no"`
 	ID              int64          `json:"id"`
 	SubDistrictName string         `json:"sub_district_name"`
 	SubDistrictSlug string         `json:"sub_district_slug"`

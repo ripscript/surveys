@@ -105,7 +105,7 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		Role:         respondent.RoleID,
 		Permissions:  permMap,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * time.Hour)),
 		},
 	}
 

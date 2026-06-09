@@ -13,7 +13,7 @@ type SurveyRequest struct {
 	Deskripsi                string                  `json:"description" validate:"required"`
 	Alur                     string                  `json:"flow_detail_code" validate:"required"`
 	RespondenSurvey          int                     `json:"responden_survey" validate:"required,oneof=1 2"`
-	TingkatPelaksanaan       int                     `json:"tingkat_pelaksanaan_id" validate:"required,gt=0"`
+	TingkatPelaksanaan       *int                    `json:"tingkat_pelaksanaan_id,omitempty" validate:"omitempty"`
 	Kecamatan                []int64                 `json:"kecamatan_ids"`
 	Kelurahan                []int64                 `json:"kelurahan_ids"`
 	RW                       []int64                 `json:"rw_ids"`
@@ -27,6 +27,11 @@ type SurveyDatatablePayload struct {
 	OrderBy       string `json:"order_by"`
 	OrderDir      string `json:"order_dir"`
 	SurveyDiikuti bool   `json:"survey_diikuti"`
+
+	Status     string `json:"status" validate:"omitempty,oneof=upcoming ongoing finished"`
+	IsApproval bool   `json:"is_approval" validate:"omitempty"`
+	StartDate  string `json:"start_date" validate:"omitempty,datetime=2006-01-02"`
+	EndDate    string `json:"end_date" validate:"omitempty,datetime=2006-01-02"`
 }
 
 type ApprovalSurveyRequest struct {
@@ -112,11 +117,11 @@ type DetailSurveyKewilayahanDatatablePayload struct {
 }
 
 // KEBUTUHAN VERIFIKASI ATAU VALIDASI SURVEY ===============================>
-type ApproveAllSurveyAnswersPayload struct {
-	Answers []ApproveSurveyAnswerItem `json:"answers" validate:"required,dive"`
+type VerifyAllSurveyAnswersPayload struct {
+	Answers []VerifySurveyAnswerItem `json:"answers" validate:"required,dive"`
 }
 
-type ApproveSurveyAnswerItem struct {
+type VerifySurveyAnswerItem struct {
 	QuestionID    int           `json:"question_id" validate:"required"`
 	Type          string        `json:"type" validate:"required"`
 	GroupID       *int          `json:"group_id"`

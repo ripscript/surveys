@@ -40,3 +40,10 @@ type ImportRespondents struct {
 type CreateRespondent struct {
 	Respondent []UpdateRespondents `json:"respondent"`
 }
+
+type SurveyorOptionsPayload struct {
+	Q     string  `form:"q" query:"q"`
+	Page  int     `form:"page" query:"page"`
+	Limit int     `form:"limit" query:"limit"`
+	IDs   []int64 `form:"id[]" query:"id[]"`
+}
