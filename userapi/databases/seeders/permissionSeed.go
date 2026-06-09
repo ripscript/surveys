@@ -13,7 +13,7 @@ func PermissionSeed(db *gorm.DB) error {
 		"admin", "template-pertanyaan", "template-ucapan", "survey", "management-pengguna", "manage-wilayah",
 		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
 		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
-		"artikel", "promote", "kategori",
+		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan", "pengelola-survey",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -49,22 +49,27 @@ func PermissionSeed(db *gorm.DB) error {
 
 	type P = models.MenuPermission
 	var (
-		beranda          = menuIDs.Beranda
-		masterData       = menuIDs.MasterData
-		pengaturan       = menuIDs.Pengaturan
-		respondent       = menuIDs.ManajemenResponden
-		pengguna         = menuIDs.ManajemenPengguna
-		ucapan           = menuIDs.Ucapan
-		formulir         = menuIDs.FormulirPertanyaan
-		alur             = menuIDs.ManajemenAlur
-		ManajemenWilayah = menuIDs.ManajemenWilayah
-		Surveys          = menuIDs.Surveys
-		category         = menuIDs.Kategori
-		promote          = menuIDs.Promote
-		artikel          = menuIDs.ManajemenArtikel
-		pejabat          = menuIDs.ManajemenPejabat
-		mUser            = menuIDs.ManajemenUser
-		mWilayah         = menuIDs.ManajemenWilayahChild
+		beranda            = menuIDs.Beranda
+		masterData         = menuIDs.MasterData
+		pengaturan         = menuIDs.Pengaturan
+		respondent         = menuIDs.ManajemenResponden
+		pengguna           = menuIDs.ManajemenPengguna
+		ucapan             = menuIDs.Ucapan
+		formulir           = menuIDs.FormulirPertanyaan
+		alur               = menuIDs.ManajemenAlur
+		ManajemenWilayah   = menuIDs.ManajemenWilayah
+		ManajemenResponden = menuIDs.ManajemenResponden
+		Surveys            = menuIDs.Surveys
+		category           = menuIDs.Kategori
+		ListSurvey         = menuIDs.ListSurvey
+		promote            = menuIDs.Promote
+		artikel            = menuIDs.ManajemenArtikel
+		pejabat            = menuIDs.ManajemenPejabat
+		mUser              = menuIDs.ManajemenUser
+		mWilayah           = menuIDs.ManajemenWilayahChild
+		profile            = menuIDs.Profile
+		SurveyKewilayahan  = menuIDs.SurveyKewilayahan
+		PengelolaSurvey    = menuIDs.PengelolaSurvey
 
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
@@ -78,9 +83,34 @@ func PermissionSeed(db *gorm.DB) error {
 	)
 
 	MenuPermission := []P{
+
+		viewOnly(PengelolaSurvey, public), viewOnly(PengelolaSurvey, rt), viewOnly(PengelolaSurvey, rw), viewOnly(PengelolaSurvey, lurah),
+		viewOnly(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
+		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
+
+		// Survey Kewilayahan
+		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), viewOnly(SurveyKewilayahan, rw), viewOnly(SurveyKewilayahan, lurah),
+		viewOnly(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
+		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
+
+		// List Survey
+		full(profile, public), full(profile, rt), full(profile, rw), full(profile, lurah),
+		full(profile, camat), full(profile, pemkot), full(profile, admin),
+		full(profile, surveyor), full(profile, walikota),
+
+		// List Survey
+		none(ListSurvey, public), none(ListSurvey, rt), none(ListSurvey, rw), none(ListSurvey, lurah),
+		full(ListSurvey, camat), none(ListSurvey, pemkot), full(ListSurvey, admin),
+		none(ListSurvey, surveyor), none(ListSurvey, walikota),
+
+		// Manajemen Responden
+		none(ManajemenResponden, public), viewOnly(ManajemenResponden, rt), viewOnly(ManajemenResponden, rw), viewOnly(ManajemenResponden, lurah),
+		viewOnly(ManajemenResponden, camat), none(ManajemenResponden, pemkot), full(ManajemenResponden, admin),
+		none(ManajemenResponden, surveyor), none(ManajemenResponden, walikota),
+
 		// Manajemen Wilayah
-		none(ManajemenWilayah, public), none(ManajemenWilayah, rt), none(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
-		none(ManajemenWilayah, camat), none(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
+		none(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
+		viewOnly(ManajemenWilayah, camat), none(ManajemenWilayah, pemkot), viewOnly(ManajemenWilayah, admin),
 		none(ManajemenWilayah, surveyor), none(ManajemenWilayah, walikota),
 
 		// Beranda
@@ -220,7 +250,11 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		Artikel:               m["artikel"],
 		Promote:               m["promote"],
 		Kategori:              m["kategori"],
+		ListSurvey:            m["list-survey"],
 		MasterData:            m["master-data"],
+		Profile:               m["profile"],
+		SurveyKewilayahan:     m["survey-kewilayahan"],
+		PengelolaSurvey:       m["pengelola-survey"],
 	}
 }
 
