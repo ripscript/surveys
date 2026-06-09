@@ -109,8 +109,8 @@ func PermissionSeed(db *gorm.DB) error {
 		none(ManajemenResponden, surveyor), none(ManajemenResponden, walikota),
 
 		// Manajemen Wilayah
-		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), viewOnly(ManajemenWilayah, lurah),
-		viewOnly(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), viewOnly(ManajemenWilayah, admin),
+		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
+		full(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
 		viewOnly(ManajemenWilayah, surveyor), viewOnly(ManajemenWilayah, walikota),
 
 		// Beranda
