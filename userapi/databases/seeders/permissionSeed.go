@@ -184,9 +184,9 @@ func PermissionSeed(db *gorm.DB) error {
 		none(mUser, surveyor), none(mUser, walikota),
 
 		// Manajemen Wilayah
-		none(mWilayah, public), none(mWilayah, rt), none(mWilayah, rw), full(mWilayah, lurah),
-		none(mWilayah, camat), none(mWilayah, pemkot), full(mWilayah, admin),
-		none(mWilayah, surveyor), none(mWilayah, walikota),
+		viewOnly(mWilayah, public), viewOnly(mWilayah, rt), viewOnly(mWilayah, rw), full(mWilayah, lurah),
+		full(mWilayah, camat), viewOnly(mWilayah, pemkot), full(mWilayah, admin),
+		viewOnly(mWilayah, surveyor), viewOnly(mWilayah, walikota),
 	}
 
 	err = db.Clauses(clause.OnConflict{
