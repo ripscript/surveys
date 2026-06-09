@@ -83,6 +83,8 @@ type MenuIDs struct {
 	Promote               int
 	Kategori              int
 	MasterData            int
+	ListSurvey            int
+	Profile               int
 }
 
 type RoleIDs struct {
