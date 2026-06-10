@@ -1679,8 +1679,8 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 					return utils.SendError(errors.New("Jumlah foto tidak sesuai ketentuan"), http.StatusBadRequest)
 				}
 
-				availableMime := []string{"image/png", "image/jpg", "image/jpeg"}
-				availablesExt := []string{".png", ".jpg", ".jpeg"}
+				availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp"}
+				availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif"}
 				maxSizeInKB := float64(5120)
 				var uploadedPaths []string
 
@@ -1690,6 +1690,11 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 						if err != nil {
 							return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
 						}
+
+						spew.Dump(availablesExt)
+						spew.Dump(base64Data.Extension)
+						spew.Dump(availableMime)
+						spew.Dump(base64Data.MimeType)
 
 						if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
 							return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
@@ -3271,8 +3276,8 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 
 		var finalResponses []models.FieldResponse
 		gatewayURL := os.Getenv("API_GATEWAY_URL") + "/view-survey-image/"
-		availableMime := []string{"image/png", "image/jpg", "image/jpeg"}
-		availablesExt := []string{".png", ".jpg", ".jpeg"}
+		availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp"}
+		availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif"}
 		maxSizeInKB := float64(5120)
 
 		for _, ans := range payload.Answers {
