@@ -62,6 +62,8 @@ type SurveyService interface {
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	ResetStatusToVerifySurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -2467,8 +2469,64 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 		switch *payload.TipeWilayah {
 		case 0:
 			return utils.SendError(errors.New("Tipe wilayah harus diisi"), http.StatusBadRequest)
+		case 5:
+			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+			}
+
+			data, err := service.wilayahRepo.GetDaftarKecamatan(ctx, payloads.DatatablePayload{
+				Search:   payload.Search,
+				Page:     payload.Page,
+				Limit:    payload.Limit,
+				OrderBy:  payload.OrderBy,
+				OrderDir: payload.OrderDir,
+			})
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+
+			metaTotal = data.Meta.Total
+			metaPage = data.Meta.Page
+			metaLimit = data.Meta.Limit
+			metaTotalPages = data.Meta.TotalPages
+
+			if len(data.Data) > 0 {
+				var extractedKecamatanIds []int64
+				for _, kecamatan := range data.Data {
+					extractedKecamatanIds = append(extractedKecamatanIds, kecamatan.ID)
+				}
+
+				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkKecamatan(ctx, int64(survey.ID), extractedKecamatanIds, int64(usr.Role))
+
+				for _, kecamatan := range data.Data {
+					wilayahId := []int{int(kecamatan.ID)}
+
+					kodeWilayah, err := h.Encode(wilayahId)
+					if err != nil {
+						return utils.SendError(err, http.StatusInternalServerError)
+					}
+					newKecamatan := response.DetailSurveyKewilayahanResponse{
+						No:              kecamatan.No,
+						ID:              kecamatan.ID,
+						NamaWilayah:     kecamatan.SubDistrictName,
+						IsPosibleDetail: true,
+						Code:            kodeWilayah,
+					}
+
+					if usr.Role == int(enums.ROLE_ADMIN) {
+						newKecamatan.IsPosibleBackAccess = true
+					}
+
+					if statusStr, exists := statusMap[kecamatan.ID]; exists {
+						val := statusStr
+						newKecamatan.Status = val
+					}
+
+					finalData = append(finalData, newKecamatan)
+				}
+			}
 		case 4:
-			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2476,7 +2534,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
 				if *payload.KecamatanId == 0 {
-					return utils.SendError(errors.New("Kecamatan ID harus diisi untuk tipe wilayah Kecamatan"), http.StatusBadRequest)
+					return utils.SendError(errors.New("Kecamatan Code harus diisi untuk tipe wilayah Kecamatan"), http.StatusBadRequest)
 				}
 				KecamatanId = *payload.KecamatanId
 			} else {
@@ -2505,7 +2563,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 					extractedKelurahanIds = append(extractedKelurahanIds, kelurahan.ID)
 				}
 
-				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkKelurahan(ctx, int64(survey.ID), extractedKelurahanIds)
+				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkKelurahan(ctx, int64(survey.ID), extractedKelurahanIds, int64(usr.Role))
 
 				for _, kelurahan := range data.Data {
 					wilayahId := []int{int(kelurahan.ID)}
@@ -2522,6 +2580,10 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						Code:            kodeWilayah,
 					}
 
+					if usr.Role == int(enums.ROLE_ADMIN) {
+						newKelurahan.IsPosibleBackAccess = true
+					}
+
 					if statusStr, exists := statusMap[kelurahan.ID]; exists {
 						val := statusStr
 						newKelurahan.Status = val
@@ -2531,7 +2593,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 3:
-			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2539,7 +2601,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 			if *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
 				if *payload.KelurahanId == 0 {
-					return utils.SendError(errors.New("Kelurahan ID harus diisi untuk tipe wilayah Kelurahan"), http.StatusBadRequest)
+					return utils.SendError(errors.New("Kelurahan Code harus diisi untuk tipe wilayah Kelurahan"), http.StatusBadRequest)
 				}
 				kelurahanId = *payload.KelurahanId
 			} else {
@@ -2585,6 +2647,10 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						Code:            kodeWilayah,
 					}
 
+					if usr.Role == int(enums.ROLE_ADMIN) {
+						newRw.IsPosibleBackAccess = true
+					}
+
 					if statusStr, exists := statusMap[rw.ID]; exists {
 						val := statusStr
 						newRw.Status = val
@@ -2594,7 +2660,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 2:
-			if *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2602,7 +2668,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 			if *respondentLogin.RoleId != int64(enums.ROLE_RW) {
 				if *payload.RWId == 0 {
-					return utils.SendError(errors.New("RW ID harus diisi untuk tipe wilayah RW"), http.StatusBadRequest)
+					return utils.SendError(errors.New("RW Code harus diisi untuk tipe wilayah RW"), http.StatusBadRequest)
 				}
 				rwId = *payload.RWId
 			} else {
@@ -2645,6 +2711,10 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						ID:          rt.ID,
 						NamaWilayah: rt.NamaRt,
 						Code:        kodeWilayah,
+					}
+
+					if usr.Role == int(enums.ROLE_ADMIN) {
+						newRt.IsPosibleBackAccess = true
 					}
 
 					if statusStr, exists := statusMap[rt.ID]; exists {
@@ -4573,4 +4643,79 @@ func (service *surveyService) ExportExcelSurveyResultsMassal(ctx context.Context
 
 	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 	return utils.SetResponseData(buffer.Bytes(), true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *surveyService) ResetStatusToVerifySurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type payloadStruct struct {
+		TipeWilayah int `json:"tipe_wilayah" validate:"required,oneof=2 3 4 5"`
+	}
+
+	var payload payloadStruct
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, _ := hashids.NewWithData(hd)
+
+	codeStr, ok1 := slug["survey_code"].(string)
+	codeWilayahStr, ok2 := slug["code_wilayah"].(string)
+	if !ok1 || !ok2 {
+		return utils.SendError(errors.New("Parameter URL tidak valid"), http.StatusBadRequest)
+	}
+
+	decodedSurveyIDs, _ := h.DecodeWithError(codeStr)
+	decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
+	if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+		return utils.SendError(errors.New("Kode URL tidak valid atau dimanipulasi"), http.StatusBadRequest)
+	}
+
+	surveyID := int64(decodedSurveyIDs[0])
+	wilayahID := int64(decodedWilayahIDs[0])
+
+	// Validasi apakah Survey ada
+	_, err = service.surveyRepo.GetSurveyById(surveyID)
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// Tentukan kolom relasi wilayah berdasarkan TipeWilayah yang dikirim
+	var wilayahColumn string
+	switch payload.TipeWilayah {
+	case 2:
+		wilayahColumn = "rt_id"
+	case 3:
+		wilayahColumn = "rw_id"
+	case 4:
+		wilayahColumn = "kelurahan_id"
+	case 5:
+		wilayahColumn = "kecamatan_id"
+	default:
+		return utils.SendError(errors.New("Tipe wilayah tidak dikenali"), http.StatusBadRequest)
+	}
+
+	// Eksekusi Bulk Update ke Database
+	err = service.surveyRepo.ResetSurveyRespondentStatus(ctx, surveyID, wilayahColumn, wilayahID)
+	if err != nil {
+		// Log error jika diperlukan (menggunakan spew/logger)
+		return utils.SendError(errors.New("Gagal mereset status responden, silakan coba lagi"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Status responden di wilayah tersebut berhasil direset ke mode verifikasi")
 }

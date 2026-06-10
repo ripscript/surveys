@@ -24,6 +24,7 @@ type WilayahRepo interface {
 	GetDaftarRT(ctx context.Context, rw_id int64, payload payloads.DatatablePayload) (response.RTDatatableResponse, error)
 	GetDaftarRW(ctx context.Context, kelurahan_id int64, payload payloads.DatatablePayload) (response.RWDatatableResponse, error)
 	GetDaftarKelurahan(ctx context.Context, kecamatan_id int64, payload payloads.DatatablePayload) (response.KelurahanDatatableResponse, error)
+	GetDaftarKecamatan(ctx context.Context, payload payloads.DatatablePayload) (response.KecamatanDatatableResponse, error)
 }
 
 type wilayahRepo struct {
@@ -184,6 +185,31 @@ func (repository *wilayahRepo) GetDaftarKelurahan(ctx context.Context, kecamatan
 	var data response.KelurahanDatatableResponse
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
 		return response.KelurahanDatatableResponse{}, errors.New("Gagal memparsing data daftar Kelurahan dari MasterAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *wilayahRepo) GetDaftarKecamatan(ctx context.Context, payload payloads.DatatablePayload) (response.KecamatanDatatableResponse, error) {
+	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
+
+	newSlug := map[string]interface{}{
+		"search":    payload.Search,
+		"page":      strconv.Itoa(payload.Page),
+		"limit":     strconv.Itoa(payload.Limit),
+		"order_by":  payload.OrderBy,
+		"order_dir": payload.OrderDir,
+	}
+
+	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kecamatan/list", newSlug, nil)
+	if err != nil {
+		spew.Dump(err)
+		return response.KecamatanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kecamatan dari MasterAPI")
+	}
+
+	var data response.KecamatanDatatableResponse
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return response.KecamatanDatatableResponse{}, errors.New("Gagal memparsing data daftar Kecamatan dari MasterAPI")
 	}
 
 	return data, nil
