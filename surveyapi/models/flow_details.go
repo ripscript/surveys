@@ -41,9 +41,11 @@ type FlowDetailDatatableResponse struct {
 }
 
 type FlowPreview struct {
-	FlowName   string `json:"flow_name"`
-	FlowCode   string `json:"flow_code"`
-	HasSection bool   `json:"has_section"`
+	FlowName          string  `json:"flow_name"`
+	FlowCode          string  `json:"flow_code"`
+	SurveyName        string  `json:"survey_name"`
+	SurveyDescription *string `json:"survey_description"`
+	HasSection        bool    `json:"has_section"`
 	// Status     int                  `json:"status"`
 	Sections []FlowPreviewSection `json:"sections"`
 }

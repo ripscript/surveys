@@ -1003,10 +1003,12 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 	}
 
 	data := models.FlowPreview{
-		FlowCode:   flowCode,
-		FlowName:   flowDetail.Name,
-		HasSection: hasSectionBool,
-		Sections:   sections,
+		FlowCode:          flowCode,
+		FlowName:          flowDetail.Name,
+		HasSection:        hasSectionBool,
+		Sections:          sections,
+		SurveyName:        survey.Name,
+		SurveyDescription: &survey.Deskripsi,
 	}
 
 	return utils.SendData(data, "Berhasil mengambil data untuk preview survey")
