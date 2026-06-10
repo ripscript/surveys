@@ -48,7 +48,8 @@ type SurveyRepo interface {
 
 	GetStatusKeterisianBulkRT(ctx context.Context, surveyID int64, rtIDs []int64) (map[int64]string, error)
 	GetStatusKeterisianBulkRW(ctx context.Context, surveyID int64, rwIDs []int64) (map[int64]string, error)
-	GetStatusKeterisianBulkKelurahan(ctx context.Context, surveyID int64, kelurahanIDs []int64) (map[int64]string, error)
+	GetStatusKeterisianBulkKelurahan(ctx context.Context, surveyID int64, kelurahanIDs []int64, loginRoleID int64) (map[int64]string, error)
+	GetStatusKeterisianBulkKecamatan(ctx context.Context, surveyID int64, kecamatanIDs []int64, loginRoleID int64) (map[int64]string, error)
 	GetRespondentSurveyByRTId(ctx context.Context, surveyID int64, rtID int64) (*models.SurveyRespondent, error)
 
 	WipeAndReplaceAllFieldResponses(ctx context.Context, respondentID int64, newResponses []models.FieldResponse) error
@@ -72,6 +73,7 @@ type SurveyRepo interface {
 
 	GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error)
 	GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error)
+	ResetSurveyRespondentStatus(ctx context.Context, surveyID int64, wilayahColumn string, wilayahID int64) error
 }
 
 type surveyRepo struct {
@@ -195,9 +197,6 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 		db = db.Where("surveys.created_by = ?", userLogin.ID)
 	}
 
-	// ==========================================
-	// 🆕 FILTER OPSIONAL (OVERLAP DATE RANGE LOGIC)
-	// ==========================================
 	if req.Status != "" {
 		db = db.Where("surveys.status = ?", req.Status)
 	}
@@ -207,18 +206,12 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 	}
 
 	if req.StartDate != "" && req.EndDate != "" {
-		// LOGIKA OVERLAP (IRISAN WAKTU)
-		// Survei mulai SEBELUM atau PAS filter End Date, DAN
-		// Survei selesai SESUDAH atau PAS filter Start Date
 		db = db.Where("DATE(surveys.start_date) <= DATE(?) AND DATE(surveys.end_date) >= DATE(?)", req.EndDate, req.StartDate)
 	} else if req.StartDate != "" {
-		// Jika hanya difilter Start Date: Cari survei yang akhir-nya belum lewat dari Start Date pencarian
 		db = db.Where("DATE(surveys.end_date) >= DATE(?)", req.StartDate)
 	} else if req.EndDate != "" {
-		// Jika hanya difilter End Date: Cari survei yang mulai-nya sebelum End Date pencarian
 		db = db.Where("DATE(surveys.start_date) <= DATE(?)", req.EndDate)
 	}
-	// ==========================================
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -603,7 +596,6 @@ func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx
 
 	var count int64
 
-	// Ekstrak ID wilayah dengan aman untuk menghindari panic nil pointer
 	var kecId, kelId, rwId int64
 	if respondent.KecamatanId != nil {
 		kecId = *respondent.KecamatanId
@@ -615,7 +607,6 @@ func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx
 		rwId = *respondent.RWId
 	}
 
-	// Query validasi hierarkis (Universal vs Spesifik Wilayah)
 	err := db.WithContext(ctx).Table("surveys").
 		Where("surveys.id = ?", surveyID).
 		Where(`
@@ -637,7 +628,6 @@ func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx
 		return false, err
 	}
 
-	// Jika count > 0, berarti responden berhak (eligible)
 	return count > 0, nil
 }
 
@@ -677,7 +667,6 @@ func (repository *surveyRepo) UpdateStatusSurvey(ctx context.Context, tx *gorm.D
 		db = db.WithContext(ctx)
 	}
 
-	// Hanya meng-update kolom "status" pada record yang spesifik
 	return db.Model(&models.SurveyRespondent{}).
 		Where("id = ?", formResponseID).
 		Update("status", updatedStatus).Error
@@ -700,7 +689,6 @@ func (r *surveyRepo) GetUnansweredRequiredCount(tx *gorm.DB, respondentID int64,
 		return 0, err
 	}
 
-	// 2. Hitung berapa banyak soal wajib yang sudah dijawab oleh responden ini
 	var answeredRequired int64
 	err = db.Table("field_responses").
 		Joins("JOIN form_fields ON field_responses.form_field_id = form_fields.id").
@@ -712,7 +700,6 @@ func (r *surveyRepo) GetUnansweredRequiredCount(tx *gorm.DB, respondentID int64,
 		return 0, err
 	}
 
-	// Sisanya adalah soal wajib yang belum dijawab
 	return int(totalRequired - answeredRequired), nil
 }
 
@@ -806,7 +793,6 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 
 	if respondentLogin.RoleId != nil {
 		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
-
 			var kecId, kelId, rwId int64
 			if respondentLogin.KecamatanId != nil {
 				kecId = *respondentLogin.KecamatanId
@@ -979,11 +965,9 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRW(ctx context.Context, sur
 		TotalValidated   int
 	}
 
-	// 1. Cek apakah survei ini memiliki spesifik wilayah (Targeted) atau tidak (Universal)
 	var countWilayah int64
 	repository.dbSlave.Table("survey_wilayahs").Where("survey_id = ?", surveyID).Count(&countWilayah)
 
-	// Mulai merakit Query utama
 	query := repository.dbSlave.Table("survey_respondents").
 		Select(`
 			respondents.rw_id, 
@@ -993,12 +977,8 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRW(ctx context.Context, sur
 		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
 		Where("survey_respondents.survey_id = ?", surveyID).
 		Where("respondents.rw_id IN ?", rwIDs).
-		// 🆕 PENGAMANAN ROLE: Hanya hitung jika respondennya sah (misal: Role ID = 2 untuk RT)
-		// Sesuaikan "enums.ROLE_RT" dengan role target responden survei Anda.
 		Where("respondents.role_id = ?", int64(enums.ROLE_RT))
 
-	// 2. Jika survei bersifat Targeted (ada record di survey_wilayahs)
-	// Pastikan hanya menghitung responden yang kecocokan wilayahnya terdaftar di survey_wilayahs
 	if countWilayah > 0 {
 		query = query.Where(`
 			EXISTS (
@@ -1011,7 +991,6 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRW(ctx context.Context, sur
 		`)
 	}
 
-	// Eksekusi akhir query dengan Group By
 	err := query.Group("respondents.rw_id").Find(&results).Error
 
 	if err != nil {
@@ -1020,18 +999,14 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRW(ctx context.Context, sur
 
 	statusMap := make(map[int64]string)
 
-	// 1. SET DEFAULT: Berikan nilai "Tidak ada responden" untuk semua RW di halaman ini
 	for _, rwID := range rwIDs {
 		statusMap[rwID] = "Tidak ada responden"
 	}
 
-	// 2. TIMPA STATUS: Evaluasi berdasarkan perbandingan jumlah aggregasi
 	for _, res := range results {
-		// Jika jumlah total responden SAMA DENGAN jumlah responden yang sudah divalidasi lurah
 		if res.TotalRespondents == res.TotalValidated {
 			statusMap[res.RwId] = "Selesai"
 		} else {
-			// Jika ada selisih (berarti ada minimal 1 yang belum divalidasi lurah)
 			statusMap[res.RwId] = "Sedang Proses Verifikasi dan Validasi"
 		}
 	}
@@ -1039,36 +1014,96 @@ func (repository *surveyRepo) GetStatusKeterisianBulkRW(ctx context.Context, sur
 	return statusMap, nil
 }
 
-func (repository *surveyRepo) GetStatusKeterisianBulkKelurahan(ctx context.Context, surveyID int64, kelurahanIDs []int64) (map[int64]string, error) {
-	// Struct penampung hasil agregasi dari database
+func (repository *surveyRepo) GetStatusKeterisianBulkKelurahan(ctx context.Context, surveyID int64, kelurahanIDs []int64, loginRoleID int64) (map[int64]string, error) {
 	var results []struct {
 		KelurahanId      int64
 		TotalRespondents int
 		TotalValidated   int
 	}
 
-	// 1. Cek apakah survei ini memiliki spesifik wilayah (Targeted) atau tidak (Universal)
 	var countWilayah int64
 	repository.dbSlave.Table("survey_wilayahs").Where("survey_id = ?", surveyID).Count(&countWilayah)
 
-	// Mulai merakit Query utama
 	query := repository.dbSlave.Table("survey_respondents").
 		Select(`
-			respondents.kelurahan_id as kelurahan_id, 
-			COUNT(survey_respondents.id) as total_respondents, 
+			respondents.kelurahan_id as kelurahan_id,
+			COUNT(survey_respondents.id) as total_respondents,
 			COUNT(CASE WHEN survey_respondents.status_approval = 'validated_lurah' THEN 1 END) as total_validated
 		`).
 		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
 		Where("survey_respondents.survey_id = ?", surveyID).
-		Where("respondents.kelurahan_id IN ?", kelurahanIDs).
-		// 🆕 PENGAMANAN ROLE: Hanya hitung jika respondennya sah menjabat
-		// Catatan: Jika survei ini diisi oleh RW, gunakan enums.ROLE_RW.
-		// Jika diisi oleh RT, ganti menjadi enums.ROLE_RT.
-		Where("respondents.role_id = ?", int64(enums.ROLE_RW))
+		Where("respondents.role_id = ?", int64(enums.ROLE_RT))
 
-	// 2. Jika survei bersifat Targeted (ada record di survey_wilayahs)
-	// Pastikan hanya menghitung responden yang kecocokan wilayahnya terdaftar di survey_wilayahs
-	if countWilayah > 0 {
+	if len(kelurahanIDs) > 0 {
+		query = query.Where("respondents.kelurahan_id IN ?", kelurahanIDs)
+	}
+
+	if countWilayah > 0 && loginRoleID != int64(enums.ROLE_ADMIN) {
+		query = query.Where(`
+			EXISTS (
+				SELECT 1 FROM survey_wilayahs sw
+				WHERE sw.survey_id = survey_respondents.survey_id
+				AND sw.kecamatan_id = respondents.kecamatan_id
+				AND (sw.kelurahan_id IS NULL OR sw.kelurahan_id = respondents.kelurahan_id)
+				AND (sw.rw_id IS NULL OR sw.rw_id = respondents.rw_id)
+			)
+		`)
+	}
+
+	err := query.Group("respondents.kelurahan_id").Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	statusMap := make(map[int64]string)
+
+	if len(kelurahanIDs) > 0 {
+		for _, kelurahanID := range kelurahanIDs {
+			statusMap[kelurahanID] = "Tidak ada responden"
+		}
+	}
+
+	for _, res := range results {
+		if res.TotalRespondents == 0 {
+			statusMap[res.KelurahanId] = "Tidak ada responden"
+			continue
+		}
+
+		if res.TotalRespondents == res.TotalValidated {
+			statusMap[res.KelurahanId] = "Selesai"
+		} else {
+			statusMap[res.KelurahanId] = "Sedang Proses Verifikasi dan Validasi"
+		}
+	}
+
+	return statusMap, nil
+}
+
+func (repository *surveyRepo) GetStatusKeterisianBulkKecamatan(ctx context.Context, surveyID int64, kecamatanIDs []int64, loginRoleID int64) (map[int64]string, error) {
+	var results []struct {
+		KecamatanId      int64
+		TotalRespondents int
+		TotalValidated   int
+	}
+
+	var countWilayah int64
+	repository.dbSlave.Table("survey_wilayahs").Where("survey_id = ?", surveyID).Count(&countWilayah)
+
+	query := repository.dbSlave.Table("survey_respondents").
+		Select(`
+			respondents.kecamatan_id as kecamatan_id, 
+			COUNT(survey_respondents.id) as total_respondents, 
+			COUNT(CASE WHEN survey_respondents.status_approval = 'validated_camat' THEN 1 END) as total_validated
+		`).
+		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
+		Where("survey_respondents.survey_id = ?", surveyID).
+		Where("respondents.role_id = ?", int64(enums.ROLE_RT))
+
+	if len(kecamatanIDs) > 0 {
+		query = query.Where("respondents.kecamatan_id IN ?", kecamatanIDs)
+	}
+
+	if countWilayah > 0 && loginRoleID != int64(enums.ROLE_ADMIN) {
 		query = query.Where(`
 			EXISTS (
 				SELECT 1 FROM survey_wilayahs sw 
@@ -1080,8 +1115,7 @@ func (repository *surveyRepo) GetStatusKeterisianBulkKelurahan(ctx context.Conte
 		`)
 	}
 
-	// Eksekusi akhir query dengan Group By
-	err := query.Group("respondents.kelurahan_id").Find(&results).Error
+	err := query.Group("respondents.kecamatan_id").Find(&results).Error
 
 	if err != nil {
 		return nil, err
@@ -1089,19 +1123,22 @@ func (repository *surveyRepo) GetStatusKeterisianBulkKelurahan(ctx context.Conte
 
 	statusMap := make(map[int64]string)
 
-	// 1. SET DEFAULT: Berikan nilai "Tidak ada responden" untuk semua Kelurahan di halaman ini
-	for _, kelurahanID := range kelurahanIDs {
-		statusMap[kelurahanID] = "Tidak ada responden"
+	if len(kecamatanIDs) > 0 {
+		for _, kecamatanID := range kecamatanIDs {
+			statusMap[kecamatanID] = "Tidak ada responden"
+		}
 	}
 
-	// 2. TIMPA STATUS: Evaluasi berdasarkan perbandingan jumlah agregasi
 	for _, res := range results {
-		// Jika jumlah total responden SAMA DENGAN jumlah responden yang sudah divalidasi lurah
+		if res.TotalRespondents == 0 {
+			statusMap[res.KecamatanId] = "Tidak ada responden"
+			continue
+		}
+
 		if res.TotalRespondents == res.TotalValidated {
-			statusMap[res.KelurahanId] = "Selesai"
+			statusMap[res.KecamatanId] = "Selesai"
 		} else {
-			// Jika ada selisih (berarti ada minimal 1 yang belum divalidasi lurah)
-			statusMap[res.KelurahanId] = "Sedang Proses Verifikasi dan Validasi"
+			statusMap[res.KecamatanId] = "Sedang Proses Verifikasi dan Validasi"
 		}
 	}
 
@@ -1127,7 +1164,6 @@ func (repository *surveyRepo) GetRespondentSurveyByRTId(ctx context.Context, sur
 func (repository *surveyRepo) WipeAndReplaceAllFieldResponses(ctx context.Context, respondentID int64, newResponses []models.FieldResponse) error {
 	defer utils.GeneralRecover()
 
-	// Hapus total jawaban survei lama tanpa filter per section
 	err := repository.dbMaster.WithContext(ctx).
 		Where("form_response_id = ?", respondentID).
 		Delete(&models.FieldResponse{}).Error
@@ -1157,7 +1193,6 @@ func (repository *surveyRepo) CreateFlaggingEdit(ctx context.Context, flags []mo
 func (repository *surveyRepo) ResetFlaggingEditStatus(ctx context.Context, respondentID int64) error {
 	defer utils.GeneralRecover()
 
-	// Mengubah is_revisied menjadi 'false' untuk semua flagging milik responden ini
 	return repository.dbMaster.WithContext(ctx).
 		Table("flagging_edit_pertanyaan_surveys").
 		Where("survey_respondent_id = ?", respondentID).
@@ -1178,7 +1213,6 @@ func (repository *surveyRepo) UpdateRespondentApprovalStatus(ctx context.Context
 func (repository *surveyRepo) ClearAndCreateFlaggingEdit(ctx context.Context, respondentID int64, flags []models.FlaggingEditPertanyaanSurvey) error {
 	defer utils.GeneralRecover()
 
-	// 1. Hapus seluruh flagging lama milik responden ini agar tidak duplikat
 	err := repository.dbMaster.WithContext(ctx).
 		Where("survey_respondent_id = ?", respondentID).
 		Delete(&models.FlaggingEditPertanyaanSurvey{}).Error
@@ -1187,7 +1221,6 @@ func (repository *surveyRepo) ClearAndCreateFlaggingEdit(ctx context.Context, re
 		return err
 	}
 
-	// 2. Masukkan daftar pertanyaan baru yang harus direvisi (Bulk Insert)
 	if len(flags) > 0 {
 		err = repository.dbMaster.WithContext(ctx).Create(&flags).Error
 		if err != nil {
@@ -1320,7 +1353,6 @@ func (repository *surveyRepo) ValidateIsImageExists(ctx context.Context, tx *gor
 func (repository *surveyRepo) GetRawJawabanWilayahForExport(ctx context.Context, surveyID int64, level int, wilayahID int64) ([]dto.ExportRawJawabanWilayah, error) {
 	var results []dto.ExportRawJawabanWilayah
 
-	// Gunakan .Debug() sementara agar Anda bisa melihat raw SQL-nya di terminal jika masih kosong
 	query := repository.dbSlave.WithContext(ctx).Debug().Table("field_responses").
 		Select(`
 			survey_respondents.respondent_id,
@@ -1336,29 +1368,23 @@ func (repository *surveyRepo) GetRawJawabanWilayahForExport(ctx context.Context,
 			field_responses.form_field_id,
 			field_responses.answer
 		`).
-		// 1. Relasi dari Jawaban -> Transaksi Survei Responden
 		Joins("JOIN survey_respondents ON survey_respondents.id = field_responses.form_response_id").
-		// 2. Relasi dari Transaksi Survei -> Akun Responden (RT)
 		Joins("JOIN respondents ON respondents.id = survey_respondents.respondent_id").
-		// 3. Tarik data wilayah milik Responden tersebut
 		Joins("LEFT JOIN kecamatans ON kecamatans.id = respondents.kecamatan_id").
 		Joins("LEFT JOIN kelurahans ON kelurahans.id = respondents.kelurahan_id").
 		Joins("LEFT JOIN data__rws as rws ON rws.id = respondents.rw_id").
 		Joins("LEFT JOIN data__rts as rts ON rts.id = respondents.rt_id").
-		// 4. Filter bahwa ini adalah data untuk survei yang sedang di-export
 		Where("survey_respondents.survey_id = ?", surveyID).
-		Where("survey_respondents.status = ?", 2) // Pastikan tipe data status Anda benar integer/smallint 2
+		Where("survey_respondents.status = ?", 2)
 
-	// 5. Filter Kewilayahan: Karena semua responden adalah RT, kita tinggal mengecek
-	// wilayah parent-nya berdasarkan level yang direquest.
 	switch level {
-	case 5: // KECAMATAN
+	case 5:
 		query = query.Where("respondents.kecamatan_id = ?", wilayahID)
-	case 4: // KELURAHAN
+	case 4:
 		query = query.Where("respondents.kelurahan_id = ?", wilayahID)
-	case 3: // RW
+	case 3:
 		query = query.Where("respondents.rw_id = ?", wilayahID)
-	case 2: // RT
+	case 2:
 		query = query.Where("respondents.rt_id = ?", wilayahID)
 	}
 
@@ -1376,4 +1402,23 @@ func (repository *surveyRepo) GetSurveyorsBySurveyId(surveyId int64) ([]models.S
 	var surveyors []models.SurveySurveyor
 	err := repository.dbSlave.Where("survey_id = ?", surveyId).Find(&surveyors).Error
 	return surveyors, err
+}
+
+func (repository *surveyRepo) ResetSurveyRespondentStatus(ctx context.Context, surveyID int64, wilayahColumn string, wilayahID int64) error {
+	subQuery := repository.dbSlave.Table("respondents").
+		Select("id").
+		Where(fmt.Sprintf("%s = ?", wilayahColumn), wilayahID)
+
+	updateData := map[string]interface{}{
+		"status_approval":    nil,
+		"status":             2,
+		"is_edit_pertanyaan": "false",
+	}
+
+	err := repository.dbMaster.Table("survey_respondents").
+		Where("survey_id = ?", surveyID).
+		Where("respondent_id IN (?)", subQuery).
+		Updates(updateData).Error
+
+	return err
 }

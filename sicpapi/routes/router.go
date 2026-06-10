@@ -263,4 +263,6 @@ func SetupRoutes(e *echo.Echo) {
 
 	surveyKewilayahanGroup.GET("/export-excel/survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/export-excel/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	surveyKewilayahanGroup.PUT("/reset-status-survey/:survey_code/wilayah/:code_wilayah", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }
