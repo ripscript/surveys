@@ -2166,33 +2166,61 @@ func (service *surveyService) GetHistoryDetailPerWilayah(ctx context.Context, re
 
 	completeHistory, err := service.surveyRepo.GetSurveyCompletionHistory(ctx, int64(survey.ID), int64(surveyRespondent.RespondentID))
 	if err != nil {
-		return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			fmt.Println("==1===============================")
+			spew.Dump(err)
+			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		}
 	}
 
 	verificationHistory, err := service.surveyRepo.GetSurveyVerificationHistory(ctx, int64(survey.ID), int64(surveyRespondent.RespondentID))
 	if err != nil {
-		return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			fmt.Println("==2===============================")
+			spew.Dump(err)
+			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		}
 	}
 
 	validationHistory, err := service.surveyRepo.GetSurveyValidationHistory(ctx, int64(survey.ID), int64(surveyRespondent.RespondentID))
 	if err != nil {
-		return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			fmt.Println("==3===============================")
+			spew.Dump(err)
+			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
+		}
 	}
 
+	// 1. Siapkan variabel dengan nilai default "-"
+	var completeDate, verificationDate, validationDate interface{} = "-", "-", "-"
+
+	// 2. Lakukan pengecekan apakah history tidak nil
+	// Sesuaikan kondisi ini dengan kebutuhan Anda (misal jika CreatedAt berupa pointer, bisa ditambahkan pengecekan)
+	if completeHistory != nil {
+		completeDate = completeHistory.CreatedAt
+	}
+	if verificationHistory != nil {
+		verificationDate = verificationHistory.CreatedAt
+	}
+	if validationHistory != nil {
+		validationDate = validationHistory.CreatedAt
+	}
+
+	// 3. Masukkan ke dalam map
 	mergeHistory := []map[string]interface{}{
 		{
 			"no":         1,
-			"created_at": completeHistory.CreatedAt,
+			"created_at": completeDate,
 			"keterangan": "Sudah Melakukan Pengisian Survey",
 		},
 		{
 			"no":         2,
-			"created_at": verificationHistory.CreatedAt,
+			"created_at": verificationDate,
 			"keterangan": "Sudah Diverifikasi RW",
 		},
 		{
 			"no":         3,
-			"created_at": validationHistory.CreatedAt,
+			"created_at": validationDate,
 			"keterangan": "Sudah Divalidasi Kelurahan",
 		},
 	}
