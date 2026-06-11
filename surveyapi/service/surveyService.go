@@ -2150,8 +2150,6 @@ func (service *surveyService) GetHistoryDetailPerWilayah(ctx context.Context, re
 	}
 
 	rtId := decodedWilayahIDs[0]
-	fmt.Println("=================")
-	fmt.Println(rtId)
 
 	surveyRespondent, err := service.surveyRepo.GetRespondentSurveyByRTId(ctx, int64(survey.ID), int64(rtId))
 	if err != nil {
