@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -116,15 +117,17 @@ func (repository *wilayahRepo) GetDaftarRT(ctx context.Context, rw_id int64, pay
 	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
 
 	newSlug := map[string]interface{}{
-		"rw_id":     rw_id,
-		"search":    payload.Search,
-		"page":      strconv.Itoa(payload.Page),
-		"limit":     strconv.Itoa(payload.Limit),
-		"order_by":  payload.OrderBy,
-		"order_dir": payload.OrderDir,
+		"rw_id": rw_id,
 	}
 
-	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rt/list/:rw_id", newSlug, nil)
+	params := url.Values{}
+	params.Add("search", payload.Search)
+	params.Add("page", strconv.Itoa(payload.Page))
+	params.Add("limit", strconv.Itoa(payload.Limit))
+	params.Add("order_by", payload.OrderBy)
+	params.Add("order_dir", payload.OrderDir)
+
+	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/rt/list/:rw_id", params, newSlug, nil)
 	if err != nil {
 		spew.Dump(err)
 		return response.RTDatatableResponse{}, errors.New("Gagal mendapatkan daftar RT dari MasterAPI")
@@ -143,14 +146,16 @@ func (repository *wilayahRepo) GetDaftarRW(ctx context.Context, kelurahan_id int
 
 	newSlug := map[string]interface{}{
 		"kelurahan_id": kelurahan_id,
-		"search":       payload.Search,
-		"page":         strconv.Itoa(payload.Page),
-		"limit":        strconv.Itoa(payload.Limit),
-		"order_by":     payload.OrderBy,
-		"order_dir":    payload.OrderDir,
 	}
 
-	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rw/list/:kelurahan_id", newSlug, nil)
+	params := url.Values{}
+	params.Add("search", payload.Search)
+	params.Add("page", strconv.Itoa(payload.Page))
+	params.Add("limit", strconv.Itoa(payload.Limit))
+	params.Add("order_by", payload.OrderBy)
+	params.Add("order_dir", payload.OrderDir)
+
+	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/rw/list/:kelurahan_id", params, newSlug, nil)
 	if err != nil {
 		spew.Dump(err)
 		return response.RWDatatableResponse{}, errors.New("Gagal mendapatkan daftar RW dari MasterAPI")
@@ -167,16 +172,18 @@ func (repository *wilayahRepo) GetDaftarRW(ctx context.Context, kelurahan_id int
 func (repository *wilayahRepo) GetDaftarKelurahan(ctx context.Context, kecamatan_id int64, payload payloads.DatatablePayload) (response.KelurahanDatatableResponse, error) {
 	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
 
+	params := url.Values{}
+	params.Add("search", payload.Search)
+	params.Add("page", strconv.Itoa(payload.Page))
+	params.Add("limit", strconv.Itoa(payload.Limit))
+	params.Add("order_by", payload.OrderBy)
+	params.Add("order_dir", payload.OrderDir)
+
 	newSlug := map[string]interface{}{
 		"kecamatan_id": kecamatan_id,
-		"search":       payload.Search,
-		"page":         strconv.Itoa(payload.Page),
-		"limit":        strconv.Itoa(payload.Limit),
-		"order_by":     payload.OrderBy,
-		"order_dir":    payload.OrderDir,
 	}
 
-	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kelurahan/list/:kecamatan_id", newSlug, nil)
+	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/kelurahan/list/:kecamatan_id", params, newSlug, nil)
 	if err != nil {
 		spew.Dump(err)
 		return response.KelurahanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kelurahan dari MasterAPI")
@@ -193,15 +200,14 @@ func (repository *wilayahRepo) GetDaftarKelurahan(ctx context.Context, kecamatan
 func (repository *wilayahRepo) GetDaftarKecamatan(ctx context.Context, payload payloads.DatatablePayload) (response.KecamatanDatatableResponse, error) {
 	host := os.Getenv("MASTERAPI_HOST") + ":" + os.Getenv("MASTERAPI_PORT")
 
-	newSlug := map[string]interface{}{
-		"search":    payload.Search,
-		"page":      strconv.Itoa(payload.Page),
-		"limit":     strconv.Itoa(payload.Limit),
-		"order_by":  payload.OrderBy,
-		"order_dir": payload.OrderDir,
-	}
+	params := url.Values{}
+	params.Add("search", payload.Search)
+	params.Add("page", strconv.Itoa(payload.Page))
+	params.Add("limit", strconv.Itoa(payload.Limit))
+	params.Add("order_by", payload.OrderBy)
+	params.Add("order_dir", payload.OrderDir)
 
-	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kecamatan/list", newSlug, nil)
+	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/kecamatan/list", params, nil, nil)
 	if err != nil {
 		spew.Dump(err)
 		return response.KecamatanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kecamatan dari MasterAPI")

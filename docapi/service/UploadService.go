@@ -93,6 +93,10 @@ func (service *uploadService) UploadSurveyImage(ctx context.Context, req map[str
 		return utils.SendError(err, 500)
 	}
 
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
 	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
 	folderPath := enums.PATH_RESPONDENT_SURVEY_IMAGE
 

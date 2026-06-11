@@ -1691,11 +1691,6 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 							return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
 						}
 
-						spew.Dump(availablesExt)
-						spew.Dump(base64Data.Extension)
-						spew.Dump(availableMime)
-						spew.Dump(base64Data.MimeType)
-
 						if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
 							return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
 						}
@@ -3329,6 +3324,7 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 								if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
 									return errors.New("Format file gambar tidak didukung")
 								}
+
 								if base64Data.SizeInKB > maxSizeInKB {
 									return errors.New("Ukuran gambar tidak boleh melebihi 5MB")
 								}
