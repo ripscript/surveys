@@ -64,6 +64,9 @@ type SurveyService interface {
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	ResetStatusToVerifySurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetAllRejectedQuestions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -2661,6 +2664,8 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 
 				statusMap, _ := service.surveyRepo.GetStatusKeterisianBulkRT(ctx, int64(survey.ID), extractedRTIds)
 
+				isDoneMap, _ := service.surveyRepo.GetSurveyIsDoneBulkRT(ctx, int64(survey.ID), extractedRTIds)
+
 				for _, rt := range data.Data {
 					wilayahId := []int{int(rt.ID)}
 
@@ -2686,6 +2691,12 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 							newRt.IsPosiblePreviewSurvey = true
 						}
 						newRt.Status = val
+					}
+
+					if isDone, exists := isDoneMap[rt.ID]; exists {
+						newRt.SurveyIsDone = isDone
+					} else {
+						newRt.SurveyIsDone = false // Default jika tidak ada
 					}
 
 					finalData = append(finalData, newRt)
@@ -4630,4 +4641,56 @@ func (service *surveyService) ResetStatusToVerifySurvey(ctx context.Context, req
 	}
 
 	return utils.SendData(nil, "Status responden di wilayah tersebut berhasil direset ke mode verifikasi")
+}
+
+func (service *surveyService) GetAllRejectedQuestions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	respondentID := usr.RespondentID
+	if respondentID == 0 {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, respondentID, nil)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mengambil data pertanyaan reject"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data, "Berhasil mengambil semua data survey reject")
+}
+
+func (service *surveyService) GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	respondentID := usr.RespondentID
+	if respondentID == 0 {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	surveyCodeStr, ok := slug["survey_code"].(string)
+	if !ok || surveyCodeStr == "" {
+		return utils.SendError(errors.New("parameter survey_code tidak ditemukan di URL"), http.StatusBadRequest)
+	}
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kendala saat inisiasi hashid"), http.StatusInternalServerError)
+	}
+
+	decoded, err := h.DecodeWithError(surveyCodeStr)
+	if err != nil || len(decoded) == 0 {
+		return utils.SendError(errors.New("Kode survey (survey_code) tidak valid atau korup"), http.StatusBadRequest)
+	}
+
+	surveyID := int64(decoded[0])
+
+	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, respondentID, &surveyID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mengambil data pertanyaan reject"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data, "Berhasil mengambil data survey reject berdasarkan kode")
 }

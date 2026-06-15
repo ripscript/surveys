@@ -5,12 +5,15 @@ import (
 	"backend/surveyapi/enums"
 	"backend/surveyapi/models"
 	"backend/surveyapi/payloads"
+	"backend/surveyapi/response"
 	"backend/surveyapi/utils"
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
 )
 
@@ -74,6 +77,10 @@ type SurveyRepo interface {
 	GetSurveyWilayahsBySurveyId(surveyId int64) ([]models.SurveyWilayah, error)
 	GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error)
 	ResetSurveyRespondentStatus(ctx context.Context, surveyID int64, wilayahColumn string, wilayahID int64) error
+
+	GetRejectedQuestionsGrouped(ctx context.Context, respondentID int64, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error)
+
+	GetSurveyIsDoneBulkRT(ctx context.Context, surveyId int64, rtIds []int64) (map[int64]bool, error)
 }
 
 type surveyRepo struct {
@@ -482,9 +489,17 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 			FROM survey_respondents 
 			WHERE survey_id = surveys.id AND respondent_id = %d
 			LIMIT 1
-		) AS status_respondent
+		) AS status_respondent,
 
-	`, respID, respID, respID, respID)
+        -- TAMBAHAN: Logika untuk survey_is_done
+		COALESCE((
+			SELECT true 
+			FROM survey_respondents 
+			WHERE survey_id = surveys.id AND respondent_id = %d AND status = 2
+			LIMIT 1
+		), false) AS survey_is_done
+
+	`, respID, respID, respID, respID, respID)
 
 	db = db.Select(selectQuery)
 
@@ -1421,4 +1436,98 @@ func (repository *surveyRepo) ResetSurveyRespondentStatus(ctx context.Context, s
 		Updates(updateData).Error
 
 	return err
+}
+
+func (repository *surveyRepo) GetRejectedQuestionsGrouped(ctx context.Context, respondentID int64, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var rawResults []response.RawRejectedQuestion
+
+	query := repository.dbSlave.WithContext(ctx).
+		Table("flagging_edit_pertanyaan_surveys as flag").
+		Select(`
+			s.id as survey_id, 
+			s.name as survey_name, 
+			flag.id as flagging_id, 
+			flag.form_field_id, 
+			ff.question, 
+			flag.is_revisied
+		`).
+		Joins("JOIN form_fields ff ON ff.id = flag.form_field_id").
+		Joins("JOIN survey_respondents sr ON sr.id = flag.survey_respondent_id").
+		Joins("JOIN surveys s ON s.id = sr.survey_id").
+		Where("sr.respondent_id = ?", respondentID).
+		Where("flag.is_revisied = ?", "true").
+		Order("s.id ASC, flag.created_at ASC")
+
+	if filterSurveyID != nil {
+		query = query.Where("s.id = ?", *filterSurveyID)
+	}
+
+	if err := query.Scan(&rawResults).Error; err != nil {
+		return nil, err
+	}
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+	h, _ := hashids.NewWithData(hd)
+
+	groupedData := []response.RejectedSurveyResponse{}
+	surveyMapIndex := make(map[string]int)
+
+	for _, raw := range rawResults {
+		surveyCode, _ := h.Encode([]int{int(raw.SurveyID)})
+
+		idx, exists := surveyMapIndex[surveyCode]
+		if !exists {
+			groupedData = append(groupedData, response.RejectedSurveyResponse{
+				SurveyName:        raw.SurveyName,
+				SurveyCode:        surveyCode,
+				RejectedQuestions: []response.RejectedQuestionItem{},
+			})
+			idx = len(groupedData) - 1
+			surveyMapIndex[surveyCode] = idx
+		}
+
+		groupedData[idx].RejectedQuestions = append(groupedData[idx].RejectedQuestions, response.RejectedQuestionItem{
+			FlaggingID:  raw.FlaggingID,
+			FormFieldID: raw.FormFieldId,
+			Question:    raw.Question,
+			IsRevisied:  raw.IsRevisied,
+		})
+	}
+
+	return groupedData, nil
+}
+
+func (repository *surveyRepo) GetSurveyIsDoneBulkRT(ctx context.Context, surveyId int64, rtIds []int64) (map[int64]bool, error) {
+	result := make(map[int64]bool)
+	if len(rtIds) == 0 {
+		return result, nil
+	}
+
+	type ResultData struct {
+		RtId   int64
+		IsDone bool
+	}
+	var queryResults []ResultData
+
+	// Melakukan JOIN antara respondents dan survey_respondents
+	// Jika status = 2 maka true, selain itu false (termasuk jika NULL)
+	err := repository.dbSlave.WithContext(ctx).Table("respondents").
+		Select("respondents.rt_id, CASE WHEN survey_respondents.status = 2 THEN true ELSE false END as is_done").
+		Joins("LEFT JOIN survey_respondents ON survey_respondents.respondent_id = respondents.id AND survey_respondents.survey_id = ?", surveyId).
+		Where("respondents.rt_id IN ?", rtIds).
+		Find(&queryResults).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range queryResults {
+		result[row.RtId] = row.IsDone
+	}
+
+	return result, nil
 }

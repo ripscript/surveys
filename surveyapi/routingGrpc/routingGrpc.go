@@ -341,6 +341,14 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.ResetStatusToVerifySurvey,
 		MenuKey: "survey-kewilayahan",
 	}},
+	"/survey-kewilayahan/respondent-rejected-all": {"GET": {
+		Handler: surveyHandler.GetAllRejectedQuestions,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan/respondent-rejected-survey/:survey_code": {"GET": {
+		Handler: surveyHandler.GetRejectedQuestionsBySurveyCode,
+		MenuKey: "survey-kewilayahan",
+	}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

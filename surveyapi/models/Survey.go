@@ -77,6 +77,7 @@ type SurveyWilayahDatatableResponse struct {
 	PosibleDetail  bool      `json:"posible_detail"`
 	PosibleProcess bool      `json:"posible_process"`
 	PosibleHistory bool      `json:"posible_history"`
+	SurveyIsDone   bool      `json:"survey_is_done" gorm:"column:survey_is_done"`
 
 	StatusKeterisian string  `json:"status_keterisian" gorm:"column:status_keterisian"`
 	JumlahSoalTerisi int     `json:"jumlah_soal_terisi" gorm:"column:jumlah_soal_terisi"`

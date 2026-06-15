@@ -28,6 +28,7 @@ type DetailSurveyKewilayahanResponse struct {
 	IsPosibleDetail        bool   `json:"posible_detail"`
 	IsPosiblePreviewSurvey bool   `json:"posible_preview_survey"`
 	IsPosibleBackAccess    bool   `json:"posible_back_access"`
+	SurveyIsDone           bool   `json:"survey_is_done"`
 }
 
 type RWDatatableResponse struct {

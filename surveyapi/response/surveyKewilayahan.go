@@ -32,7 +32,6 @@ type SurveyResultNode struct {
 	Questions []SurveyResultQuestionDetail `json:"questions"`
 }
 
-// 🆕 Tambahan struct untuk menampung data Opsi
 type SurveyResultOptionItem struct {
 	ID    int    `json:"id"`
 	Label string `json:"label"`
@@ -43,6 +42,29 @@ type SurveyResultQuestionDetail struct {
 	Label      string                   `json:"label"`
 	Type       string                   `json:"type"`
 	IsRequired bool                     `json:"is_required"`
-	Options    []SurveyResultOptionItem `json:"options"` // 🆕 Field Baru
+	Options    []SurveyResultOptionItem `json:"options"`
 	Answer     interface{}              `json:"answer"`
+}
+
+// Kebutuhan untuk data reject ==============
+type RawRejectedQuestion struct {
+	SurveyID    int64  `gorm:"column:survey_id"` // 🆕 Diambil dari s.id
+	SurveyName  string `gorm:"column:survey_name"`
+	FlaggingID  int64  `gorm:"column:flagging_id"`
+	FormFieldId int64  `gorm:"column:form_field_id"`
+	Question    string `gorm:"column:question"`
+	IsRevisied  string `gorm:"column:is_revisied"`
+}
+
+type RejectedQuestionItem struct {
+	FlaggingID  int64  `json:"-"`
+	FormFieldID int64  `json:"-"`
+	Question    string `json:"question"`
+	IsRevisied  string `json:"is_revisied"`
+}
+
+type RejectedSurveyResponse struct {
+	SurveyName        string                 `json:"survey_name"`
+	SurveyCode        string                 `json:"survey_code"`
+	RejectedQuestions []RejectedQuestionItem `json:"rejected_questions"`
 }
