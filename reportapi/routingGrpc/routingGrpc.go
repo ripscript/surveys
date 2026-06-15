@@ -33,9 +33,10 @@ var (
 )
 
 var (
-	homeRepo   repository.HomeRepo   = repository.NewHomeRepo(dbSlave, dbMaster)
-	logRepo    repository.LogRepo    = repository.NewLogRepo(dbSlave, dbMaster)
-	surveyRepo repository.SurveyRepo = repository.NewSurveyRepo(dbSlave, dbMaster)
+	homeRepo         repository.HomeRepo         = repository.NewHomeRepo(dbSlave, dbMaster)
+	logRepo          repository.LogRepo          = repository.NewLogRepo(dbSlave, dbMaster)
+	surveyRepo       repository.SurveyRepo       = repository.NewSurveyRepo(dbSlave, dbMaster)
+	surveyExportRepo repository.SurveyExportRepo = repository.NewSurveyExportRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -47,6 +48,7 @@ var (
 	)
 	surveyService service.SurveyService = service.NewSurveyService(
 		surveyRepo,
+		surveyExportRepo,
 	)
 )
 
@@ -102,18 +104,19 @@ type RouteConfig struct {
 // Definisikan pemetaan fungsi handler dengan path dan metode HTTP
 var grpcMap = map[string]map[string]RouteConfig{
 	// Public / No Permission
-	"/reportapi/healthy":     {"GET": {Handler: handlers.Healthy, MenuKey: ""}},
-	"/count/kecamatan":       {"GET": {Handler: homeHandler.CountKecamatan, MenuKey: ""}},
-	"/count/kelurahan":       {"GET": {Handler: homeHandler.CountKelurahan, MenuKey: ""}},
-	"/count/rw":              {"GET": {Handler: homeHandler.CountRw, MenuKey: ""}},
-	"/count/rt":              {"GET": {Handler: homeHandler.CountRt, MenuKey: ""}},
-	"/count/survey/ongoing":  {"GET": {Handler: homeHandler.CountSurveyOngoing, MenuKey: ""}},
-	"/count/survey/upcoming": {"GET": {Handler: homeHandler.CountSurveyUpcoming, MenuKey: ""}},
-	"/count/survey/finished": {"GET": {Handler: homeHandler.CountSurveyFinished, MenuKey: ""}},
-	"/save/log/activities":   {"POST": {Handler: logHandler.SaveLogActivities, MenuKey: ""}},
-	"/log/activities":        {"GET": {Handler: logHandler.GetLogActivities, MenuKey: ""}},
-	"/survey/activities":     {"GET": {Handler: surveyHandler.SurveyActivities, MenuKey: ""}},
-	"/log/surveys":           {"GET": {Handler: surveyHandler.LogSurveys, MenuKey: ""}},
+	"/reportapi/healthy":        {"GET": {Handler: handlers.Healthy, MenuKey: ""}},
+	"/count/kecamatan":          {"GET": {Handler: homeHandler.CountKecamatan, MenuKey: ""}},
+	"/count/kelurahan":          {"GET": {Handler: homeHandler.CountKelurahan, MenuKey: ""}},
+	"/count/rw":                 {"GET": {Handler: homeHandler.CountRw, MenuKey: ""}},
+	"/count/rt":                 {"GET": {Handler: homeHandler.CountRt, MenuKey: ""}},
+	"/count/survey/ongoing":     {"GET": {Handler: homeHandler.CountSurveyOngoing, MenuKey: ""}},
+	"/count/survey/upcoming":    {"GET": {Handler: homeHandler.CountSurveyUpcoming, MenuKey: ""}},
+	"/count/survey/finished":    {"GET": {Handler: homeHandler.CountSurveyFinished, MenuKey: ""}},
+	"/save/log/activities":      {"POST": {Handler: logHandler.SaveLogActivities, MenuKey: ""}},
+	"/log/activities":           {"GET": {Handler: logHandler.GetLogActivities, MenuKey: ""}},
+	"/survey/activities":        {"GET": {Handler: surveyHandler.SurveyActivities, MenuKey: ""}},
+	"/survey/activities/export": {"GET": {Handler: surveyHandler.SurveyActvitiesExport, MenuKey: ""}},
+	"/log/surveys":              {"GET": {Handler: surveyHandler.LogSurveys, MenuKey: ""}, "POST": {Handler: surveyHandler.InsertLogSurveys, MenuKey: ""}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
