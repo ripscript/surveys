@@ -89,8 +89,8 @@ func PermissionSeed(db *gorm.DB) error {
 		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
 
 		// Survey Kewilayahan
-		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), viewOnly(SurveyKewilayahan, lurah),
-		viewOnly(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
+		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
+		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
 		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
 
 		// List Survey
