@@ -138,7 +138,9 @@ func SetupRoutes(e *echo.Echo) {
 	e.POST("/save/log/activities", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/log/activities", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/survey/activities", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/survey/activities/export", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/log/surveys", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.POST("/log/surveys", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 
 	// DOCAPI SERVICE
 	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })
