@@ -491,11 +491,13 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 			LIMIT 1
 		) AS status_respondent,
 
-        -- TAMBAHAN: Logika untuk survey_is_done
 		COALESCE((
 			SELECT true 
 			FROM survey_respondents 
-			WHERE survey_id = surveys.id AND respondent_id = %d AND status = 2
+			WHERE survey_id = surveys.id 
+			AND respondent_id = %d 
+			AND status = 2 
+			AND (status_approval IS NULL OR status_approval != 'revisi_rt')
 			LIMIT 1
 		), false) AS survey_is_done
 
@@ -1516,7 +1518,13 @@ func (repository *surveyRepo) GetSurveyIsDoneBulkRT(ctx context.Context, surveyI
 	// Melakukan JOIN antara respondents dan survey_respondents
 	// Jika status = 2 maka true, selain itu false (termasuk jika NULL)
 	err := repository.dbSlave.WithContext(ctx).Table("respondents").
-		Select("respondents.rt_id, CASE WHEN survey_respondents.status = 2 THEN true ELSE false END as is_done").
+		Select(`
+			respondents.rt_id, 
+			CASE 
+				WHEN survey_respondents.status = 2 AND (survey_respondents.status_approval IS NULL OR survey_respondents.status_approval != 'revisi_rt') THEN true 
+				ELSE false 
+			END as is_done
+		`).
 		Joins("LEFT JOIN survey_respondents ON survey_respondents.respondent_id = respondents.id AND survey_respondents.survey_id = ?", surveyId).
 		Where("respondents.rt_id IN ?", rtIds).
 		Find(&queryResults).Error
