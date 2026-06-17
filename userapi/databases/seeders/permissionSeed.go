@@ -13,7 +13,7 @@ func PermissionSeed(db *gorm.DB) error {
 		"admin", "template-pertanyaan", "template-ucapan", "survey", "management-pengguna", "manage-wilayah",
 		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
 		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
-		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan", "pengelola-survey",
+		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan", "pengelola-survey", "hasil-survey",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -59,17 +59,18 @@ func PermissionSeed(db *gorm.DB) error {
 		alur               = menuIDs.ManajemenAlur
 		ManajemenWilayah   = menuIDs.ManajemenWilayah
 		ManajemenResponden = menuIDs.ManajemenResponden
-		Surveys            = menuIDs.Surveys
-		category           = menuIDs.Kategori
-		ListSurvey         = menuIDs.ListSurvey
-		promote            = menuIDs.Promote
-		artikel            = menuIDs.ManajemenArtikel
-		pejabat            = menuIDs.ManajemenPejabat
-		mUser              = menuIDs.ManajemenUser
-		mWilayah           = menuIDs.ManajemenWilayahChild
-		profile            = menuIDs.Profile
-		SurveyKewilayahan  = menuIDs.SurveyKewilayahan
-		PengelolaSurvey    = menuIDs.PengelolaSurvey
+		// Surveys            = menuIDs.Surveys
+		category          = menuIDs.Kategori
+		ListSurvey        = menuIDs.ListSurvey
+		promote           = menuIDs.Promote
+		artikel           = menuIDs.ManajemenArtikel
+		pejabat           = menuIDs.ManajemenPejabat
+		mUser             = menuIDs.ManajemenUser
+		mWilayah          = menuIDs.ManajemenWilayahChild
+		profile           = menuIDs.Profile
+		SurveyKewilayahan = menuIDs.SurveyKewilayahan
+		PengelolaSurvey   = menuIDs.PengelolaSurvey
+		Hasil             = menuIDs.Hasil
 
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
@@ -84,6 +85,12 @@ func PermissionSeed(db *gorm.DB) error {
 
 	MenuPermission := []P{
 
+		// Hasil Survey
+		none(Hasil, public), none(Hasil, rt), none(Hasil, rw), none(Hasil, lurah),
+		none(Hasil, camat), none(Hasil, pemkot), full(Hasil, admin),
+		none(Hasil, surveyor), none(Hasil, walikota),
+
+		// Pengelola Survey
 		viewOnly(PengelolaSurvey, public), viewOnly(PengelolaSurvey, rt), viewOnly(PengelolaSurvey, rw), viewOnly(PengelolaSurvey, lurah),
 		full(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
 		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
@@ -149,9 +156,9 @@ func PermissionSeed(db *gorm.DB) error {
 		none(alur, surveyor), none(alur, walikota),
 
 		// List Survey
-		viewOnly(Surveys, public), viewOnly(Surveys, rt), viewOnly(Surveys, rw), full(Surveys, lurah),
-		full(Surveys, camat), viewOnly(Surveys, pemkot), full(Surveys, admin),
-		viewOnly(Surveys, surveyor), viewOnly(Surveys, walikota),
+		// viewOnly(Surveys, public), viewOnly(Surveys, rt), viewOnly(Surveys, rw), full(Surveys, lurah),
+		// full(Surveys, camat), viewOnly(Surveys, pemkot), full(Surveys, admin),
+		// viewOnly(Surveys, surveyor), viewOnly(Surveys, walikota),
 
 		// Kategori
 		none(category, public), none(category, rt), none(category, rw), none(category, lurah),
