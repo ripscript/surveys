@@ -10,7 +10,7 @@ import (
 
 func PermissionSeed(db *gorm.DB) error {
 	var menuKeys = []string{"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
-		"admin", "template-pertanyaan", "template-ucapan", "survey", "management-pengguna", "manage-wilayah",
+		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
 		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
 		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
 		"artikel", "promote", "kategori", "list-survey", "profile", "survey-kewilayahan", "pengelola-survey", "hasil-survey",
@@ -100,7 +100,7 @@ func PermissionSeed(db *gorm.DB) error {
 		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
 		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
 
-		// List Survey
+		// Profile
 		full(profile, public), full(profile, rt), full(profile, rw), full(profile, lurah),
 		full(profile, camat), full(profile, pemkot), full(profile, admin),
 		full(profile, surveyor), full(profile, walikota),
@@ -238,8 +238,8 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		Admin:              m["admin"],
 		FormulirPertanyaan: m["template-pertanyaan"],
 		Ucapan:             m["template-ucapan"],
-		Surveys:            m["survey"],
-		// Hasil:                 m["hasil"],
+		// Surveys:            m["survey"],
+		Hasil:                 m["hasil-survey"],
 		ManajemenPengguna:     m["management-pengguna"],
 		ManajemenWilayah:      m["manage-wilayah"],
 		ManajemenCMS:          m["management-cms"],
