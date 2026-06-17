@@ -138,7 +138,7 @@ func BuildSurveyExcel(survey *models.SurveyExport, answerOptions map[uint][]mode
 }
 
 // GenerateFilename generates the .xlsx filename based on wilayah type, same as Laravel
-func GenerateFilename(surveyName string, wilayah string, kecamatanName, kelurahanName, rwName string) string {
+func GenerateFilename(surveyName string, wilayah string, kecamatanName, kelurahanName, rwName, rtName string) string {
 	date := time.Now().Format("02-01-2006")
 	slug := toSlug(surveyName)
 
@@ -149,6 +149,8 @@ func GenerateFilename(surveyName string, wilayah string, kecamatanName, keluraha
 		return fmt.Sprintf("%s_Hasil_%s_(%s_%s).xlsx", slug, date, kecamatanName, kelurahanName)
 	case "rw":
 		return fmt.Sprintf("%s_Hasil_%s_(%s_%s_%s).xlsx", slug, date, kecamatanName, kelurahanName, rwName)
+	case "rt":
+		return fmt.Sprintf("%s_Hasil_%s_(%s_%s_%s).xlsx", slug, date, kecamatanName, kelurahanName, rwName, rtName)
 	default:
 		return fmt.Sprintf("%s_Hasil_%s.xlsx", slug, date)
 	}

@@ -53,20 +53,10 @@ func (handler *surveyHandler) SurveyActvitiesExport(ctx context.Context, req map
 	wilayah := param.Get("wilayah")
 	wilayahIDStr := param.Get("wilayah_id")
 
-	surveyInt, err := utils.ToInt64(surveyIDStr)
-	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
-	}
-
-	wilayahInt, err := utils.ToInt64(wilayahIDStr)
-	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
-	}
-
 	exportReq := service.ExportRequest{
-		SurveyID:  uint(surveyInt),
+		SurveyID:  surveyIDStr,
 		Wilayah:   wilayah,
-		WilayahID: uint(wilayahInt),
+		WilayahID: wilayahIDStr,
 	}
 
 	result, err := handler.surveyService.SurveyActivitiesExport(exportReq)

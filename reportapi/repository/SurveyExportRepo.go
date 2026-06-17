@@ -15,9 +15,11 @@ type SurveyExportRepo interface {
 	GetKelurahanIDsByKecamatan(kecamatanID uint) ([]uint, error)
 	GetRwIDsByKelurahan(kelurahanID uint) ([]uint, error)
 	GetRtIDsByRw(rwID uint) ([]uint, error)
+	GetRtIDsByRt(rtID uint) ([]uint, error)
 	GetKecamatanByID(id uint) (*models.KecamatanExport, error)
 	GetKelurahanByID(id uint) (*models.KelurahanExport, error)
 	GetRwByID(id uint) (*models.DataRwExport, error)
+	GetRtByID(id uint) (*models.DataRtExport, error)
 }
 
 func NewSurveyExportRepo(dbSlave, dbMaster *gorm.DB) *surveyExportRepo {
@@ -115,6 +117,14 @@ func (r *surveyExportRepo) GetRwIDsByKelurahan(kelurahanID uint) ([]uint, error)
 	return ids, err
 }
 
+func (r *surveyExportRepo) GetRtIDsByRt(rtID uint) ([]uint, error) {
+	var ids []uint
+	err := r.dbSlave.Model(&models.DataRtExport{}).
+		Where("id = ?", rtID).
+		Pluck("id", &ids).Error
+	return ids, err
+}
+
 func (r *surveyExportRepo) GetRtIDsByRw(rwID uint) ([]uint, error) {
 	var ids []uint
 	err := r.dbSlave.Model(&models.DataRtExport{}).
@@ -139,4 +149,15 @@ func (r *surveyExportRepo) GetRwByID(id uint) (*models.DataRwExport, error) {
 	var rw models.DataRwExport
 	err := r.dbSlave.Preload("Kelurahan.Kecamatan").Where("id = ?", id).First(&rw).Error
 	return &rw, err
+}
+
+func (r *surveyExportRepo) GetRtByID(id uint) (*models.DataRtExport, error) {
+	var rt models.DataRtExport
+
+	err := r.dbSlave.
+		Preload("Rw.Kelurahan.Kecamatan").
+		Where("id = ?", id).
+		First(&rt).Error
+
+	return &rt, err
 }
