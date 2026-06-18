@@ -118,9 +118,10 @@ func (u *DataRwExport) TableName() string {
 }
 
 type DataRtExport struct {
-	ID     uint   `gorm:"primaryKey" json:"id"`
-	NamaRt string `json:"nama_rt"`
-	RwID   uint   `json:"rw_id"`
+	ID     uint         `gorm:"primaryKey" json:"id"`
+	NamaRt string       `json:"nama_rt"`
+	RwID   uint         `json:"rw_id"`
+	Rw     DataRwExport `gorm:"foreignKey:RwID" json:"rw"`
 }
 
 func (u *DataRtExport) TableName() string {
