@@ -81,5 +81,7 @@ func (service *manajemenPenggunaService) CreateResponden(usr models.JwtCustomCla
 		return utils.SendError(errors.New(errMsg), http.StatusBadRequest)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Pengguna", "POST", int(usr.ID), string(usr.Name), string(0), "Membuat Data Responden")
+
 	return utils.SendData(nil, "Berhasil create data")
 }
