@@ -154,6 +154,8 @@ func (service *manajemenPejabatService) CreatePejabat(ctx context.Context, usr m
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Pejabat", "POST", int(usr.ID), string(usr.Name), string(0), "Membuat Data Pejabat")
+
 	return utils.SendData(createData, "Berhasil menambahkan pejabat")
 }
 
@@ -328,6 +330,8 @@ func (service *manajemenPejabatService) UpdatePejabat(ctx context.Context, usr m
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Pejabat", "PUT", int(usr.ID), string(usr.Name), string(id), "Memperbarui Data Pejabat")
+
 	return utils.SendData(updatedData, "Berhasil mengupdate pejabat")
 }
 
@@ -356,6 +360,8 @@ func (service *manajemenPejabatService) DeletePejabat(ctx context.Context, usr m
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	go utils.SaveLogActivities("Master", "Manajemen Pejabat", "DELETE", int(usr.ID), string(usr.Name), string(id), "Menghapus Data Pejabat")
 
 	return utils.SendData(nil, "Berhasil menghapus pejabat")
 }

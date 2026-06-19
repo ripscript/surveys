@@ -104,6 +104,8 @@ func (service *manajemenWilayahService) CreateKecamatan(usr models.JwtCustomClai
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Wilayah", "POST", int(usr.ID), string(usr.Name), string(0), "Membuat Data Wilayah")
+
 	return utils.SendData(createData, "Berhasil menambahkan kecamatan")
 }
 
@@ -191,6 +193,8 @@ func (service *manajemenWilayahService) UpdateKecamatan(usr models.JwtCustomClai
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	go utils.SaveLogActivities("Master", "Manajemen Wilayah", "PUT", int(usr.ID), string(usr.Name), string(Id), "Memperbarui Data Wilayah")
 
 	return utils.SendData(nil, "Berhasil update data")
 }
