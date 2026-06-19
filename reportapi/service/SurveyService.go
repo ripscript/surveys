@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/speps/go-hashids/v2"
 )
 
 type SurveyService interface {
@@ -347,25 +345,31 @@ func filterRespondentsByID(respondents []models.SurveyRespondents, respondentID 
 func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult, error) {
 	var respondentIDs []uint
 
-	hd := hashids.NewData()
-	h, err := hashids.NewWithData(hd)
+	// hd := hashids.NewData()
+	// h, err := hashids.NewWithData(hd)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	// decodedIDs, err := h.DecodeWithError(req.SurveyID)
+	// if err != nil || len(decodedIDs) == 0 {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	surveyId, err := utils.ToInt64(req.SurveyID)
 	if err != nil {
-		return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+		return nil, fmt.Errorf("Data Survey Tidak Valid")
 	}
 
-	decodedIDs, err := h.DecodeWithError(req.SurveyID)
-	if err != nil || len(decodedIDs) == 0 {
-		return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// decodedWilayahIDs, err := h.DecodeWithError(req.WilayahID)
+	// if err != nil || len(decodedIDs) == 0 {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	wilayahId, err := utils.ToInt64(req.WilayahID)
+	if err != nil {
+		return nil, fmt.Errorf("Wilayah ID Tidak Valid")
 	}
-
-	surveyId := decodedIDs[0]
-
-	decodedWilayahIDs, err := h.DecodeWithError(req.WilayahID)
-	if err != nil || len(decodedIDs) == 0 {
-		return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
-	}
-
-	wilayahId := decodedWilayahIDs[0]
 
 	switch req.Wilayah {
 	case "kecamatan":
