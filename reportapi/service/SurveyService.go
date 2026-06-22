@@ -22,9 +22,9 @@ type SurveyService interface {
 }
 
 type ExportRequest struct {
-	SurveyID  uint
+	SurveyID  string
 	Wilayah   string
-	WilayahID uint
+	WilayahID string
 }
 
 type ExportResult struct {
@@ -343,12 +343,37 @@ func filterRespondentsByID(respondents []models.SurveyRespondents, respondentID 
 }
 
 func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult, error) {
-	// ── 1. Resolve respondent IDs based on wilayah filter ──────────────────
 	var respondentIDs []uint
+
+	// hd := hashids.NewData()
+	// h, err := hashids.NewWithData(hd)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	// decodedIDs, err := h.DecodeWithError(req.SurveyID)
+	// if err != nil || len(decodedIDs) == 0 {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	surveyId, err := utils.ToInt64(req.SurveyID)
+	if err != nil {
+		return nil, fmt.Errorf("Data Survey Tidak Valid")
+	}
+
+	// decodedWilayahIDs, err := h.DecodeWithError(req.WilayahID)
+	// if err != nil || len(decodedIDs) == 0 {
+	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
+	// }
+
+	wilayahId, err := utils.ToInt64(req.WilayahID)
+	if err != nil {
+		return nil, fmt.Errorf("Wilayah ID Tidak Valid")
+	}
 
 	switch req.Wilayah {
 	case "kecamatan":
-		kelurahanIDs, err := s.surveyExportRepo.GetKelurahanIDsByKecamatan(req.WilayahID)
+		kelurahanIDs, err := s.surveyExportRepo.GetKelurahanIDsByKecamatan(uint(wilayahId))
 		if err != nil {
 			return nil, fmt.Errorf("get kelurahan by kecamatan: %w", err)
 		}
@@ -358,7 +383,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		}
 
 	case "kelurahan":
-		rwIDs, err := s.surveyExportRepo.GetRwIDsByKelurahan(req.WilayahID)
+		rwIDs, err := s.surveyExportRepo.GetRwIDsByKelurahan(uint(wilayahId))
 		if err != nil {
 			return nil, fmt.Errorf("get rw by kelurahan: %w", err)
 		}
@@ -368,7 +393,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		}
 
 	case "rw":
-		rtIDs, err := s.surveyExportRepo.GetRtIDsByRw(req.WilayahID)
+		rtIDs, err := s.surveyExportRepo.GetRtIDsByRw(uint(wilayahId))
 		if err != nil {
 			return nil, fmt.Errorf("get rt by rw: %w", err)
 		}
@@ -376,18 +401,23 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		if err != nil {
 			return nil, fmt.Errorf("get respondents by rt: %w", err)
 		}
-
+	case "rt":
+		rtIDs, err := s.surveyExportRepo.GetRtIDsByRt(uint(wilayahId))
+		if err != nil {
+			return nil, fmt.Errorf("get rt by id: %w", err)
+		}
+		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRtIDs(rtIDs)
+		if err != nil {
+			return nil, fmt.Errorf("get respondents by rt: %w", err)
+		}
 	default:
-		// No wilayah filter — all respondents; pass nil to repo
 	}
 
-	// ── 2. Load survey with responses ──────────────────────────────────────
-	survey, err := s.surveyExportRepo.GetSurveyWithResponses(req.SurveyID, respondentIDs)
+	survey, err := s.surveyExportRepo.GetSurveyWithResponses(uint(surveyId), respondentIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get survey: %w", err)
 	}
 
-	// ── 3. Load answer options for all fields ──────────────────────────────
 	var fieldIDs []uint
 	for _, f := range survey.FlowDetail.Form.Fields {
 		fieldIDs = append(fieldIDs, f.ID)
@@ -397,36 +427,42 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		return nil, fmt.Errorf("get answer options: %w", err)
 	}
 
-	// ── 4. Build the Excel workbook ────────────────────────────────────────
 	xlsxBytes, err := excel.BuildSurveyExcel(survey, answerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("build excel: %w", err)
 	}
 
-	// ── 5. Generate filename ───────────────────────────────────────────────
-	kecamatanName, kelurahanName, rwName := "", "", ""
+	kecamatanName, kelurahanName, rwName, rtName := "", "", "", ""
 	switch req.Wilayah {
 	case "kecamatan":
-		kec, err := s.surveyExportRepo.GetKecamatanByID(req.WilayahID)
+		kec, err := s.surveyExportRepo.GetKecamatanByID(uint(wilayahId))
 		if err == nil {
 			kecamatanName = kec.SubDistrictName
 		}
 	case "kelurahan":
-		kel, err := s.surveyExportRepo.GetKelurahanByID(req.WilayahID)
+		kel, err := s.surveyExportRepo.GetKelurahanByID(uint(wilayahId))
 		if err == nil {
 			kecamatanName = kel.Kecamatan.SubDistrictName
 			kelurahanName = kel.VillageName
 		}
 	case "rw":
-		rw, err := s.surveyExportRepo.GetRwByID(req.WilayahID)
+		rw, err := s.surveyExportRepo.GetRwByID(uint(wilayahId))
 		if err == nil {
 			kecamatanName = rw.Kelurahan.Kecamatan.SubDistrictName
 			kelurahanName = rw.Kelurahan.VillageName
 			rwName = rw.NamaRw
 		}
+	case "rt":
+		rt, err := s.surveyExportRepo.GetRtByID(uint(wilayahId))
+		if err == nil {
+			kecamatanName = rt.Rw.Kelurahan.Kecamatan.SubDistrictName
+			kelurahanName = rt.Rw.Kelurahan.VillageName
+			rwName = rt.Rw.NamaRw
+			rtName = rt.NamaRt
+		}
 	}
 
-	filename := excel.GenerateFilename(survey.Name, req.Wilayah, kecamatanName, kelurahanName, rwName)
+	filename := excel.GenerateFilename(survey.Name, req.Wilayah, kecamatanName, kelurahanName, rwName, rtName)
 
 	return &ExportResult{
 		Filename: filename,

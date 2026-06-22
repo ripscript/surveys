@@ -72,6 +72,8 @@ func (service *manajemenArtikelService) CreateKategoriArtikel(usr models.JwtCust
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Artikel", "POST", int(usr.ID), string(usr.Name), string(0), "Melakukan Pembuatan Artikel")
+
 	return utils.SendData(newKategori, "Berhasil create data")
 }
 
@@ -135,6 +137,8 @@ func (service *manajemenArtikelService) UpdateKategoriArtikel(usr models.JwtCust
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	go utils.SaveLogActivities("Master", "Manajemen Artikel", "PUT", int(usr.ID), string(usr.Name), string(id), "Memperbaharui Data Artikel")
+
 	return utils.SendData(updatedKategori, "Berhasil update data")
 }
 
@@ -167,6 +171,8 @@ func (service *manajemenArtikelService) DeleteKategoriArtikel(usr models.JwtCust
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
+	go utils.SaveLogActivities("Master", "Manajemen Artikel", "ELETE", int(usr.ID), string(usr.Name), string(id), "Menghapus Data Kategori Artikel")
 
 	return utils.SendData(nil, "Berhasil delete data")
 }
