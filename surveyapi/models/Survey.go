@@ -19,6 +19,8 @@ type Survey struct {
 	Deskripsi      string    `gorm:"column:deskripsi;type:text" json:"deskripsi"`
 	ApprovalSurvey string    `gorm:"column:approval_survey;type:varchar(255)" json:"approval_survey"`
 	AlasanReject   *string   `gorm:"column:alasan_reject;type:text" json:"alasan_reject"`
+
+	IsRepeated *bool `gorm:"column:is_repeated;type:boolean;default:false" json:"is_repeated"`
 }
 
 func (u *Survey) TableName() string {

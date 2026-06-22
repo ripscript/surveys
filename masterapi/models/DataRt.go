@@ -62,3 +62,11 @@ type RtDatatableResponse struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
+
+type ResultRT struct {
+	ID              int64
+	NamaRt          string
+	NamaRw          string
+	VillageName     string
+	SubDistrictName string
+}

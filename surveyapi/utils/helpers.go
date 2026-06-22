@@ -226,6 +226,10 @@ func BoolToInt(data bool) int {
 	return 0
 }
 
+func BoolToPointer(data bool) *bool {
+	return &data
+}
+
 func GetTimeGreeting() string {
 	var currentTime time.Time
 

@@ -12,10 +12,12 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
 )
 
@@ -47,6 +49,8 @@ type ManajemenWilayahService interface {
 	CreateRt(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRtOptions(param url.Values) (*pb.ProxyResponse, error)
 	DeleteRT(slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	TabelDataKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenWilayahService struct {
@@ -1252,4 +1256,195 @@ func (service *manajemenWilayahService) DeleteRT(slug map[string]interface{}) (*
 	}
 
 	return utils.SendData(nil, "Berhasil menghapus rt")
+}
+
+func (service *manajemenWilayahService) TabelDataKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+	tipe_wilayah, _ := strconv.Atoi(param.Get("tipe_wilayah"))
+
+	kecamatan_idStr := param.Get("kecamatan_code")
+	kelurahan_idStr := param.Get("kelurahan_code")
+	rw_idStr := param.Get("rw_code")
+
+	var kecamatan_id, kelurahan_id, rw_id int64
+
+	if kecamatan_idStr != "" {
+		decoded, err := h.DecodeWithError(kecamatan_idStr)
+		if err != nil {
+			return utils.SendError(errors.New("Kecamatan tidak valid"), http.StatusBadRequest)
+		}
+		kecamatan_id = int64(decoded[0])
+	}
+	if kelurahan_idStr != "" {
+		decoded, err := h.DecodeWithError(kelurahan_idStr)
+		if err != nil {
+			return utils.SendError(errors.New("Kelurahan tidak valid"), http.StatusBadRequest)
+		}
+		kelurahan_id = int64(decoded[0])
+	}
+	if rw_idStr != "" {
+		decoded, err := h.DecodeWithError(rw_idStr)
+		if err != nil {
+			return utils.SendError(errors.New("RW tidak valid"), http.StatusBadRequest)
+		}
+		rw_id = int64(decoded[0])
+	}
+
+	payload := payloads.DatatableDataWilayahKotaBandungPayload{
+		Search:      search,
+		Page:        page,
+		Limit:       limit,
+		OrderBy:     orderBy,
+		OrderDir:    orderDir,
+		TipeWilayah: &tipe_wilayah,
+		KecamatanId: &kecamatan_id,
+		KelurahanId: &kelurahan_id,
+		RWId:        &rw_id,
+	}
+
+	if payload.Page <= 0 {
+		payload.Page = 1
+	}
+	if payload.Limit <= 0 {
+		payload.Limit = 100
+	}
+	if payload.OrderBy == "" {
+		payload.OrderBy = "id"
+	}
+	if payload.OrderDir == "" {
+		payload.OrderDir = "desc"
+	}
+
+	offset := (payload.Page - 1) * payload.Limit
+	var metaTotal int64
+	var finalData = []response.TabelDataKotaBandungResponse{}
+
+	if payload.TipeWilayah != nil {
+		switch *payload.TipeWilayah {
+		case 5:
+			results, total, err := service.manajemenWilayahRepo.GetListKecamatanV2(ctx, payload, offset)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			metaTotal = total
+			for i, row := range results {
+				code, _ := h.Encode([]int{int(row.ID)})
+				finalData = append(finalData, response.TabelDataKotaBandungResponse{
+					No:              int64(offset + i + 1),
+					ID:              row.ID,
+					Code:            code,
+					NamaKecamatan:   row.SubDistrictName,
+					TotalKelurahan:  row.TotalKelurahan,
+					TotalRw:         row.TotalRw,
+					TotalRt:         row.TotalRt,
+					IsPosibleDetail: true,
+				})
+			}
+
+		case 4:
+			results, total, err := service.manajemenWilayahRepo.GetListKelurahanV2(ctx, payload, offset)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			metaTotal = total
+			for i, row := range results {
+				code, _ := h.Encode([]int{int(row.ID)})
+				finalData = append(finalData, response.TabelDataKotaBandungResponse{
+					No:              int64(offset + i + 1),
+					ID:              row.ID,
+					Code:            code,
+					NamaKecamatan:   row.SubDistrictName,
+					NamaKelurahan:   row.VillageName,
+					TotalRw:         row.TotalRw,
+					TotalRt:         row.TotalRt,
+					IsPosibleDetail: true,
+				})
+			}
+
+		case 3:
+			results, total, err := service.manajemenWilayahRepo.GetListRWV2(ctx, payload, offset)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			metaTotal = total
+			for i, row := range results {
+				code, _ := h.Encode([]int{int(row.ID)})
+				finalData = append(finalData, response.TabelDataKotaBandungResponse{
+					No:              int64(offset + i + 1),
+					ID:              row.ID,
+					Code:            code,
+					NamaKecamatan:   row.SubDistrictName,
+					NamaKelurahan:   row.VillageName,
+					NamaRw:          row.NamaRw,
+					TotalRt:         row.TotalRt,
+					IsPosibleDetail: true,
+				})
+			}
+
+		case 2:
+			results, total, err := service.manajemenWilayahRepo.GetListRTV2(ctx, payload, offset)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			metaTotal = total
+			for i, row := range results {
+				code, _ := h.Encode([]int{int(row.ID)})
+				finalData = append(finalData, response.TabelDataKotaBandungResponse{
+					No:              int64(offset + i + 1),
+					ID:              row.ID,
+					Code:            code,
+					NamaKecamatan:   row.SubDistrictName,
+					NamaKelurahan:   row.VillageName,
+					NamaRw:          row.NamaRw,
+					NamaRt:          row.NamaRt,
+					IsPosibleDetail: false,
+				})
+			}
+
+		case 0:
+			return utils.SendError(errors.New("Tipe wilayah harus diisi"), http.StatusBadRequest)
+		default:
+			return utils.SendError(errors.New("Tipe wilayah tidak valid"), http.StatusBadRequest)
+		}
+	} else {
+		return utils.SendError(errors.New("Tipe wilayah tidak boleh kosong"), http.StatusBadRequest)
+	}
+
+	summary, err := service.manajemenWilayahRepo.GetWilayahSummary(ctx, payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	metaTotalPages := int(math.Ceil(float64(metaTotal) / float64(payload.Limit)))
+
+	result := map[string]interface{}{
+		"data": finalData,
+		"meta": map[string]interface{}{
+			"total":           int(metaTotal),
+			"page":            payload.Page,
+			"limit":           payload.Limit,
+			"totalPages":      metaTotalPages,
+			"total_kecamatan": summary.TotalKecamatan,
+			"total_kelurahan": summary.TotalKelurahan,
+			"total_rw":        summary.TotalRw,
+			"total_rt":        summary.TotalRt,
+		},
+	}
+
+	return utils.SendData(result, "Berhasil mengambil data wilayah")
 }

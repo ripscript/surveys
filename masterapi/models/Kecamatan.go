@@ -42,3 +42,11 @@ type KecamatanOptionItem struct {
 	ID    *int64  `form:"id"`
 	Label *string `form:"label"`
 }
+
+type ResultKecamatan struct {
+	ID              int64
+	SubDistrictName string
+	TotalKelurahan  int64
+	TotalRw         int64
+	TotalRt         int64
+}

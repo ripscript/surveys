@@ -198,6 +198,8 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenArtikelKategoriGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenArtikelKategoriGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
+	e.GET("/tabel-data-kota-bandung", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
 	// SURVEYAPI Service
 	e.GET("/surveyapi/healthy", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 

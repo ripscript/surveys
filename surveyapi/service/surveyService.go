@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -22,6 +23,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -68,6 +70,8 @@ type SurveyService interface {
 
 	GetAllRejectedQuestions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	SyncExpiredSurveysStatus(ctx context.Context)
 }
 
 type surveyService struct {
@@ -78,6 +82,8 @@ type surveyService struct {
 	wilayahRepo                    repository.WilayahRepo
 	userRepo                       repository.UserRepo
 	fileRepo                       repository.FileRepo
+
+	isSyncing atomic.Bool
 }
 
 func NewSurveyService(
@@ -361,6 +367,7 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 		FlowDetailID:   int64(flowDetailData.ID),
 		StartDate:      startDate,
 		EndDate:        endDate,
+		IsRepeated:     payload.IsRepeated,
 		Type:           typeSurvey,
 		Status:         status,
 		Deskripsi:      payload.Deskripsi,
@@ -4794,4 +4801,47 @@ func (service *surveyService) GetRejectedQuestionsBySurveyCode(ctx context.Conte
 	}
 
 	return utils.SendData(data, "Berhasil mengambil data survey reject berdasarkan kode")
+}
+
+func (service *surveyService) SyncExpiredSurveysStatus(ctx context.Context) {
+	if !service.isSyncing.CompareAndSwap(false, true) {
+		fmt.Println("SKIP: Ada proses yang sedang berjalan. Request ini dibuang.")
+		return
+	}
+
+	defer service.isSyncing.Store(false)
+	defer utils.GeneralRecover()
+
+	expiredRepeated, _ := service.surveyRepo.GetExpiredRepeatedSurveys(ctx)
+	if len(expiredRepeated) > 0 {
+		_ = service.surveyRepo.RunInTransaction(func(txRepo repository.SurveyRepo) error {
+			for _, oldSurvey := range expiredRepeated {
+				durasi := oldSurvey.EndDate.Sub(oldSurvey.StartDate)
+				newSurvey := oldSurvey
+				newSurvey.ID = 0
+				newSurvey.StartDate = time.Now()
+				newSurvey.EndDate = time.Now().Add(durasi)
+				newSurvey.CreatedAt = time.Now()
+				newSurvey.UpdatedAt = time.Now()
+				newSurvey.IsRepeated = utils.BoolToPointer(true)
+				_, err := txRepo.CreateSurvey(newSurvey)
+				if err != nil {
+					return err
+				}
+
+				oldSurvey.IsRepeated = utils.BoolToPointer(false)
+				oldSurvey.Status = "finished"
+				oldSurvey.UpdatedAt = time.Now()
+				if err := txRepo.UpdateSurvey(&oldSurvey); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	err := service.surveyRepo.MarkExpiredSurveysAsFinished(ctx)
+	if err != nil {
+		log.Printf("[SyncSurvey] Error saat bulk update status: %v", err)
+	}
 }

@@ -18,7 +18,8 @@ var Whitelist = map[string]map[string]bool{
 	"/view-public-survey-image/:path": {"GET": true},
 
 	// MASTERAPI SERVICE
-	"/masterapi/healthy": {"GET": true},
+	"/masterapi/healthy":       {"GET": true},
+	"/tabel-data-kota-bandung": {"GET": true},
 
 	// SURVEYAPI SERVICE
 	"/surveyapi/healthy": {"GET": true},

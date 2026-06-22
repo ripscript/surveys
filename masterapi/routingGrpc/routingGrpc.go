@@ -183,6 +183,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: manajemenArtikelHandler.GetListKategoriArtikel,
 		MenuKey: "",
 	}},
+
+	"/tabel-data-kota-bandung": {"GET": {
+		Handler: manajemenWilayahHandler.TabelDataKotaBandung,
+		MenuKey: "management-wilayah",
+	}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

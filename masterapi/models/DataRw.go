@@ -59,3 +59,11 @@ type RwDatatableResponse struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
+
+type ResultRW struct {
+	ID              int64
+	NamaRw          string
+	VillageName     string
+	SubDistrictName string
+	TotalRt         int64
+}

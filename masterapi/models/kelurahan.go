@@ -59,3 +59,11 @@ type KelurahanDatatableResponse struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
+
+type ResultKelurahan struct {
+	ID              int64
+	VillageName     string
+	SubDistrictName string
+	TotalRw         int64
+	TotalRt         int64
+}

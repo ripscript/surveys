@@ -5,6 +5,7 @@ import (
 	"backend/masterapi/payloads"
 	"backend/masterapi/response"
 	"backend/masterapi/utils"
+	"context"
 	"fmt"
 	"strings"
 
@@ -51,6 +52,13 @@ type ManajemenWilayahRepo interface {
 	GetRtOptions(req payloads.RtOptionsPayload) ([]response.OptionItem, int64, error)
 	IsRtUsed(id int64) (bool, error)
 	DeleteRtById(id int64) error
+
+	GetListKecamatanV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultKecamatan, int64, error)
+	GetListKelurahanV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultKelurahan, int64, error)
+	GetListRWV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultRW, int64, error)
+	GetListRTV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultRT, int64, error)
+
+	GetWilayahSummary(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload) (response.WilayahSummary, error)
 }
 
 type manajemenWilayahRepo struct {
@@ -156,7 +164,6 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		req.Limit = 5
 	}
 
-	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 5 = Kecamatan)
 	pejabatJoinQuery := `LEFT JOIN (
 		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
 		FROM pejabat__wilayahs
@@ -178,12 +185,12 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 			pejabat__wilayahs.periode_awal, 
 			pejabat__wilayahs.periode_akhir
 		`).
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Where("kecamatans.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("kecamatans").
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Where("kecamatans.deleted_at IS NULL")
 
@@ -471,7 +478,6 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 		req.Limit = 5
 	}
 
-	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 4 = Kelurahan)
 	pejabatJoinQuery := `LEFT JOIN (
 		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
 		FROM pejabat__wilayahs
@@ -494,13 +500,13 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 			kelurahans.created_at,
 			kelurahans.updated_at
 		`).
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
 		Where("kelurahans.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("kelurahans").
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
 		Where("kelurahans.deleted_at IS NULL")
@@ -760,7 +766,6 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		req.Limit = 5
 	}
 
-	// 1. SUBQUERY PEJABAT UNTUK MENCEGAH DUPLIKASI (Tipe Wilayah 3 = RW)
 	pejabatJoinQuery := `LEFT JOIN (
 		SELECT DISTINCT ON (id_wilayah) id_wilayah, id_responden, periode_awal, periode_akhir
 		FROM pejabat__wilayahs
@@ -785,14 +790,14 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 			data__rws.created_at,
 			data__rws.updated_at
 		`).
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
 		Where("data__rws.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("data__rws").
-		Joins(pejabatJoinQuery). // <-- Implementasi Subquery pada Count
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
 		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
@@ -1133,7 +1138,7 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 			data__rts.created_at,
 			data__rts.updated_at
 		`).
-		Joins(pejabatJoinQuery). // <-- GUNAKAN SUBQUERY DI SINI
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
@@ -1141,7 +1146,7 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		Where("data__rts.deleted_at IS NULL")
 
 	countDB := repository.dbSlave.Table("data__rts").
-		Joins(pejabatJoinQuery). // <-- GUNAKAN SUBQUERY DI SINI JUGA
+		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Joins(`JOIN data__rws ON data__rws.id = data__rts.rw_id AND data__rws.deleted_at IS NULL`).
 		Joins(`JOIN kelurahans ON data__rws.kelurahan_id = kelurahans.id AND kelurahans.deleted_at IS NULL`).
@@ -1360,4 +1365,173 @@ func (repository *manajemenWilayahRepo) DeleteRtById(id int64) error {
 	db := repository.dbMaster
 	err := db.Delete(&models.DataRt{}, id).Error
 	return err
+}
+
+func (repository *manajemenWilayahRepo) GetListKecamatanV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultKecamatan, int64, error) {
+	var results []models.ResultKecamatan
+	var metaTotal int64
+
+	query := repository.dbSlave.WithContext(ctx).Table("kecamatans").Select(`
+		id, 
+		sub_district_name,
+		(SELECT COUNT(*) FROM kelurahans WHERE sub_district_id = kecamatans.id) AS total_kelurahan,
+		(SELECT COUNT(*) FROM data__rws JOIN kelurahans k ON k.id = data__rws.kelurahan_id WHERE k.sub_district_id = kecamatans.id) AS total_rw,
+		(SELECT COUNT(*) FROM data__rts JOIN data__rws rw ON rw.id = data__rts.rw_id JOIN kelurahans k ON k.id = rw.kelurahan_id WHERE k.sub_district_id = kecamatans.id) AS total_rt
+	`)
+
+	if payload.Search != "" {
+		query = query.Where("sub_district_name ILIKE ?", "%"+payload.Search+"%")
+	}
+
+	query.Count(&metaTotal)
+	err := query.Order(payload.OrderBy + " " + payload.OrderDir).Limit(payload.Limit).Offset(offset).Find(&results).Error
+
+	return results, metaTotal, err
+}
+
+func (repository *manajemenWilayahRepo) GetListKelurahanV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultKelurahan, int64, error) {
+	var results []models.ResultKelurahan
+	var metaTotal int64
+
+	query := repository.dbSlave.WithContext(ctx).Table("kelurahans").Select(`
+		kelurahans.id, 
+		kelurahans.village_name, 
+		kecamatans.sub_district_name,
+		(SELECT COUNT(*) FROM data__rws WHERE kelurahan_id = kelurahans.id) AS total_rw,
+		(SELECT COUNT(*) FROM data__rts JOIN data__rws rw ON rw.id = data__rts.rw_id WHERE rw.kelurahan_id = kelurahans.id) AS total_rt
+	`).
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+
+	if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		query = query.Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
+	}
+	if payload.Search != "" {
+		query = query.Where("kelurahans.village_name ILIKE ?", "%"+payload.Search+"%")
+	}
+
+	orderQuery := payload.OrderBy
+	if payload.OrderBy == "id" {
+		orderQuery = "kelurahans.id"
+	}
+
+	query.Count(&metaTotal)
+	err := query.Order(orderQuery + " " + payload.OrderDir).Limit(payload.Limit).Offset(offset).Find(&results).Error
+
+	return results, metaTotal, err
+}
+
+func (repository *manajemenWilayahRepo) GetListRWV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultRW, int64, error) {
+	var results []models.ResultRW
+	var metaTotal int64
+
+	query := repository.dbSlave.WithContext(ctx).Table("data__rws").Select(`
+		data__rws.id, 
+		data__rws.nama_rw, 
+		kelurahans.village_name, 
+		kecamatans.sub_district_name,
+		(SELECT COUNT(*) FROM data__rts WHERE rw_id = data__rws.id) AS total_rt
+	`).
+		Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+
+	if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
+		query = query.Where("data__rws.kelurahan_id = ?", *payload.KelurahanId)
+	} else if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		query = query.Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
+	}
+
+	if payload.Search != "" {
+		query = query.Where("data__rws.nama_rw ILIKE ?", "%"+payload.Search+"%")
+	}
+
+	orderQuery := payload.OrderBy
+	if payload.OrderBy == "id" {
+		orderQuery = "data__rws.id"
+	}
+
+	query.Count(&metaTotal)
+	err := query.Order(orderQuery + " " + payload.OrderDir).Limit(payload.Limit).Offset(offset).Find(&results).Error
+
+	return results, metaTotal, err
+}
+
+func (repository *manajemenWilayahRepo) GetListRTV2(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload, offset int) ([]models.ResultRT, int64, error) {
+	var results []models.ResultRT
+	var metaTotal int64
+
+	query := repository.dbSlave.WithContext(ctx).Table("data__rts").
+		Select("data__rts.id, data__rts.nama_rt, data__rws.nama_rw, kelurahans.village_name, kecamatans.sub_district_name").
+		Joins("LEFT JOIN data__rws ON data__rws.id = data__rts.rw_id").
+		Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+
+	if payload.RWId != nil && *payload.RWId > 0 {
+		query = query.Where("data__rts.rw_id = ?", *payload.RWId)
+	} else if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
+		query = query.Where("data__rws.kelurahan_id = ?", *payload.KelurahanId)
+	} else if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		query = query.Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
+	}
+
+	if payload.Search != "" {
+		query = query.Where("data__rts.nama_rt ILIKE ?", "%"+payload.Search+"%")
+	}
+
+	orderQuery := payload.OrderBy
+	if payload.OrderBy == "id" {
+		orderQuery = "data__rts.id"
+	}
+
+	query.Count(&metaTotal)
+
+	err := query.Order(orderQuery + " " + payload.OrderDir).
+		Limit(payload.Limit).
+		Offset(offset).
+		Find(&results).Error
+
+	return results, metaTotal, err
+}
+
+func (repository *manajemenWilayahRepo) GetWilayahSummary(ctx context.Context, payload payloads.DatatableDataWilayahKotaBandungPayload) (response.WilayahSummary, error) {
+	var summary response.WilayahSummary
+
+	qKec := repository.dbSlave.WithContext(ctx).Table("kecamatans")
+	if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		qKec = qKec.Where("id = ?", *payload.KecamatanId)
+	}
+	qKec.Count(&summary.TotalKecamatan)
+
+	qKel := repository.dbSlave.WithContext(ctx).Table("kelurahans")
+	if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
+		qKel = qKel.Where("id = ?", *payload.KelurahanId)
+	} else if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		qKel = qKel.Where("sub_district_id = ?", *payload.KecamatanId)
+	}
+	qKel.Count(&summary.TotalKelurahan)
+
+	qRW := repository.dbSlave.WithContext(ctx).Table("data__rws")
+	if payload.RWId != nil && *payload.RWId > 0 {
+		qRW = qRW.Where("id = ?", *payload.RWId)
+	} else if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
+		qRW = qRW.Where("kelurahan_id = ?", *payload.KelurahanId)
+	} else if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		qRW = qRW.Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+			Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
+	}
+	qRW.Count(&summary.TotalRw)
+
+	qRT := repository.dbSlave.WithContext(ctx).Table("data__rts")
+	if payload.RWId != nil && *payload.RWId > 0 {
+		qRT = qRT.Where("rw_id = ?", *payload.RWId)
+	} else if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
+		qRT = qRT.Joins("LEFT JOIN data__rws ON data__rws.id = data__rts.rw_id").
+			Where("data__rws.kelurahan_id = ?", *payload.KelurahanId)
+	} else if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
+		qRT = qRT.Joins("LEFT JOIN data__rws ON data__rws.id = data__rts.rw_id").
+			Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+			Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
+	}
+	qRT.Count(&summary.TotalRt)
+
+	return summary, nil
 }

@@ -24,3 +24,15 @@ type DatatablePejabatPayload struct {
 	FRw           *int64  `json:"f_rw"`
 	FRt           *int64  `json:"f_rt"`
 }
+
+type DatatableDataWilayahKotaBandungPayload struct {
+	Search      string `json:"search"`
+	Page        int    `json:"page"`
+	Limit       int    `json:"limit"`
+	OrderBy     string `json:"order_by"`
+	OrderDir    string `json:"order_dir"`
+	TipeWilayah *int   `json:"tipe_wilayah" validate:"required"`
+	KecamatanId *int64 `json:"kecamatan_id,omitempty"`
+	KelurahanId *int64 `json:"kelurahan_id,omitempty"`
+	RWId        *int64 `json:"rw_id,omitempty"`
+}

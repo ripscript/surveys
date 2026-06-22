@@ -39,6 +39,8 @@ type ManajemenWilayahHandler interface {
 	CreateRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	OptionsRt(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	TabelDataKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenWilayahHandler struct {
@@ -159,4 +161,8 @@ func (handler *manajemenWilayahHandler) OptionsRt(ctx context.Context, req map[s
 
 func (handler *manajemenWilayahHandler) DeleteRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.manajemenWilayahService.DeleteRT(slug)
+}
+
+func (handler *manajemenWilayahHandler) TabelDataKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.manajemenWilayahService.TabelDataKotaBandung(ctx, req, usr, param, slug)
 }

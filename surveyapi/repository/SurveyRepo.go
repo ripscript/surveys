@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/speps/go-hashids/v2"
 	"gorm.io/gorm"
@@ -81,6 +82,10 @@ type SurveyRepo interface {
 	GetRejectedQuestionsGrouped(ctx context.Context, respondentID int64, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error)
 
 	GetSurveyIsDoneBulkRT(ctx context.Context, surveyId int64, rtIds []int64) (map[int64]bool, error)
+
+	GetExpiredRepeatedSurveys(ctx context.Context) ([]models.Survey, error)
+	UpdateSurveyTx(ctx context.Context, tx *gorm.DB, survey *models.Survey) error
+	MarkExpiredSurveysAsFinished(ctx context.Context) error
 }
 
 type surveyRepo struct {
@@ -1539,4 +1544,31 @@ func (repository *surveyRepo) GetSurveyIsDoneBulkRT(ctx context.Context, surveyI
 	}
 
 	return result, nil
+}
+
+func (repository *surveyRepo) GetExpiredRepeatedSurveys(ctx context.Context) ([]models.Survey, error) {
+	var surveys []models.Survey
+	err := repository.dbSlave.WithContext(ctx).
+		Where("is_repeated = ?", true).
+		Where("end_date < ?", time.Now()).
+		Where("status != ?", "finished").
+		Find(&surveys).Error
+	return surveys, err
+}
+
+func (repository *surveyRepo) UpdateSurveyTx(ctx context.Context, tx *gorm.DB, survey *models.Survey) error {
+	if tx == nil {
+		tx = repository.dbMaster
+	}
+	return tx.WithContext(ctx).Save(survey).Error
+}
+
+func (repository *surveyRepo) MarkExpiredSurveysAsFinished(ctx context.Context) error {
+	err := repository.dbMaster.WithContext(ctx).
+		Table("surveys").
+		Where("end_date < ?", time.Now()).
+		Where("status != ?", "finished").
+		Update("status", "finished").Error
+
+	return err
 }
