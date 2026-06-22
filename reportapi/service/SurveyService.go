@@ -25,6 +25,8 @@ type ExportRequest struct {
 	SurveyID  string
 	Wilayah   string
 	WilayahID string
+	StartDate string
+	EndDate   string
 }
 
 type ExportResult struct {
@@ -345,26 +347,10 @@ func filterRespondentsByID(respondents []models.SurveyRespondents, respondentID 
 func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult, error) {
 	var respondentIDs []uint
 
-	// hd := hashids.NewData()
-	// h, err := hashids.NewWithData(hd)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
-	// }
-
-	// decodedIDs, err := h.DecodeWithError(req.SurveyID)
-	// if err != nil || len(decodedIDs) == 0 {
-	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
-	// }
-
 	surveyId, err := utils.ToInt64(req.SurveyID)
 	if err != nil {
 		return nil, fmt.Errorf("Data Survey Tidak Valid")
 	}
-
-	// decodedWilayahIDs, err := h.DecodeWithError(req.WilayahID)
-	// if err != nil || len(decodedIDs) == 0 {
-	// 	return nil, fmt.Errorf("Survey ID Tidak Valid Atau Dimanipulasi")
-	// }
 
 	wilayahId, err := utils.ToInt64(req.WilayahID)
 	if err != nil {
@@ -377,7 +363,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		if err != nil {
 			return nil, fmt.Errorf("get kelurahan by kecamatan: %w", err)
 		}
-		respondentIDs, err = s.surveyExportRepo.GetRespondentsByKelurahanIDs(kelurahanIDs)
+		respondentIDs, err = s.surveyExportRepo.GetRespondentsByKelurahanIDs(kelurahanIDs, req.StartDate, req.EndDate)
 		if err != nil {
 			return nil, fmt.Errorf("get respondents by kelurahan: %w", err)
 		}
@@ -387,7 +373,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		if err != nil {
 			return nil, fmt.Errorf("get rw by kelurahan: %w", err)
 		}
-		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRwIDs(rwIDs)
+		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRwIDs(rwIDs, req.StartDate, req.EndDate)
 		if err != nil {
 			return nil, fmt.Errorf("get respondents by rw: %w", err)
 		}
@@ -397,7 +383,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		if err != nil {
 			return nil, fmt.Errorf("get rt by rw: %w", err)
 		}
-		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRtIDs(rtIDs)
+		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRtIDs(rtIDs, req.StartDate, req.EndDate)
 		if err != nil {
 			return nil, fmt.Errorf("get respondents by rt: %w", err)
 		}
@@ -406,7 +392,7 @@ func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult
 		if err != nil {
 			return nil, fmt.Errorf("get rt by id: %w", err)
 		}
-		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRtIDs(rtIDs)
+		respondentIDs, err = s.surveyExportRepo.GetRespondentsByRtIDs(rtIDs, req.StartDate, req.EndDate)
 		if err != nil {
 			return nil, fmt.Errorf("get respondents by rt: %w", err)
 		}
