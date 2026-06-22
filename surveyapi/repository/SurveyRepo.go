@@ -485,6 +485,7 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				WHEN status = 2 AND status_approval = 'revisi_rt' THEN 'revisi'
 				WHEN status = 2 THEN 'selesai'
 				WHEN status = 1 THEN 'draft'
+				WHEN status = 0 THEN 'sedang berlangsung'
 			END
 			FROM survey_respondents 
 			WHERE survey_id = surveys.id AND respondent_id = %d

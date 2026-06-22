@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1435,9 +1436,16 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 	if err != nil {
 		return utils.SendError(err, http.StatusBadRequest)
 	}
+
 	err = json.Unmarshal(jsonBytes, &payload)
 	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+		if jsonErr, ok := err.(*json.UnmarshalTypeError); ok {
+			// Mendeteksi jika frontend mengirim string ke field number
+			if strings.Contains(jsonErr.Field, "value_number") || strings.Contains(jsonErr.Field, "value_option_id") {
+				return utils.SendError(fmt.Errorf("Field '%s' harus berupa angka (number), tidak boleh string", jsonErr.Field), http.StatusBadRequest)
+			}
+		}
+		return utils.SendError(fmt.Errorf("Format payload tidak valid: %v", err), http.StatusBadRequest)
 	}
 
 	var validate = validator.New()
@@ -1635,6 +1643,41 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 			continue
 		}
 
+		isWrongPayload := false
+		expectedField := ""
+
+		switch ans.Type {
+		case "short-answer", "long-answer", "email", "date", "time", "phone_number":
+			if ans.ValueString == nil && (ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_string"
+			}
+		case "number":
+			if ans.ValueNumber == nil && (ans.ValueString != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_number"
+			}
+		case "multiple-choices", "dropdown", "checkboxes":
+			if ans.ValueOptionID == nil && (ans.ValueString != nil || ans.ValueNumber != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_option_id"
+			}
+		case "maps":
+			if len(ans.ValueMaps) == 0 && (ans.ValueString != nil || ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_maps"
+			}
+		case "image-template":
+			if len(ans.ValueImages) == 0 && (ans.ValueString != nil || ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0) {
+				isWrongPayload = true
+				expectedField = "value_images"
+			}
+		}
+
+		if isWrongPayload {
+			return utils.SendError(fmt.Errorf("Pertanyaan ID %d bertipe '%s' salah format, seharusnya mengirimkan '%s'", ans.QuestionID, ans.Type, expectedField), http.StatusBadRequest)
+		}
+
 		var answerText string
 		var groupID int64 = 0
 		if ans.GroupID != nil {
@@ -1642,7 +1685,7 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 		}
 
 		switch ans.Type {
-		case "long-answer":
+		case "long-answer", "short-answer":
 			if ans.ValueString != nil && strings.TrimSpace(*ans.ValueString) != "" {
 				answerText = *ans.ValueString
 			}
@@ -1688,7 +1731,11 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 				var uploadedPaths []string
 
 				for _, image := range ans.ValueImages {
-					if strings.HasPrefix(image, "data:image") {
+					if strings.HasPrefix(image, "data:") {
+						if !strings.HasPrefix(image, "data:image") {
+							return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)"), http.StatusBadRequest)
+						}
+
 						base64Data, err := utils.ExtractBase64Info(image)
 						if err != nil {
 							return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
@@ -1711,11 +1758,18 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 							uploadedPaths = append(uploadedPaths, *path)
 							successfullyUploadedFiles = append(successfullyUploadedFiles, *path)
 						}
+
 					} else {
 						cleanPath := image
 						if after, ok0 := strings.CutPrefix(cleanPath, gatewayURL); ok0 {
 							cleanPath = after
 						}
+
+						ext := strings.ToLower(filepath.Ext(cleanPath))
+						if !slices.Contains(availablesExt, ext) {
+							return utils.SendError(errors.New("Terdapat format file/path yang tidak valid. Hanya gambar yang diperbolehkan."), http.StatusBadRequest)
+						}
+
 						uploadedPaths = append(uploadedPaths, cleanPath)
 
 						if oldFilesTracker[cleanPath] {
@@ -3113,9 +3167,15 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 	if err != nil {
 		return utils.SendError(err, http.StatusBadRequest)
 	}
+
 	err = json.Unmarshal(jsonBytes, &payload)
 	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+		if jsonErr, ok := err.(*json.UnmarshalTypeError); ok {
+			if strings.Contains(jsonErr.Field, "value_number") || strings.Contains(jsonErr.Field, "value_option_id") {
+				return utils.SendError(fmt.Errorf("Field '%s' harus berupa angka (number), tidak boleh string", jsonErr.Field), http.StatusBadRequest)
+			}
+		}
+		return utils.SendError(fmt.Errorf("Format payload tidak valid: %v", err), http.StatusBadRequest)
 	}
 
 	var validate = validator.New()
@@ -3246,21 +3306,46 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 			return utils.SendError(fmt.Errorf("Tipe jawaban tidak cocok untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
 		}
 
+		isWrongPayload := false
+		expectedField := ""
+
+		switch ans.Type {
+		case "long-answer":
+			if ans.ValueString == nil && (ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_string"
+			}
+		case "number":
+			if ans.ValueNumber == nil && (ans.ValueString != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_number"
+			}
+		case "multiple-choices":
+			if ans.ValueOptionID == nil && (ans.ValueString != nil || ans.ValueNumber != nil || len(ans.ValueMaps) > 0 || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_option_id"
+			}
+		case "maps":
+			if len(ans.ValueMaps) == 0 && (ans.ValueString != nil || ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueImages) > 0) {
+				isWrongPayload = true
+				expectedField = "value_maps"
+			}
+		case "image-template":
+			if len(ans.ValueImages) == 0 && (ans.ValueString != nil || ans.ValueNumber != nil || ans.ValueOptionID != nil || len(ans.ValueMaps) > 0) {
+				isWrongPayload = true
+				expectedField = "value_images"
+			}
+		}
+
+		if isWrongPayload {
+			return utils.SendError(fmt.Errorf("Pertanyaan ID %d bertipe '%s' salah format, seharusnya mengirimkan '%s'", ans.QuestionID, ans.Type, expectedField), http.StatusBadRequest)
+		}
+
 		switch ans.Type {
 		case "multiple-choices":
 			if ans.ValueOptionID != nil && *ans.ValueOptionID != 0 {
 				if !validOptionsMap[ans.QuestionID][*ans.ValueOptionID] {
 					return utils.SendError(fmt.Errorf("Pilihan jawaban tidak sah untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
-				}
-			}
-		case "checkboxes":
-			if len(ans.ValueMaps) > 0 {
-				for _, mapVal := range ans.ValueMaps {
-					if optFloat, ok := mapVal.(float64); ok {
-						if !validOptionsMap[ans.QuestionID][int(optFloat)] {
-							return utils.SendError(fmt.Errorf("Salah satu opsi checkbox tidak sah untuk pertanyaan ID %d", ans.QuestionID), http.StatusBadRequest)
-						}
-					}
 				}
 			}
 		}
@@ -3319,7 +3404,7 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 				finalAnswerStr = ans.ValueString
 			} else {
 				switch ans.Type {
-				case "long-answer", "short-answer", "date":
+				case "long-answer":
 					if ans.ValueString != nil {
 						ansCopy := *ans.ValueString
 						finalAnswerStr = &ansCopy
@@ -3334,7 +3419,7 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 						strVal := strconv.Itoa(*ans.ValueOptionID)
 						finalAnswerStr = &strVal
 					}
-				case "maps", "checkboxes":
+				case "maps":
 					if len(ans.ValueMaps) > 0 {
 						jsonBytes, _ := json.Marshal(ans.ValueMaps)
 						strVal := string(jsonBytes)
@@ -3344,20 +3429,18 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 					if len(ans.ValueImages) > 0 {
 						var uploadedPaths []string
 						for _, image := range ans.ValueImages {
-							if strings.HasPrefix(image, "http") {
-								cleanPath := image
-								if after, ok0 := strings.CutPrefix(cleanPath, gatewayURL); ok0 {
-									cleanPath = after
+
+							// 3. HARDENING IMAGE VALIDATION & MAGIC BYTES DETECTION
+							if strings.HasPrefix(image, "data:") {
+								if !strings.HasPrefix(image, "data:image") {
+									return errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)")
 								}
-								uploadedPaths = append(uploadedPaths, cleanPath)
-								if oldFilesTracker[cleanPath] {
-									oldFilesTracker[cleanPath] = false
-								}
-							} else if strings.HasPrefix(image, "data:image") {
+
 								base64Data, errExtract := utils.ExtractBase64Info(image)
 								if errExtract != nil {
 									return errors.New("Gagal memproses gambar")
 								}
+
 								if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
 									return errors.New("Format file gambar tidak didukung")
 								}
@@ -3374,6 +3457,24 @@ func (service *surveyService) VerifySurveyAnswers(ctx context.Context, req map[s
 								}
 								uploadedPaths = append(uploadedPaths, *path)
 								successfullyUploadedFiles = append(successfullyUploadedFiles, *path)
+
+							} else {
+								// Asumsi URL lama / path string biasa
+								cleanPath := image
+								if after, ok0 := strings.CutPrefix(cleanPath, gatewayURL); ok0 {
+									cleanPath = after
+								}
+
+								// VALIDASI EKSTENSI (Cegah injeksi path non-gambar)
+								ext := strings.ToLower(filepath.Ext(cleanPath))
+								if !slices.Contains(availablesExt, ext) {
+									return errors.New("Terdapat format file/path yang tidak valid. Hanya gambar yang diperbolehkan.")
+								}
+
+								uploadedPaths = append(uploadedPaths, cleanPath)
+								if oldFilesTracker[cleanPath] {
+									oldFilesTracker[cleanPath] = false
+								}
 							}
 						}
 						pathBytes, _ := json.Marshal(uploadedPaths)
