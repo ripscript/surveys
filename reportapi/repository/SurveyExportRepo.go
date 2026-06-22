@@ -9,9 +9,9 @@ import (
 type SurveyExportRepo interface {
 	GetSurveyWithResponses(surveyID uint, respondentIDs []uint) (*models.SurveyExport, error)
 	GetFormAnswerOptions(fieldIDs []uint) (map[uint][]models.FormAnswerFieldExport, error)
-	GetRespondentsByKelurahanIDs(kelurahanIDs []uint) ([]uint, error)
-	GetRespondentsByRwIDs(rwIDs []uint) ([]uint, error)
-	GetRespondentsByRtIDs(rtIDs []uint) ([]uint, error)
+	GetRespondentsByKelurahanIDs(kelurahanIDs []uint, startDate string, endDate string) ([]uint, error)
+	GetRespondentsByRwIDs(rwIDs []uint, startDate string, endDate string) ([]uint, error)
+	GetRespondentsByRtIDs(rtIDs []uint, startDate string, endDate string) ([]uint, error)
 	GetKelurahanIDsByKecamatan(kecamatanID uint) ([]uint, error)
 	GetRwIDsByKelurahan(kelurahanID uint) ([]uint, error)
 	GetRtIDsByRw(rwID uint) ([]uint, error)
@@ -77,27 +77,52 @@ func (r *surveyExportRepo) GetFormAnswerOptions(fieldIDs []uint) (map[uint][]mod
 	return result, nil
 }
 
-func (r *surveyExportRepo) GetRespondentsByKelurahanIDs(kelurahanIDs []uint) ([]uint, error) {
+func (r *surveyExportRepo) applyRespondentDateRange(query *gorm.DB, startDate string, endDate string) *gorm.DB {
+	if startDate != "" && endDate != "" {
+		return query.Where("created_at BETWEEN ? AND ?", startDate, endDate)
+	}
+	if startDate != "" {
+		return query.Where("created_at >= ?", startDate)
+	}
+	if endDate != "" {
+		return query.Where("created_at <= ?", endDate)
+	}
+	return query
+}
+
+func (r *surveyExportRepo) GetRespondentsByKelurahanIDs(kelurahanIDs []uint, startDate string, endDate string) ([]uint, error) {
 	var ids []uint
-	err := r.dbSlave.Model(&models.RespondentExport{}).
-		Where("kelurahan_id IN ? AND role_id = 2", kelurahanIDs).
-		Pluck("id", &ids).Error
+
+	query := r.dbSlave.Model(&models.RespondentExport{}).
+		Where("kelurahan_id IN ? AND role_id = 2", kelurahanIDs)
+
+	query = r.applyRespondentDateRange(query, startDate, endDate)
+
+	err := query.Pluck("id", &ids).Error
 	return ids, err
 }
 
-func (r *surveyExportRepo) GetRespondentsByRwIDs(rwIDs []uint) ([]uint, error) {
+func (r *surveyExportRepo) GetRespondentsByRwIDs(rwIDs []uint, startDate string, endDate string) ([]uint, error) {
 	var ids []uint
-	err := r.dbSlave.Model(&models.RespondentExport{}).
-		Where("rw_id IN ? AND role_id = 2", rwIDs).
-		Pluck("id", &ids).Error
+
+	query := r.dbSlave.Model(&models.RespondentExport{}).
+		Where("rw_id IN ? AND role_id = 2", rwIDs)
+
+	query = r.applyRespondentDateRange(query, startDate, endDate)
+
+	err := query.Pluck("id", &ids).Error
 	return ids, err
 }
 
-func (r *surveyExportRepo) GetRespondentsByRtIDs(rtIDs []uint) ([]uint, error) {
+func (r *surveyExportRepo) GetRespondentsByRtIDs(rtIDs []uint, startDate string, endDate string) ([]uint, error) {
 	var ids []uint
-	err := r.dbSlave.Model(&models.RespondentExport{}).
-		Where("rt_id IN ? AND role_id = 2", rtIDs).
-		Pluck("id", &ids).Error
+
+	query := r.dbSlave.Model(&models.RespondentExport{}).
+		Where("rt_id IN ? AND role_id = 2", rtIDs)
+
+	query = r.applyRespondentDateRange(query, startDate, endDate)
+
+	err := query.Pluck("id", &ids).Error
 	return ids, err
 }
 

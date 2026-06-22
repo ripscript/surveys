@@ -52,11 +52,15 @@ func (handler *surveyHandler) SurveyActvitiesExport(ctx context.Context, req map
 	surveyIDStr := param.Get("survey_id")
 	wilayah := param.Get("wilayah")
 	wilayahIDStr := param.Get("wilayah_id")
+	startDate := param.Get("start_date")
+	endDate := param.Get("end_date")
 
 	exportReq := service.ExportRequest{
 		SurveyID:  surveyIDStr,
 		Wilayah:   wilayah,
 		WilayahID: wilayahIDStr,
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
 	result, err := handler.surveyService.SurveyActivitiesExport(exportReq)
