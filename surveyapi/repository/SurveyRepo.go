@@ -486,11 +486,11 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 
 		(
 			SELECT CASE 
-				-- Pengecekan status revisi HARUS di atas agar dicek lebih dulu
 				WHEN status = 2 AND status_approval = 'revisi_rt' THEN 'revisi'
 				WHEN status = 2 THEN 'selesai'
 				WHEN status = 1 THEN 'draft'
 				WHEN status = 0 THEN 'sedang berlangsung'
+				ELSE NULL
 			END
 			FROM survey_respondents 
 			WHERE survey_id = surveys.id AND respondent_id = %d
@@ -586,6 +586,9 @@ func (repository *surveyRepo) BeginTransaction() *gorm.DB {
 
 func (repository *surveyRepo) CreateSurveyRespondent(tx *gorm.DB, surveyRespondent models.SurveyRespondent) (*models.SurveyRespondent, error) {
 	defer utils.GeneralRecover()
+	if tx == nil {
+		tx = repository.dbMaster
+	}
 
 	err := tx.Create(&surveyRespondent).Error
 	if err != nil {

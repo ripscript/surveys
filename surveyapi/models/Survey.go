@@ -41,6 +41,7 @@ type SurveyDetailResponse struct {
 	Kelurahan                []int64 `json:"kelurahan_ids"`
 	RW                       []int64 `json:"rw_ids"`
 	Surveyor                 []int64 `json:"surveyor_ids"`
+	IsRepeated               *bool   `json:"is_repeated"`
 }
 
 type SurveyDatatableResponse struct {

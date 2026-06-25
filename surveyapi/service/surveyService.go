@@ -683,6 +683,7 @@ func (service *surveyService) GetDetailSurvey(ctx context.Context, req map[strin
 		Kelurahan:                kelurahanIDs,
 		RW:                       rwIDs,
 		Surveyor:                 surveyorIDs,
+		IsRepeated:               survey.IsRepeated,
 	}
 
 	return utils.SendData(response, "Detail survey berhasil diambil")
@@ -963,18 +964,32 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 	}
 
 	var surveyRespondentId *int64
+	var isRevisiRT bool
 
 	if respondentExistsInSurvey != nil {
 		if *respondentExistsInSurvey.Status == 2 {
 			if respondentExistsInSurvey.StatusApproval != nil {
 				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
 					return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
+				} else {
+					isRevisiRT = true
 				}
 			} else {
 				return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
 			}
 		}
 		surveyRespondentId = &respondentExistsInSurvey.ID
+	} else {
+		if usr.Role == int(enums.ROLE_RT) {
+			dataCreateSurveyRespondent := models.SurveyRespondent{
+				RespondentID: respondentId,
+				SurveyID:     int64(survey.ID),
+			}
+			_, err := service.surveyRepo.CreateSurveyRespondent(nil, dataCreateSurveyRespondent)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+		}
 	}
 
 	statusSectionStr := flowDetail.StatusSection
@@ -995,6 +1010,11 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 			return utils.SendError(err, http.StatusInternalServerError)
 		}
 
+		finalCompletedStatus := v.Completed
+		if isRevisiRT {
+			finalCompletedStatus = false
+		}
+
 		sections = append(sections, models.FlowPreviewSection{
 			SectionCode:               &sectionCode,
 			SectionName:               v.SectionName,
@@ -1002,7 +1022,7 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 			TotalOptionalQuestions:    v.TotalOptionalQuestions,
 			AnsweredRequiredQuestions: v.AnsweredRequiredQuestions,
 			AnsweredOptionalQuestions: v.AnsweredOptionalQuestions,
-			Completed:                 v.Completed,
+			Completed:                 finalCompletedStatus,
 		})
 	}
 
@@ -4824,7 +4844,7 @@ func (service *surveyService) SyncExpiredSurveysStatus(ctx context.Context) {
 				newSurvey.CreatedAt = time.Now()
 				newSurvey.UpdatedAt = time.Now()
 				newSurvey.IsRepeated = utils.BoolToPointer(true)
-				_, err := txRepo.CreateSurvey(newSurvey)
+				createdSurvey, err := txRepo.CreateSurvey(newSurvey)
 				if err != nil {
 					return err
 				}
@@ -4835,7 +4855,30 @@ func (service *surveyService) SyncExpiredSurveysStatus(ctx context.Context) {
 				if err := txRepo.UpdateSurvey(&oldSurvey); err != nil {
 					return err
 				}
+
+				surveyors, _ := service.surveyRepo.GetSurveyorsBySurveyId(int64(oldSurvey.ID))
+				for _, v := range surveyors {
+					_, err := txRepo.AssignSurveyorToSurvey(int64(v.RespondentId), int64(createdSurvey.ID))
+					if err != nil {
+						return err
+					}
+				}
+				wilayahs, _ := service.surveyRepo.GetSurveyWilayahsBySurveyId(int64(oldSurvey.ID))
+				for _, v := range wilayahs {
+					surveyWilayah := models.SurveyWilayah{
+						TingkatWilayah: v.TingkatWilayah,
+						SurveyId:       int64(createdSurvey.ID),
+						KecamatanId:    v.KecamatanId,
+						KelurahanId:    v.KelurahanId,
+						RWId:           v.RWId,
+					}
+					_, err := txRepo.AssignWilayahToSurvey(surveyWilayah)
+					if err != nil {
+						return err
+					}
+				}
 			}
+
 			return nil
 		})
 	}
