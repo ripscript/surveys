@@ -16,8 +16,10 @@ type UserProfile struct {
 	CreatedAt    *time.Time     `gorm:"column:created_at;autoCreateTime"                  json:"created_at"`
 	UpdatedAt    *time.Time     `gorm:"column:updated_at;autoUpdateTime"                  json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index"                           json:"deleted_at,omitempty"`
+	Password     *string        `gorm:"column:password;type:varchar(255)"                 json:"-"`
 
-	Respondent *RespondentProfile `gorm:"foreignKey:RespondentID" json:"respondent,omitempty"`
+	Respondent     *RespondentProfile     `gorm:"foreignKey:RespondentID" json:"respondent"`
+	PejabatWilayah *PejabatWilayahProfile `gorm:"foreignKey:IdResponden;references:RespondentID" json:"pejabat_wilayah"`
 }
 
 func (UserProfile) TableName() string {
@@ -52,4 +54,21 @@ type RespondentProfile struct {
 
 func (RespondentProfile) TableName() string {
 	return "respondents"
+}
+
+type PejabatWilayahProfile struct {
+	ID            int        `gorm:"column:id;primaryKey;autoIncrement" json:"-"`
+	TipeWilayah   *int64     `gorm:"column:tipe_wilayah" json:"tipe_wilayah"`
+	IdWilayah     *int64     `gorm:"column:id_wilayah" json:"id_wilayah"`
+	PeriodeAwal   *time.Time `gorm:"column:periode_awal;type:date" json:"periode_awal"`
+	PeriodeAkhir  *time.Time `gorm:"column:periode_akhir;type:date" json:"periode_akhir"`
+	StatusJabatan *bool      `gorm:"column:status_jabat" json:"status_jabatan"`
+	IdResponden   *int64     `gorm:"column:id_responden" json:"id_responden"`
+	NoSk          *string    `gorm:"column:no_sk" json:"no_sk"`
+	CreatedAt     *time.Time `gorm:"column:created_at" json:"-"`
+	UpdatedAt     *time.Time `gorm:"column:updated_at" json:"-"`
+}
+
+func (PejabatWilayahProfile) TableName() string {
+	return "pejabat__wilayahs"
 }

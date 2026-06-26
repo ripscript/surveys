@@ -2,9 +2,11 @@ package repository
 
 import (
 	"backend/userapi/models"
+	"backend/userapi/payloads"
 	"backend/userapi/utils"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -24,6 +26,9 @@ type UsersRepo interface {
 	CheckPhoneNumber(phoneNumber string) (int64, error)
 	CheckNik(nik string) (int64, int64, error)
 	GetUserRawById(id int) (*models.UserProfile, error)
+
+	UpdateProfileBundleTx(userID int, respondentID int, isPejabat bool, payload payloads.UpdateProfileBundlePayload, hashedPassword string) error
+	CheckDuplicateProfileData(email string, nik *string, phone *string, currentUserID int, currentRespondentID int) error
 }
 
 type usersRepo struct {
@@ -305,10 +310,99 @@ func (r *usersRepo) GetUserRawById(id int) (*models.UserProfile, error) {
 	defer utils.GeneralRecover()
 
 	var user models.UserProfile
-	err := r.dbSlave.Preload("Respondent").Where("id = ?", id).First(&user).Error
+	err := r.dbSlave.
+		Preload("Respondent").
+		Preload("PejabatWilayah").
+		Where("id = ?", id).
+		First(&user).Error
+
 	if err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+}
+
+func (r *usersRepo) UpdateProfileBundleTx(userID int, respondentID int, isPejabat bool, payload payloads.UpdateProfileBundlePayload, hashedPassword string) error {
+	defer utils.GeneralRecover()
+
+	tx := r.dbSlave.Begin()
+	if tx.Error != nil {
+		return errors.New("gagal memulai transaksi database")
+	}
+
+	if hashedPassword != "" {
+		if err := tx.Table("users").Where("id = ?", userID).Update("password", hashedPassword).Error; err != nil {
+			tx.Rollback()
+			return errors.New("gagal mengupdate password")
+		}
+	}
+
+	updateRespondentData := map[string]interface{}{
+		"name":          payload.Name,
+		"email":         payload.Email,
+		"nik":           payload.NIK,
+		"alamat":        payload.Alamat,
+		"tempat_lahir":  payload.TempatLahir,
+		"tanggal_lahir": payload.TanggalLahir,
+		"phone_number":  payload.PhoneNumber,
+	}
+	if err := tx.Table("respondents").Where("id = ?", respondentID).Updates(updateRespondentData).Error; err != nil {
+		tx.Rollback()
+		return errors.New("gagal mengupdate data responden")
+	}
+
+	updateUserData := map[string]interface{}{
+		"email": payload.Email,
+		"nik":   payload.NIK,
+	}
+	if err := tx.Table("users").Where("id = ?", userID).Updates(updateUserData).Error; err != nil {
+		tx.Rollback()
+		return errors.New("gagal mengupdate data user")
+	}
+
+	if isPejabat {
+		updatePejabatData := map[string]interface{}{
+			"no_sk": payload.NoSK,
+		}
+		if err := tx.Table("pejabat__wilayahs").Where("id_responden = ?", respondentID).Updates(updatePejabatData).Error; err != nil {
+			tx.Rollback()
+			return errors.New("gagal mengupdate data administratif")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return errors.New("gagal menyimpan perubahan data")
+	}
+
+	return nil
+}
+
+func (r *usersRepo) CheckDuplicateProfileData(email string, nik *string, phone *string, currentUserID int, currentRespondentID int) error {
+	var count int64
+
+	if email != "" {
+		r.dbSlave.Table("users").Where("email = ? AND id != ?", email, currentUserID).Where("deleted_at IS NULL").Count(&count)
+		if count > 0 {
+			return errors.New("Email sudah digunakan oleh pengguna lain")
+		}
+	}
+
+	if nik != nil && *nik != "" {
+		count = 0
+		r.dbSlave.Table("respondents").Where("nik = ? AND id != ?", *nik, currentRespondentID).Where("deleted_at IS NULL").Count(&count)
+		if count > 0 {
+			return errors.New("NIK sudah terdaftar di sistem")
+		}
+	}
+
+	// if phone != nil && *phone != "" {
+	// 	count = 0
+	// 	r.dbSlave.Table("respondents").Where("phone_number = ? AND id != ?", *phone, currentRespondentID).Where("deleted_at IS NULL").Count(&count)
+	// 	if count > 0 {
+	// 		return errors.New("Nomor telepon sudah terdaftar di sistem")
+	// 	}
+	// }
+
+	return nil
 }

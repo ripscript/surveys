@@ -467,6 +467,10 @@ func (service *surveyService) CreateSurvey(ctx context.Context, usr models.JwtCu
 func (service *surveyService) GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	if usr.Role != int(enums.ROLE_ADMIN) && usr.Role != int(enums.ROLE_KECAMATAN) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk melihat daftar survey ini"), http.StatusForbidden)
+	}
+
 	search := param.Get("search")
 	page, _ := strconv.Atoi(param.Get("page"))
 	limit, _ := strconv.Atoi(param.Get("limit"))

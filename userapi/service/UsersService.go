@@ -16,13 +16,16 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	excelize "github.com/xuri/excelize/v2"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UsersService interface {
 	GetProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateProfileBundle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
 	GetUsers(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
 	GetDetailUsers(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateUsers(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
@@ -71,7 +74,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	}
 
 	var kecamatanCodeStr *string
-	if user != nil && user.Respondent != nil && user.Respondent.KecamatanID != nil {
+	if user.Respondent != nil && user.Respondent.KecamatanID != nil {
 		kecamatanId := []int{int(*user.Respondent.KecamatanID)}
 
 		kecamatanCode, err := h.Encode(kecamatanId)
@@ -85,7 +88,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	user.Respondent.KecamatanCode = kecamatanCodeStr
 
 	var kelurahanCodeStr *string
-	if user != nil && user.Respondent != nil && user.Respondent.KelurahanID != nil {
+	if user.Respondent != nil && user.Respondent.KelurahanID != nil {
 		kelurahanId := []int{int(*user.Respondent.KelurahanID)}
 
 		kelurahanCode, err := h.Encode(kelurahanId)
@@ -99,7 +102,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	user.Respondent.KelurahanCode = kelurahanCodeStr
 
 	var RwCodeStr *string
-	if user != nil && user.Respondent != nil && user.Respondent.RwID != nil {
+	if user.Respondent != nil && user.Respondent.RwID != nil {
 		rwId := []int{int(*user.Respondent.RwID)}
 
 		rwCode, err := h.Encode(rwId)
@@ -113,7 +116,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	user.Respondent.RwCode = RwCodeStr
 
 	var RtCodeStr *string
-	if user != nil && user.Respondent != nil && user.Respondent.RtID != nil {
+	if user.Respondent != nil && user.Respondent.RtID != nil {
 		rtId := []int{int(*user.Respondent.RtID)}
 
 		rtCode, err := h.Encode(rtId)
@@ -430,4 +433,79 @@ func (service *usersService) CreateUsers(req map[string]interface{}, usr models.
 	}
 
 	return utils.SendData(nil, "Data Pengguna Berhasil Dibuat")
+}
+
+func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload payloads.UpdateProfileBundlePayload
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	validate.RegisterValidation("password_rule", utils.PasswordRuleValidation)
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	user, err := service.usersRepo.GetUserRawById(int(usr.ID))
+	if err != nil {
+		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
+	}
+
+	var respondentID int
+	if user.RespondentID != nil {
+		respondentID = int(*user.RespondentID)
+	}
+
+	err = service.usersRepo.CheckDuplicateProfileData(
+		payload.Email,
+		payload.NIK,
+		payload.PhoneNumber,
+		int(user.ID),
+		respondentID,
+	)
+	if err != nil {
+		return utils.SendError(err, http.StatusConflict)
+	}
+
+	var hashedPassword string
+	if payload.NewPassword != "" {
+		var oldPassword string
+		if user.Password != nil {
+			oldPassword = *user.Password
+		}
+
+		errCompare := bcrypt.CompareHashAndPassword([]byte(oldPassword), []byte(payload.CurrentPassword))
+		if errCompare != nil {
+			return utils.SendError(errors.New("Password saat ini yang Anda masukkan salah"), http.StatusBadRequest)
+		}
+		// Generate Hash Baru
+		hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
+		hashedPassword = string(hashedBytes)
+	}
+
+	isPejabat := user.PejabatWilayah != nil
+
+	err = service.usersRepo.UpdateProfileBundleTx(
+		int(user.ID),
+		respondentID,
+		isPejabat,
+		payload,
+		hashedPassword,
+	)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Profil berhasil diperbarui")
 }

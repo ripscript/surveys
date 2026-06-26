@@ -177,10 +177,12 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id")
 
 	if req.SurveyDiikuti {
-		if respondentLogin.RoleId != nil {
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+		db = db.Where("surveys.created_by != ?", userLogin.ID)
 
-				var kecId, kelId, rwId int64
+		if userLogin.Role != int(enums.ROLE_ADMIN) {
+			var kecId, kelId, rwId int64
+
+			if respondentLogin != nil {
 				if respondentLogin.KecamatanId != nil {
 					kecId = *respondentLogin.KecamatanId
 				}
@@ -190,8 +192,10 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 				if respondentLogin.RWId != nil {
 					rwId = *respondentLogin.RWId
 				}
+			}
 
-				db = db.Where(`
+			db = db.Where(`
+			(
 				EXISTS (
 					SELECT 1 FROM survey_wilayahs 
 					WHERE survey_wilayahs.survey_id = surveys.id 
@@ -202,8 +206,8 @@ func (repository *surveyRepo) GetListSurvey(userLogin models.JwtCustomClaims, re
 				OR NOT EXISTS (
 					SELECT 1 FROM survey_wilayahs 
 					WHERE survey_wilayahs.survey_id = surveys.id
-				)`, kecId, kelId, rwId)
-			}
+				)
+			)`, kecId, kelId, rwId)
 		}
 	} else {
 		db = db.Where("surveys.created_by = ?", userLogin.ID)
