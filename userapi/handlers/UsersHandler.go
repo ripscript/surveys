@@ -41,7 +41,7 @@ func (handler *usersHandler) UpdateProfile(ctx context.Context, req map[string]i
 }
 
 func (handler *usersHandler) GetUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.usersService.GetUsers(usr, param)
+	return handler.usersService.GetUsers(ctx, req, usr, param, slug)
 }
 
 func (handler *usersHandler) GetDetailUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

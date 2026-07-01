@@ -319,6 +319,89 @@ func (repository *manajemenAlurRepo) GetListAlur(req payloads.DatatablePayload) 
 	return data, totalData, nil
 }
 
+// func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int, statusSection string, formResponseID *int64) ([]models.FlowPreviewSection, error) {
+// 	defer utils.GeneralRecover()
+// 	var sections []models.FlowPreviewSection
+
+// 	var respID int64 = 0
+// 	if formResponseID != nil {
+// 		respID = *formResponseID
+// 	}
+
+// 	db := repositry.dbSlave.Table("flow_fields").
+// 		Where("flow_fields.flow_detail_id = ?", detailID).
+// 		Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id")
+
+// 	if statusSection == "1" {
+// 		err := db.Select(`
+// 				flow__sections.id AS section_id,
+// 				flow__sections.name AS section_name,
+
+// 				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+// 				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+
+// 				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+// 					SELECT 1 FROM field_responses
+// 					WHERE field_responses.form_field_id = form_fields.id
+// 					AND field_responses.form_response_id = ?
+// 					AND field_responses.deleted_at IS NULL
+// 				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+
+// 				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+// 					SELECT 1 FROM field_responses
+// 					WHERE field_responses.form_field_id = form_fields.id
+// 					AND field_responses.form_response_id = ?
+// 					AND field_responses.deleted_at IS NULL
+// 				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
+// 			`, respID, respID).
+// 			Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
+// 			Group("flow__sections.id, flow__sections.name").
+// 			Order("flow__sections.id ASC").
+// 			Scan(&sections).Error
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	} else {
+// 		err := db.Select(`
+// 				0 AS section_id,
+// 				NULL AS section_name,
+
+// 				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
+// 				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+
+// 				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+// 					SELECT 1 FROM field_responses
+// 					WHERE field_responses.form_field_id = form_fields.id
+// 					AND field_responses.form_response_id = ?
+// 					AND field_responses.deleted_at IS NULL
+// 				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+
+// 				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+// 					SELECT 1 FROM field_responses
+// 					WHERE field_responses.form_field_id = form_fields.id
+// 					AND field_responses.form_response_id = ?
+// 					AND field_responses.deleted_at IS NULL
+// 				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
+// 			`, respID, respID).
+// 			Scan(&sections).Error
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
+
+// 	for i := range sections {
+// 		if sections[i].TotalRequiredQuestions > 0 {
+// 			sections[i].Completed = sections[i].AnsweredRequiredQuestions >= sections[i].TotalRequiredQuestions
+// 		} else {
+// 			sections[i].Completed = true
+// 		}
+// 	}
+
+// 	return sections, nil
+// }
+
 func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int, statusSection string, formResponseID *int64) ([]models.FlowPreviewSection, error) {
 	defer utils.GeneralRecover()
 	var sections []models.FlowPreviewSection
@@ -336,24 +419,41 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 		err := db.Select(`
 				flow__sections.id AS section_id,
 				flow__sections.name AS section_name,
-				
+
 				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
 				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
-				
+
 				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
-					SELECT 1 FROM field_responses 
-					WHERE field_responses.form_field_id = form_fields.id 
-					AND field_responses.form_response_id = ? 
+					SELECT 1 FROM field_responses
+					WHERE field_responses.form_field_id = form_fields.id
+					AND field_responses.form_response_id = ?
 					AND field_responses.deleted_at IS NULL
+				) AND NOT EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
 				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
-				
+
 				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
-					SELECT 1 FROM field_responses 
-					WHERE field_responses.form_field_id = form_fields.id 
-					AND field_responses.form_response_id = ? 
+					SELECT 1 FROM field_responses
+					WHERE field_responses.form_field_id = form_fields.id
+					AND field_responses.form_response_id = ?
 					AND field_responses.deleted_at IS NULL
-				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
-			`, respID, respID).
+				) AND NOT EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
+				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions,
+
+				COALESCE(SUM(CASE WHEN EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
+				) THEN 1 ELSE 0 END), 0) AS pending_revision_questions
+			`, respID, respID, respID, respID, respID).
 			Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
 			Group("flow__sections.id, flow__sections.name").
 			Order("flow__sections.id ASC").
@@ -366,24 +466,41 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 		err := db.Select(`
 				0 AS section_id,
 				NULL AS section_name,
-				
+
 				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
 				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
-				
+
 				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
-					SELECT 1 FROM field_responses 
-					WHERE field_responses.form_field_id = form_fields.id 
-					AND field_responses.form_response_id = ? 
+					SELECT 1 FROM field_responses
+					WHERE field_responses.form_field_id = form_fields.id
+					AND field_responses.form_response_id = ?
 					AND field_responses.deleted_at IS NULL
+				) AND NOT EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
 				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
-				
+
 				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
-					SELECT 1 FROM field_responses 
-					WHERE field_responses.form_field_id = form_fields.id 
-					AND field_responses.form_response_id = ? 
+					SELECT 1 FROM field_responses
+					WHERE field_responses.form_field_id = form_fields.id
+					AND field_responses.form_response_id = ?
 					AND field_responses.deleted_at IS NULL
-				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions
-			`, respID, respID).
+				) AND NOT EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
+				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions,
+
+				COALESCE(SUM(CASE WHEN EXISTS (
+					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
+					WHERE flag.form_field_id = form_fields.id
+					AND flag.survey_respondent_id = ?
+					AND flag.is_revisied = 'true'
+				) THEN 1 ELSE 0 END), 0) AS pending_revision_questions
+			`, respID, respID, respID, respID, respID).
 			Scan(&sections).Error
 
 		if err != nil {
@@ -392,11 +509,11 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 	}
 
 	for i := range sections {
+		requiredOk := true
 		if sections[i].TotalRequiredQuestions > 0 {
-			sections[i].Completed = sections[i].AnsweredRequiredQuestions >= sections[i].TotalRequiredQuestions
-		} else {
-			sections[i].Completed = true
+			requiredOk = sections[i].AnsweredRequiredQuestions >= sections[i].TotalRequiredQuestions
 		}
+		sections[i].Completed = requiredOk && sections[i].PendingRevisionQuestions == 0
 	}
 
 	return sections, nil

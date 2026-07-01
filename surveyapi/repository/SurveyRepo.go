@@ -86,6 +86,9 @@ type SurveyRepo interface {
 	GetExpiredRepeatedSurveys(ctx context.Context) ([]models.Survey, error)
 	UpdateSurveyTx(ctx context.Context, tx *gorm.DB, survey *models.Survey) error
 	MarkExpiredSurveysAsFinished(ctx context.Context) error
+
+	CheckUnresolvedRevision(surveyRespondentId int64) (bool, error)
+	ResolveFlaggingBySection(ctx context.Context, tx *gorm.DB, respondentID int64, fieldIDs []int64) error
 }
 
 type surveyRepo struct {
@@ -566,7 +569,10 @@ func (repository *surveyRepo) GetRespondentExistsInSurvey(respondentId int64, su
 	defer utils.GeneralRecover()
 
 	var surveyRespondent models.SurveyRespondent
-	err := repository.dbSlave.Where("respondent_id = ? AND survey_id = ?", respondentId, surveyId).First(&surveyRespondent).Error
+	err := repository.dbSlave.
+		Where("respondent_id = ? AND survey_id = ?", respondentId, surveyId).
+		Order("id DESC").
+		First(&surveyRespondent).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1578,4 +1584,29 @@ func (repository *surveyRepo) MarkExpiredSurveysAsFinished(ctx context.Context) 
 		Update("status", "finished").Error
 
 	return err
+}
+
+func (repository *surveyRepo) CheckUnresolvedRevision(surveyRespondentId int64) (bool, error) {
+	var count int64
+
+	err := repository.dbSlave.Table("flagging_edit_pertanyaan_surveys").
+		Where("survey_respondent_id = ?", surveyRespondentId).
+		Where("is_revisied = ?", "false").
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (repository *surveyRepo) ResolveFlaggingBySection(ctx context.Context, tx *gorm.DB, respondentID int64, fieldIDs []int64) error {
+	if len(fieldIDs) == 0 {
+		return nil
+	}
+	return tx.WithContext(ctx).
+		Table("flagging_edit_pertanyaan_surveys").
+		Where("survey_respondent_id = ? AND form_field_id IN ? AND is_revisied = ?", respondentID, fieldIDs, "true").
+		Update("is_revisied", "false").Error
 }

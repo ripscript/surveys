@@ -902,6 +902,153 @@ func (service *surveyService) AvailableSurveyWilayah(ctx context.Context, req ma
 	return utils.SendData(result, "Survey wilayah berhasil diambil")
 }
 
+// func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+// 	defer utils.GeneralRecover()
+
+// 	hd := hashids.NewData()
+// 	hd.Salt = os.Getenv("HASHID_SALT")
+// 	hd.MinLength = 24
+
+// 	h, err := hashids.NewWithData(hd)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusInternalServerError)
+// 	}
+
+// 	codeStr := slug["code"]
+// 	code, ok := codeStr.(string)
+// 	if !ok {
+// 		return utils.SendError(errors.New("Survey tidak valid"), http.StatusBadRequest)
+// 	}
+
+// 	decodedIDs, err := h.DecodeWithError(code)
+// 	if err != nil || len(decodedIDs) == 0 {
+// 		return utils.SendError(errors.New("Survey tidak valid atau dimanipulasi"), http.StatusBadRequest)
+// 	}
+
+// 	surveyId := decodedIDs[0]
+
+// 	survey, err := service.surveyRepo.GetSurveyById(int64(surveyId))
+// 	if err != nil {
+// 		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	respondentId := usr.RespondentID
+// 	if respondentId == 0 {
+// 		return utils.SendError(errors.New("Respondent tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentId)
+// 	if err != nil {
+// 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+// 	}
+
+// 	canRespondentDoSurvey, err := service.surveyRepo.CheckRespondentEligibility(ctx, nil, int64(survey.ID), respondentLogin)
+// 	if err != nil {
+// 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+// 	}
+
+// 	if !canRespondentDoSurvey {
+// 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
+// 	}
+
+// 	if survey.ApprovalSurvey == string(enums.STATUS_APPROVAL_SURVEY_WAITING) {
+// 		return utils.SendError(errors.New("Survey belum dapat diakses"), http.StatusBadRequest)
+// 	}
+
+// 	flowDetail, err := service.manajemenAlurRepo.GetFlowDetailByID(int(survey.FlowDetailID))
+// 	if err != nil {
+// 		return utils.SendError(errors.New("alur survey tidak ditemukan"), http.StatusNotFound)
+// 	}
+
+// 	respondentExistsInSurvey, err := service.surveyRepo.GetRespondentExistsInSurvey(respondentId, int64(survey.ID))
+// 	if err != nil {
+// 		if !errors.Is(err, gorm.ErrRecordNotFound) {
+// 			return utils.SendError(err, http.StatusInternalServerError)
+// 		}
+// 	}
+
+// 	var surveyRespondentId *int64
+// 	var isRevisiRT bool
+// 	fmt.Println(isRevisiRT)
+
+// 	if respondentExistsInSurvey != nil {
+// 		if *respondentExistsInSurvey.Status == 2 {
+// 			if respondentExistsInSurvey.StatusApproval != nil {
+// 				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
+// 					return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
+// 				} else {
+// 					isRevisiRT = true
+// 				}
+// 			} else {
+// 				return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
+// 			}
+// 		}
+// 		surveyRespondentId = &respondentExistsInSurvey.ID
+// 	} else {
+// 		if usr.Role == int(enums.ROLE_RT) {
+// 			// dataCreateSurveyRespondent := models.SurveyRespondent{
+// 			// 	RespondentID: respondentId,
+// 			// 	SurveyID:     int64(survey.ID),
+// 			// }
+// 			// _, err := service.surveyRepo.CreateSurveyRespondent(nil, dataCreateSurveyRespondent)
+// 			// if err != nil {
+// 			// 	return utils.SendError(err, http.StatusInternalServerError)
+// 			// }
+// 			fmt.Println("====================")
+// 		}
+// 	}
+
+// 	statusSectionStr := flowDetail.StatusSection
+// 	statusSectionInt, _ := strconv.Atoi(statusSectionStr)
+// 	hasSectionBool := utils.IntToBool(statusSectionInt)
+
+// 	var sections []models.FlowPreviewSection
+// 	rawSections, err := service.manajemenAlurRepo.GetPreviewSectionByFlowDetailId(flowDetail.ID, statusSectionStr, surveyRespondentId)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusInternalServerError)
+// 	}
+
+// 	for _, v := range rawSections {
+// 		sectionId := []int{v.SectionId}
+// 		sectionCode, err := h.Encode(sectionId)
+// 		if err != nil {
+// 			return utils.SendError(err, http.StatusInternalServerError)
+// 		}
+
+// 		finalCompletedStatus := v.Completed
+// 		if isRevisiRT {
+// 			finalCompletedStatus = false
+// 		}
+
+// 		sections = append(sections, models.FlowPreviewSection{
+// 			SectionCode:               &sectionCode,
+// 			SectionName:               v.SectionName,
+// 			TotalRequiredQuestions:    v.TotalRequiredQuestions,
+// 			TotalOptionalQuestions:    v.TotalOptionalQuestions,
+// 			AnsweredRequiredQuestions: v.AnsweredRequiredQuestions,
+// 			AnsweredOptionalQuestions: v.AnsweredOptionalQuestions,
+// 			Completed:                 finalCompletedStatus,
+// 		})
+// 	}
+
+// 	flowId := []int{flowDetail.ID}
+// 	flowCode, err := h.Encode(flowId)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusInternalServerError)
+// 	}
+
+// 	data := models.FlowPreview{
+// 		FlowCode:          flowCode,
+// 		FlowName:          flowDetail.Name,
+// 		HasSection:        hasSectionBool,
+// 		Sections:          sections,
+// 		SurveyName:        survey.Name,
+// 		SurveyDescription: &survey.Deskripsi,
+// 	}
+
+// 	return utils.SendData(data, "Berhasil mengambil data untuk preview survey")
+// }
+
 func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -968,15 +1115,12 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 	}
 
 	var surveyRespondentId *int64
-	var isRevisiRT bool
 
 	if respondentExistsInSurvey != nil {
 		if *respondentExistsInSurvey.Status == 2 {
 			if respondentExistsInSurvey.StatusApproval != nil {
 				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
 					return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
-				} else {
-					isRevisiRT = true
 				}
 			} else {
 				return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
@@ -985,14 +1129,15 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 		surveyRespondentId = &respondentExistsInSurvey.ID
 	} else {
 		if usr.Role == int(enums.ROLE_RT) {
-			dataCreateSurveyRespondent := models.SurveyRespondent{
-				RespondentID: respondentId,
-				SurveyID:     int64(survey.ID),
-			}
-			_, err := service.surveyRepo.CreateSurveyRespondent(nil, dataCreateSurveyRespondent)
-			if err != nil {
-				return utils.SendError(err, http.StatusInternalServerError)
-			}
+			// dataCreateSurveyRespondent := models.SurveyRespondent{
+			// 	RespondentID: respondentId,
+			// 	SurveyID:     int64(survey.ID),
+			// }
+			// _, err := service.surveyRepo.CreateSurveyRespondent(nil, dataCreateSurveyRespondent)
+			// if err != nil {
+			// 	return utils.SendError(err, http.StatusInternalServerError)
+			// }
+			fmt.Println("====================")
 		}
 	}
 
@@ -1008,15 +1153,9 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 
 	for _, v := range rawSections {
 		sectionId := []int{v.SectionId}
-
 		sectionCode, err := h.Encode(sectionId)
 		if err != nil {
 			return utils.SendError(err, http.StatusInternalServerError)
-		}
-
-		finalCompletedStatus := v.Completed
-		if isRevisiRT {
-			finalCompletedStatus = false
 		}
 
 		sections = append(sections, models.FlowPreviewSection{
@@ -1026,12 +1165,11 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 			TotalOptionalQuestions:    v.TotalOptionalQuestions,
 			AnsweredRequiredQuestions: v.AnsweredRequiredQuestions,
 			AnsweredOptionalQuestions: v.AnsweredOptionalQuestions,
-			Completed:                 finalCompletedStatus,
+			Completed:                 v.Completed,
 		})
 	}
 
 	flowId := []int{flowDetail.ID}
-
 	flowCode, err := h.Encode(flowId)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
@@ -1851,6 +1989,13 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 		err = service.surveyRepo.BulkInsertFieldResponses(ctx, tx, answersToInsert)
 		if err != nil {
 			return utils.SendError(errors.New("Gagal menyimpan jawaban survei, terjadi kesalahan server"), http.StatusInternalServerError)
+		}
+	}
+
+	if respondentExistsInSurvey.StatusApproval != nil &&
+		*respondentExistsInSurvey.StatusApproval == string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
+		if errResolve := service.surveyRepo.ResolveFlaggingBySection(ctx, tx, respondentExistsInSurvey.ID, sectionFieldIDs); errResolve != nil {
+			return utils.SendError(errors.New("Gagal memperbarui status revisi pertanyaan pada bagian ini"), http.StatusInternalServerError)
 		}
 	}
 
@@ -3134,6 +3279,7 @@ func (service *surveyService) SurveyResultSectionDetail(ctx context.Context, req
 					if errUnm := json.Unmarshal([]byte(ansStr), &jsonArray); errUnm == nil {
 						for imgIdx := range jsonArray {
 							jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/view-survey-image/" + jsonArray[imgIdx]
+							// jsonArray[imgIdx] = os.Getenv("API_GATEWAY_URL") + "/survey/show-image/" + surveyCode + "/" + codeWilayah + "/" + jsonArray[imgIdx]
 						}
 						finalAnswer = jsonArray
 					} else {

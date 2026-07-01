@@ -59,6 +59,7 @@ type FlowPreviewSection struct {
 	AnsweredRequiredQuestions int     `json:"answered_required_questions"`
 	AnsweredOptionalQuestions int     `json:"answered_optional_questions"`
 	Completed                 bool    `gorm:"-" json:"completed"`
+	PendingRevisionQuestions  int64   `json:"-"`
 }
 
 type RawNodeData struct {

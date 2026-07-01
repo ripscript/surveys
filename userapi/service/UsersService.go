@@ -26,7 +26,7 @@ import (
 type UsersService interface {
 	GetProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateProfileBundle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error)
-	GetUsers(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error)
+	GetUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDetailUsers(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateUsers(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteUsers(slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -132,7 +132,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	return utils.SendData(user, "Data Profil Pengguna Berhasil Ditemukan")
 }
 
-func (service *usersService) GetUsers(usr models.JwtCustomClaims, param url.Values) (*pb.ProxyResponse, error) {
+func (service *usersService) GetUsers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	page, limit, offset, _, err := utils.SetPagination(param)
 	if err != nil {

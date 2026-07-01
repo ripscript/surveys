@@ -188,7 +188,8 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 	rt := param.Get("rt")
 	status := param.Get("status")
 
-	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin")
+	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").
+		Where("role_id NOT IN ?", []int{1, 6, 7, 8, 9})
 
 	if search != "" {
 		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
