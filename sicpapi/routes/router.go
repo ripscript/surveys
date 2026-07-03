@@ -112,6 +112,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/respondent/raw/:id", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/respondent/block", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.GET("/respondent/options", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.PUT("/respondent/:id/update-password", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	// Users Management
 	e.GET("/get-profile", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 	e.PUT("/update-profile", func(c echo.Context) error { return HandleFunc(c, userapiService) })

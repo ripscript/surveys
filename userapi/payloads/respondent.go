@@ -1,10 +1,10 @@
 package payloads
 
 type UpdateRespondent struct {
-	Name        string `json:"name"`
-	PhoneNumber string `json:"phone_number"`
-	Email       string `json:"email"`
-	RoleID      int    `json:"role"`
+	Name        string `json:"name" validate:"required,max=70"`
+	PhoneNumber string `json:"phone_number" validate:"required,max=15"`
+	Email       string `json:"email" validate:"required,email,max=191"`
+	RoleID      int    `json:"role" validate:"required"`
 }
 
 type UpdateRespondents struct {
@@ -46,4 +46,9 @@ type SurveyorOptionsPayload struct {
 	Page  int     `form:"page" query:"page"`
 	Limit int     `form:"limit" query:"limit"`
 	IDs   []int64 `form:"id[]" query:"id[]"`
+}
+
+type UpdatePasswordRespondent struct {
+	PasswordBaru           string `json:"password" validate:"required,min=8,max=191,password_rule"`
+	KonfirmasiPasswordBaru string `json:"confirm_password" validate:"required,min=8,max=191,eqfield=PasswordBaru"`
 }

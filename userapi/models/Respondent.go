@@ -122,7 +122,7 @@ type RawRespondents struct {
 	Name         string         `json:"name" gorm:"type:varchar(70);not null"`
 	PhoneNumber  *string        `json:"phone_number" gorm:"type:varchar(191);"`
 	Email        *string        `json:"email" gorm:"type:varchar(191);"`
-	BLKDID       *int32         `json:"blk_id" gorm:"type:int4;"`
+	BLKID        *int32         `json:"blk_id" gorm:"column:blk_id;type:int4;"`
 	NIK          *string        `json:"nik" gorm:"type:varchar(191);"`
 	KecamatanId  *int64         `json:"kecamatan_id" gorm:"type:int8;"`
 	KelurahanId  *int64         `json:"kelurahan_id" gorm:"type:int8;"`
@@ -230,4 +230,30 @@ func (u *Rw) TableName() string {
 
 func (u *Rt) TableName() string {
 	return "data__rts"
+}
+
+type RespondentRaw struct {
+	ID           int        `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Name         string     `gorm:"column:name;type:varchar(70);not null" json:"name"`
+	PhoneNumber  *string    `gorm:"column:phone_number;type:varchar(191)" json:"phone_number"`
+	Email        *string    `gorm:"column:email;type:varchar(191)" json:"email"`
+	BlkID        int        `gorm:"column:blk_id;not null" json:"blk_id"`
+	CreatedAt    *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt    *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	NIK          *string    `gorm:"column:nik;type:varchar(191)" json:"nik"`
+	KecamatanID  *int64     `gorm:"column:kecamatan_id" json:"kecamatan_id"`
+	KelurahanID  *int64     `gorm:"column:kelurahan_id" json:"kelurahan_id"`
+	RwID         *int64     `gorm:"column:rw_id" json:"rw_id"`
+	RtID         *int64     `gorm:"column:rt_id" json:"rt_id"`
+	RoleID       int64      `gorm:"column:role_id;not null" json:"role_id"`
+	TanggalLahir *time.Time `gorm:"column:tanggal_lahir;type:date" json:"tanggal_lahir"`
+	Alamat       *string    `gorm:"column:alamat;type:text" json:"alamat"`
+	TempatLahir  *string    `gorm:"column:tempat_lahir;type:varchar(100)" json:"tempat_lahir"`
+	IsBlocked    string     `gorm:"column:is_blocked;type:varchar(255);not null;default:'false'" json:"is_blocked"`
+	Username     *string    `gorm:"column:username;type:varchar(255)" json:"username"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
+}
+
+func (RespondentRaw) TableName() string {
+	return "respondents"
 }

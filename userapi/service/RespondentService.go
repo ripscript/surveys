@@ -9,6 +9,7 @@ import (
 	"backend/userapi/utils"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -18,7 +19,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	excelize "github.com/xuri/excelize/v2"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +42,8 @@ type RespondentService interface {
 	GetRespondentByKelurahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRespondentByRW(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRespondentByRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UpdatePasswordRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -100,6 +105,7 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 		dataRespondent.CreatedAt = utils.TimeNow()
 		dataRespondent.UpdatedAt = utils.TimeNow()
 		dataRespondent.BlkId = 1
+		var role int
 		if dataPengguna.Kecamatan != "" {
 			int64Kecamatan, err := utils.ToInt64(dataPengguna.Kecamatan)
 			if err != nil {
@@ -108,6 +114,7 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			}
 			intKecamatan := int(int64Kecamatan)
 			dataRespondent.Kecamatan = &intKecamatan
+			role = 5
 		}
 		if dataPengguna.Kelurahan != "" {
 			int64Kelurahan, err := utils.ToInt64(dataPengguna.Kelurahan)
@@ -117,6 +124,7 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			}
 			intKelurahan := int(int64Kelurahan)
 			dataRespondent.Kelurahan = &intKelurahan
+			role = 4
 		}
 		if dataPengguna.RW != "" {
 			int64RW, err := utils.ToInt64(dataPengguna.RW)
@@ -126,6 +134,7 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			}
 			intRW := int(int64RW)
 			dataRespondent.RW = &intRW
+			role = 3
 		}
 		if dataPengguna.RT != "" {
 			int64RT, err := utils.ToInt64(dataPengguna.RT)
@@ -135,6 +144,17 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			}
 			intRT := int(int64RT)
 			dataRespondent.RT = &intRT
+			role = 2
+		}
+
+		checkIsWilayahAvailable, err := service.respondentRepo.CheckIsWilayahAvailable(&role, dataRespondent.Kecamatan, dataRespondent.Kelurahan, dataRespondent.RW, dataRespondent.RT)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if !checkIsWilayahAvailable {
+			return utils.SendError(errors.New("Wilayah sudah digunakan oleh responden lain"), http.StatusBadRequest)
 		}
 
 		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(dataRespondent.Email)
@@ -679,4 +699,94 @@ func (service *respondentService) GetRespondentByRT(ctx context.Context, req map
 	}
 
 	return utils.SendData(respondent)
+}
+
+func (service *respondentService) UpdatePasswordRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	tx := service.respondentRepo.BeginTx()
+	defer utils.GeneralRecoverWithTrx(tx)
+
+	StrId := slug["id"].(string)
+	id, err := utils.ToInt64(StrId)
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var payload payloads.UpdatePasswordRespondent
+
+	err = utils.DynamicBind(req, &payload)
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	validate.RegisterValidation("password_rule", utils.PasswordRuleValidation)
+
+	err = validate.Struct(payload)
+	if err != nil {
+		tx.Rollback()
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	oldRespondent, err := service.respondentRepo.GetRespondentById(int(id))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, Silakan coba lagi nanti"), http.StatusNotFound)
+		}
+	}
+
+	if oldRespondent == nil {
+		tx.Rollback()
+		return utils.SendError(errors.New("Responden tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if oldRespondent.RoleID != 5 && oldRespondent.RoleID != 4 && oldRespondent.RoleID != 3 && oldRespondent.RoleID != 2 {
+		tx.Rollback()
+		return utils.SendError(errors.New("Anda tidak memiliki izin untuk mengubah password responden ini"), http.StatusForbidden)
+	}
+
+	oldUser, err := service.usersRepo.GetUserByRespondentId(int(id))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, Silakan coba lagi nanti"), http.StatusNotFound)
+		}
+	}
+
+	if oldUser == nil {
+		tx.Rollback()
+		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
+	}
+
+	var hashedPassword string
+	hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.PasswordBaru), bcrypt.DefaultCost)
+	hashedPassword = string(hashedBytes)
+
+	oldUser.Password = &hashedPassword
+
+	_, err = service.usersRepo.UpdateUser(oldUser)
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, Silakan coba lagi nanti"), http.StatusInternalServerError)
+	}
+
+	err = utils.SaveLogActivities("User", "respondent", "PUT", int(usr.ID), string(usr.Name), "-", "Mengubah Password Responden dengan ID "+StrId)
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData("Password berhasil diperbarui")
 }

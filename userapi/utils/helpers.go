@@ -96,3 +96,33 @@ func formatToTitleCase(snakeStr string) string {
 
 	return strings.Join(words, " ")
 }
+
+var (
+	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
+)
+
+func ToSnakeCase(s string) string {
+	snake := matchFirstCap.ReplaceAllString(s, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
+func SplitFullName(fullName string) (firstName string, lastName string) {
+	trimmed := strings.TrimSpace(fullName)
+	if trimmed == "" {
+		return "", ""
+	}
+
+	// Split berdasarkan whitespace, otomatis handle multiple spaces
+	parts := strings.Fields(trimmed)
+
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+
+	firstName = parts[0]
+	lastName = strings.Join(parts[1:], " ")
+
+	return firstName, lastName
+}

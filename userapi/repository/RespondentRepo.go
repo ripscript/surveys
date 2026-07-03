@@ -36,6 +36,10 @@ type RespondentRepo interface {
 	GetRespondentByKelurahanId(ctx context.Context, kelurahanID int64) (*models.RawRespondents, error)
 	GetRespondentByRWId(ctx context.Context, rwID int64) (*models.RawRespondents, error)
 	GetRespondentByRTId(ctx context.Context, rtID int64) (*models.RawRespondents, error)
+	UpdateRespondent(respondent *models.RespondentRaw) (*models.RespondentRaw, error)
+	WithTx(tx *gorm.DB) *respondentRepo
+	GetRespondentById(respondentId int) (*models.RespondentRaw, error)
+	CheckIsWilayahAvailable(roleID, kecamatanID, kelurahanID, rwID, rtID *int) (bool, error)
 }
 
 type respondentRepo struct {
@@ -189,10 +193,18 @@ func (r *respondentRepo) GetRespondent(offset int, limit int, param url.Values) 
 	status := param.Get("status")
 
 	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").
-		Where("role_id NOT IN ?", []int{1, 6, 7, 8, 9})
+		Where("role_id NOT IN ?", []int{1, 6, 7, 8, 9}).
+		Order("created_at desc")
 
 	if search != "" {
-		query = query.Where("LOWER(email) LIKE ? OR LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR LOWER(phone_number) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
+		searchstr := "%" + strings.ToLower(search) + "%"
+		query = query.Where(`
+			LOWER(email) LIKE ? OR 
+			LOWER(name) LIKE ? OR 
+			LOWER(username) LIKE ? OR 
+			LOWER(phone_number) LIKE ? OR
+			nik ILIKE ?
+		`, searchstr, searchstr, searchstr, searchstr, searchstr)
 	}
 
 	if name != "" {
@@ -502,4 +514,56 @@ func (repository *respondentRepo) GetRespondentByRTId(ctx context.Context, rtID 
 	}
 
 	return &respondent, nil
+}
+
+func (repository *respondentRepo) UpdateRespondent(respondent *models.RespondentRaw) (*models.RespondentRaw, error) {
+	defer utils.GeneralRecover()
+
+	err := repository.dbMaster.Save(respondent).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return respondent, nil
+}
+
+func (repository *respondentRepo) WithTx(tx *gorm.DB) *respondentRepo {
+	return &respondentRepo{dbMaster: tx}
+}
+
+func (r *respondentRepo) GetRespondentById(respondentId int) (*models.RespondentRaw, error) {
+	defer utils.GeneralRecover()
+	var respondent models.RespondentRaw
+	err := r.dbSlave.Where("id = ?", respondentId).First(&respondent).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &respondent, nil
+}
+
+func (repository *respondentRepo) CheckIsWilayahAvailable(roleID, kecamatanID, kelurahanID, rwID, rtID *int) (bool, error) {
+	defer utils.GeneralRecover()
+	var count int64
+	query := repository.dbSlave.Model(&models.RespondentRaw{}).Where("role_id = ? AND deleted_at IS NULL", *roleID)
+
+	if kecamatanID != nil {
+		query = query.Where("kecamatan_id = ?", *kecamatanID)
+	}
+	if kelurahanID != nil {
+		query = query.Where("kelurahan_id = ?", *kelurahanID)
+	}
+	if rwID != nil {
+		query = query.Where("rw_id = ?", *rwID)
+	}
+	if rtID != nil {
+		query = query.Where("rt_id = ?", *rtID)
+	}
+
+	err := query.Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count == 0, nil
 }

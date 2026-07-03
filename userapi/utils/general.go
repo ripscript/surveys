@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func IsDirectRole(role int) bool {
@@ -532,12 +533,30 @@ func TranslateError(err validator.FieldError) string {
 		return fmt.Sprintf("%s wajib diisi.", field)
 	case "password_rule":
 		return "Password baru tidak memenuhi kriteria: minimal 8 karakter, mengandung 1 huruf kapital, 1 angka, 1 simbol (@$!%*?&#_+), dan tidak boleh mengandung simbol (|,'<\"[,],{},().)"
-	case "min":
-		return fmt.Sprintf("%s tidak memenuhi batas minimal atau kosong.", field)
 	case "gt":
 		return fmt.Sprintf("%s harus lebih besar dari 0.", field)
 	case "oneof":
 		return fmt.Sprintf("%s nilainya tidak valid. Harus salah satu dari: %s.", field, strings.ReplaceAll(err.Param(), " ", ", "))
+	case "max":
+		switch err.Kind() {
+		case reflect.String:
+			return fmt.Sprintf("%s maksimal %s karakter.", field, err.Param())
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return fmt.Sprintf("%s maksimal berisi %s item.", field, err.Param())
+		default: // numeric
+			return fmt.Sprintf("%s tidak boleh lebih besar dari %s.", field, err.Param())
+		}
+	case "min":
+		switch err.Kind() {
+		case reflect.String:
+			return fmt.Sprintf("%s minimal %s karakter atau tidak boleh kosong.", field, err.Param())
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return fmt.Sprintf("%s minimal harus berisi %s item.", field, err.Param())
+		default:
+			return fmt.Sprintf("%s tidak boleh kurang dari %s.", field, err.Param())
+		}
+	case "eqfield":
+		return fmt.Sprintf("%s harus sama dengan %s.", field, formatToTitleCase(toSnakeCase(err.Param())))
 
 	// Error dari Custom Business Rules (Section & Group Structure)
 	case "required_with_has_section":
@@ -582,5 +601,25 @@ func TranslateError(err validator.FieldError) string {
 	// Default fallback
 	default:
 		return fmt.Sprintf("%s tidak valid pada validasi '%s'.", field, err.Tag())
+	}
+}
+
+func GeneralRecoverWithTrx(tx *gorm.DB) {
+	if r := recover(); r != nil {
+		tx.Rollback()
+		// Buffer to store stack trace information
+		buf := make([]byte, 1<<16) // 64KB
+		runtime.Stack(buf, false)
+
+		// Get details of where the panic occurred
+		_, file, line, ok := runtime.Caller(2)
+		if !ok {
+			file = "unknown"
+			line = 0
+		}
+
+		// Log the error with detailed information
+		message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v\nFile: %s\nLineS: %d\nStack Trace: %s", r, file, line, buf)
+		LogErrors(message)
 	}
 }

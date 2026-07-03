@@ -29,6 +29,11 @@ type UsersRepo interface {
 
 	UpdateProfileBundleTx(userID int, respondentID int, isPejabat bool, payload payloads.UpdateProfileBundlePayload, hashedPassword string) error
 	CheckDuplicateProfileData(email string, nik *string, phone *string, currentUserID int, currentRespondentID int) error
+
+	UpdateUser(user *models.UserProfile) (*models.UserProfile, error)
+	WithTx(tx *gorm.DB) *usersRepo
+	GetUserByRespondentId(respondentId int) (*models.UserProfile, error)
+	BeginTx() *gorm.DB
 }
 
 type usersRepo struct {
@@ -54,6 +59,8 @@ func (r *usersRepo) GetUsers(offset int, limit int, param url.Values) ([]models.
 	nik := param.Get("nik")
 	phoneNumber := param.Get("phoneNumber")
 	role := param.Get("role")
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
 
 	query := r.dbSlave.Preload("KecamatanJoin").Preload("KelurahanJoin").Preload("RwJoin").Preload("RtJoin").Where("deleted_at IS NULL").Where("role_id IN (?)", []int{7, 8})
 	if search != "" {
@@ -75,13 +82,40 @@ func (r *usersRepo) GetUsers(offset int, limit int, param url.Values) ([]models.
 	if role != "" {
 		var roleId int
 
-		if role == "Admin" {
+		switch role {
+		case "Admin":
 			roleId = 7
-		} else if role == "Surveyor" {
+		case "Surveyor":
 			roleId = 8
 		}
 
 		query = query.Where("role_id = ?", roleId)
+	}
+
+	if orderBy != "" {
+		orderBy = utils.ToSnakeCase(orderBy)
+
+		finalOrderBy := "respondents.created_at"
+		finalOrderDir := "desc"
+
+		allowedOrderCols := map[string]string{
+			"id":           "respondents.id",
+			"name":         "respondents.name",
+			"phone_number": "respondents.phone_number",
+			"email":        "respondents.email",
+		}
+
+		if mappedCol, isAllowed := allowedOrderCols[orderBy]; isAllowed {
+			finalOrderBy = mappedCol
+		}
+
+		if strings.ToLower(orderDir) == "asc" {
+			finalOrderDir = "asc"
+		}
+
+		query = query.Order(finalOrderBy + " " + finalOrderDir + " NULLS LAST")
+	} else {
+		query = query.Order("respondents.created_at desc NULLS LAST")
 	}
 
 	if err := query.Model(&models.Respondents{}).Count(&total).Error; err != nil {
@@ -405,4 +439,34 @@ func (r *usersRepo) CheckDuplicateProfileData(email string, nik *string, phone *
 	// }
 
 	return nil
+}
+
+func (repository *usersRepo) UpdateUser(user *models.UserProfile) (*models.UserProfile, error) {
+	defer utils.GeneralRecover()
+	err := repository.dbMaster.Save(user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (repository *usersRepo) WithTx(tx *gorm.DB) *usersRepo {
+	return &usersRepo{dbMaster: tx}
+}
+
+func (repository *usersRepo) GetUserByRespondentId(respondentId int) (*models.UserProfile, error) {
+	defer utils.GeneralRecover()
+	var user models.UserProfile
+	err := repository.dbSlave.Where("respondent_id = ?", respondentId).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *usersRepo) BeginTx() *gorm.DB {
+	defer utils.GeneralRecover()
+	return r.dbMaster.Begin()
 }

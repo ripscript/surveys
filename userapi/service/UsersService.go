@@ -2,9 +2,11 @@ package service
 
 import (
 	"backend/siccore/pb"
+	"backend/userapi/enums"
 	"backend/userapi/models"
 	"backend/userapi/payloads"
 	"backend/userapi/repository"
+	"backend/userapi/transaction"
 	"backend/userapi/utils"
 	"bytes"
 	"context"
@@ -15,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
@@ -36,15 +39,21 @@ type UsersService interface {
 }
 
 type usersService struct {
-	usersRepo repository.UsersRepo
+	usersRepo      repository.UsersRepo
+	respondentRepo repository.RespondentRepo
+	txManager      transaction.TxManager
 }
 
 func NewUsersService(
 	usersRepo repository.UsersRepo,
+	respondentRepo repository.RespondentRepo,
+	txManager transaction.TxManager,
 
 ) UsersService {
 	return &usersService{
 		usersRepo,
+		respondentRepo,
+		txManager,
 	}
 }
 
@@ -176,6 +185,11 @@ func (service *usersService) GetDetailUsers(slug map[string]interface{}) (*pb.Pr
 }
 
 func (service *usersService) UpdateUsers(slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error) {
+	tx := service.txManager.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
 	defer utils.GeneralRecover()
 	id := slug["id"].(string)
 	idInt, err := utils.ToInt64(id)
@@ -194,18 +208,124 @@ func (service *usersService) UpdateUsers(slug map[string]interface{}, req map[st
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
-	updateData := models.UpdateRespondent{}
-	err = utils.DynamicBind(payload, &updateData)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
-	}
-	updateData.Id = int(idInt)
-	updateData.UpdatedAt = utils.TimeNow()
+	var validate = validator.New()
 
-	err = service.usersRepo.UpdateUsers(int(idInt), updateData)
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	role := enums.RoleID(payload.RoleID)
+	if !role.IsValid() {
+		return utils.SendError(errors.New("Role ID tidak valid"), 400)
+	}
+
+	if role != enums.ROLE_ADMIN && role != enums.ROLE_SURVEYOR {
+		return utils.SendError(errors.New("Role ID tidak valid, hanya diperbolehkan admin dan surveyor"), 400)
+	}
+
+	first, last := utils.SplitFullName(payload.Name)
+	if last == "" {
+		last = first
+	}
+
+	var firstName, lastName *string
+	if first != "" {
+		str := strings.ToLower(first)
+		firstName = &str
+	}
+	if last != "" {
+		str := strings.ToLower(last)
+		lastName = &str
+	}
+
+	oldRespondent, err := service.respondentRepo.GetRespondentById(int(idInt))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, Silakan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if oldRespondent == nil {
+		return utils.SendError(errors.New("Responden tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if *oldRespondent.PhoneNumber != payload.PhoneNumber {
+		checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(payload.PhoneNumber)
+		if err != nil {
+			if err.Error() != gorm.ErrRecordNotFound.Error() {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+		}
+		if checkPhoneNumberRespondent > 0 {
+			return utils.SendError(errors.New("Nomor telepon sudah digunakan"), http.StatusConflict)
+		}
+	}
+
+	if *oldRespondent.Email != payload.Email {
+		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(payload.Email)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+			return utils.SendError(fmt.Errorf("Email Sudah Digunakan"), http.StatusBadRequest)
+		}
+	}
+
+	oldRespondent.Name = payload.Name
+	oldRespondent.PhoneNumber = &payload.PhoneNumber
+	oldRespondent.Email = &payload.Email
+	var roleID int64
+	if payload.RoleID != 0 {
+		roleIDInt64 := int64(payload.RoleID)
+		roleID = roleIDInt64
+	}
+	oldRespondent.RoleID = roleID
+	oldRespondent.UpdatedAt = utils.TimeNowPointer()
+
+	userRepoTx := service.usersRepo.WithTx(tx)
+	respondentRepoTx := service.respondentRepo.WithTx(tx)
+
+	_, err = respondentRepoTx.UpdateRespondent(oldRespondent)
+	if err != nil {
+		tx.Rollback()
+
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	oldUser, err := service.usersRepo.GetUserByRespondentId(int(oldRespondent.ID))
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err.Error() != gorm.ErrRecordNotFound.Error() {
+				return utils.SendError(errors.New("Terjadi kesalahan pada server, Silakan coba lagi nanti"), http.StatusInternalServerError)
+			}
+		}
+	}
+
+	if oldUser == nil {
+		return utils.SendError(errors.New("User tidak ditemukan"), http.StatusNotFound)
+	}
+
+	oldUser.FirstName = firstName
+	oldUser.LastName = lastName
+	oldUser.Email = &payload.Email
+	oldUser.UpdatedAt = utils.TimeNowPointer()
+
+	_, err = userRepoTx.UpdateUser(oldUser)
+	if err != nil {
+		tx.Rollback()
+
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	err = tx.Commit().Error
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
+
 	return utils.SendData("Data Berhasil Diperbarui")
 }
 
@@ -400,9 +520,23 @@ func (service *usersService) CreateUsers(req map[string]interface{}, usr models.
 		return utils.SendError(fmt.Errorf("Form Tidak Sesuai"), http.StatusBadRequest)
 	}
 
-	checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(payload.Email)
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
 	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	role := enums.RoleID(payload.RoleID)
+	if !role.IsValid() {
+		return utils.SendError(errors.New("Role ID tidak valid"), 400)
+	}
+
+	if role != enums.ROLE_ADMIN && role != enums.ROLE_SURVEYOR {
+		return utils.SendError(errors.New("Role ID tidak valid, hanya diperbolehkan admin dan surveyor"), 400)
 	}
 
 	checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(payload.PhoneNumber)
@@ -410,12 +544,17 @@ func (service *usersService) CreateUsers(req map[string]interface{}, usr models.
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	if checkEmailRespondent != 0 || checkEmailUsers != 0 {
-		return utils.SendError(fmt.Errorf("Email Sudah Digunakan"), http.StatusBadRequest)
-	}
-
 	if checkPhoneNumberRespondent != 0 {
 		return utils.SendError(fmt.Errorf("Nomor Telepon Sudah Digunakan"), http.StatusBadRequest)
+	}
+
+	checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(payload.Email)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+		return utils.SendError(fmt.Errorf("Email Sudah Digunakan"), http.StatusBadRequest)
 	}
 
 	dataUser := models.CreateRespondent{}

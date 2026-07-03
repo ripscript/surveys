@@ -7,6 +7,7 @@ import (
 	"backend/userapi/models"
 	"backend/userapi/repository"
 	"backend/userapi/service"
+	"backend/userapi/transaction"
 	"backend/userapi/utils"
 	"context"
 	"encoding/json"
@@ -33,6 +34,7 @@ var (
 )
 
 var (
+	txManager       transaction.TxManager      = transaction.NewTxManager(dbMaster)
 	penggunaRepo    repository.PenggunaRepo    = repository.NewPenggunaRepo(dbSlave, dbMaster)
 	regionRepo      repository.RegionRepo      = repository.NewRegionRepo(dbSlave, dbMaster)
 	respondentRepo  repository.RespondentRepo  = repository.NewRespondentRepo(dbSlave, dbMaster)
@@ -53,6 +55,8 @@ var (
 	)
 	usersService service.UsersService = service.NewUsersService(
 		usersRepo,
+		respondentRepo,
+		txManager,
 	)
 	usersBlokirService service.UsersBlokirService = service.NewUsersBlokirService(
 		usersBlokirRepo,
@@ -137,6 +141,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/respondent/kelurahan/:kelurahan_id": {"GET": {Handler: respondentHandler.GetRespondentByKelurahan, MenuKey: "management-responden"}},
 	"/respondent/rw/:rw_id":               {"GET": {Handler: respondentHandler.GetRespondentByRW, MenuKey: "management-responden"}},
 	"/respondent/rt/:rt_id":               {"GET": {Handler: respondentHandler.GetRespondentByRT, MenuKey: "management-responden"}},
+	"/respondent/:id/update-password":     {"PUT": {Handler: respondentHandler.UpdatePasswordRespondent, MenuKey: "management-responden"}},
 
 	// Users
 	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: "profile"}},

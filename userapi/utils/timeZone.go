@@ -18,3 +18,21 @@ func TimeNow() time.Time {
 	}
 	return time.Now().In(location)
 }
+
+func TimeNowPointer() *time.Time {
+	defer func() {
+		if r := recover(); r != nil {
+			message := fmt.Sprintf("Terjadi kendala pada service yang sedang anda akses: %v", r)
+			LogErrors(message)
+		}
+	}()
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		now := time.Now().UTC()
+		return &now
+	}
+
+	now := time.Now().In(location)
+	return &now
+}
