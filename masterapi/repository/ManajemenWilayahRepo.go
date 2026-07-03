@@ -203,23 +203,36 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				respondents.name ILIKE ? OR 
+				kecamatans.kode_wilayah ILIKE ? OR 
+				kecamatans.lat ILIKE ? OR 
+				kecamatans.long ILIKE ? OR 
 				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, parsedDate, parsedDate)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
 			condition := `
-				kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ? 
-				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? 
-				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
+				kecamatans.sub_district_name ILIKE ? OR 
+				respondents.name ILIKE ? OR 
+				kecamatans.kode_wilayah ILIKE ? OR 
+				kecamatans.lat ILIKE ? OR 
+				kecamatans.long ILIKE ? OR 
+				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? OR 
+				EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchStr, searchStr)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
-			condition := "kecamatans.sub_district_name ILIKE ? OR respondents.name ILIKE ?"
-			db = db.Where(condition, searchTerm, searchTerm)
-			countDB = countDB.Where(condition, searchTerm, searchTerm)
+			condition := `
+				kecamatans.sub_district_name ILIKE ? OR 
+				respondents.name ILIKE ? OR
+				kecamatans.kode_wilayah ILIKE ? OR 
+				kecamatans.lat ILIKE ? OR 
+				kecamatans.long ILIKE ?
+			`
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
@@ -525,29 +538,42 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
-				respondents.name ILIKE ? 
-				OR DATE(pejabat__wilayahs.periode_awal) = ? OR 
+				respondents.name ILIKE ? OR 
+				kelurahans.village_postal_code ILIKE ? OR 
+				kelurahans.kode_wilayah ILIKE ? OR 
+				kelurahans.lat ILIKE ? OR 
+				kelurahans.long ILIKE ? OR 
+				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
-				kelurahans.village_name ILIKE ? OR respondents.name ILIKE ? 
-				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? 
+				kelurahans.village_name ILIKE ? OR 
+				respondents.name ILIKE ? OR 
+				kelurahans.village_postal_code ILIKE ? OR 
+				kelurahans.kode_wilayah ILIKE ? OR 
+				kelurahans.lat ILIKE ? OR 
+				kelurahans.long ILIKE ? OR 
+				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? 
 				OR EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
-				respondents.name ILIKE ?
+				respondents.name ILIKE ? OR
+				kelurahans.village_postal_code ILIKE ? OR 
+				kelurahans.kode_wilayah ILIKE ? OR 
+				kelurahans.lat ILIKE ? OR 
+				kelurahans.long ILIKE ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
@@ -818,32 +844,41 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR 
+				data__rws.kode_wilayah ILIKE ? OR 
+				data__rws.lat ILIKE ? OR 
+				data__rws.long ILIKE ? OR 
 				respondents.name ILIKE ? OR 
 				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR
+				data__rws.kode_wilayah ILIKE ? OR 
+				data__rws.lat ILIKE ? OR 
+				data__rws.long ILIKE ? OR 
 				respondents.name ILIKE ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
 			condition := `
 			kecamatans.sub_district_name ILIKE ? OR 
 			kelurahans.village_name ILIKE ? OR 
-			data__rws.nama_rw ILIKE ? OR 
+			data__rws.nama_rw ILIKE ? OR
+			data__rws.kode_wilayah ILIKE ? OR 
+			data__rws.lat ILIKE ? OR 
+			data__rws.long ILIKE ? OR  
 			respondents.name ILIKE ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
@@ -1169,34 +1204,43 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR 
 				data__rts.nama_rt ILIKE ? OR
+				data__rts.kode_wilayah ILIKE ? OR
+				data__rts.lat ILIKE ? OR
+				data__rts.long ILIKE ? OR
 				respondents.name ILIKE ? OR 
 				DATE(pejabat__wilayahs.periode_awal) = ? OR 
 				DATE(pejabat__wilayahs.periode_akhir) = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR
 				data__rts.nama_rt ILIKE ? OR
+				data__rts.kode_wilayah ILIKE ? OR
+				data__rts.lat ILIKE ? OR
+				data__rts.long ILIKE ? OR
 				respondents.name ILIKE ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_awal)::TEXT = ? OR 
 				EXTRACT(YEAR FROM pejabat__wilayahs.periode_akhir)::TEXT = ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr)
 		} else {
 			condition := `
 				kecamatans.sub_district_name ILIKE ? OR 
 				kelurahans.village_name ILIKE ? OR 
 				data__rws.nama_rw ILIKE ? OR 
 				data__rts.nama_rt ILIKE ? OR
+				data__rts.kode_wilayah ILIKE ? OR
+				data__rts.lat ILIKE ? OR
+				data__rts.long ILIKE ? OR
 				respondents.name ILIKE ?
 			`
-			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
-			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			db = db.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			countDB = countDB.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 		}
 	}
 

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"gorm.io/gorm"
@@ -65,6 +66,7 @@ func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.Respon
 	rw := param.Get("rw")
 	rt := param.Get("rt")
 	status := param.Get("status")
+	hasJabatan := param.Get("has_jabatan")
 
 	query := db.Model(data)
 
@@ -73,39 +75,66 @@ func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.Respon
 		if err != nil {
 			return nil, err
 		}
-		query.Where("kecamatan_id = ?", kecamatanId)
+		query = query.Where("kecamatan_id = ?", kecamatanId)
 	}
 	if kelurahan_id != "" {
 		kelurahanId, err := utils.ToInt64(kelurahan_id)
 		if err != nil {
 			return nil, err
 		}
-		query.Where("kelurahan_id = ?", kelurahanId)
+		query = query.Where("kelurahan_id = ?", kelurahanId)
 	}
 	if rw != "" {
 		rwId, err := utils.ToInt64(rw)
 		if err != nil {
 			return nil, err
 		}
-		query.Where("rw_id = ?", rwId)
+		query = query.Where("rw_id = ?", rwId)
 	}
 	if rt != "" {
 		rtId, err := utils.ToInt64(rt)
 		if err != nil {
 			return nil, err
 		}
-		query.Where("rt_id = ?", rtId)
+		query = query.Where("rt_id = ?", rtId)
 	}
 	if status != "" {
 		if status == "active" {
-			query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
+			query = query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
 		} else if status == "blocked" {
-			query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
+			query = query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
 		} else if status == "inactive" {
-			query.Where("deleted_at IS NOT NULL")
+			query = query.Where("deleted_at IS NOT NULL")
 		}
 	} else {
-		query.Where("deleted_at IS NULL")
+		query = query.Where("deleted_at IS NULL")
+	}
+
+	if hasJabatan != "" {
+		hasJabatanBool, err := strconv.ParseBool(hasJabatan)
+		if err != nil {
+			return nil, err
+		}
+
+		if hasJabatanBool {
+			// Ada relasi ke pejabat__wilayahs DAN status_jabat = 1
+			query = query.Where(
+				`EXISTS (
+					SELECT 1 FROM pejabat__wilayahs pw
+					WHERE pw.id_responden = respondents.id
+					AND pw.status_jabat = 1
+				)`,
+			)
+		} else {
+			// Tidak ada relasi SAMA SEKALI, ATAU ada relasi tapi status_jabat = 0
+			query = query.Where(
+				`NOT EXISTS (
+					SELECT 1 FROM pejabat__wilayahs pw
+					WHERE pw.id_responden = respondents.id
+					AND pw.status_jabat = 1
+				)`,
+			)
+		}
 	}
 
 	err := query.Find(&data).Error
