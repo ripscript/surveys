@@ -7,16 +7,18 @@ import (
 )
 
 type UserProfile struct {
-	ID           int            `gorm:"column:id;primaryKey;autoIncrement"                json:"id"`
-	FirstName    *string        `gorm:"column:first_name;type:varchar(191)"               json:"first_name"`
-	LastName     *string        `gorm:"column:last_name;type:varchar(191)"                json:"last_name"`
-	Email        *string        `gorm:"column:email;type:varchar(191)"                    json:"email"`
-	RespondentID *int64         `gorm:"column:respondent_id"                              json:"respondent_id"`
-	NIK          *string        `gorm:"column:nik;type:varchar(191)"                      json:"nik"`
-	CreatedAt    *time.Time     `gorm:"column:created_at;autoCreateTime"                  json:"created_at"`
-	UpdatedAt    *time.Time     `gorm:"column:updated_at;autoUpdateTime"                  json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index"                           json:"deleted_at,omitempty"`
-	Password     *string        `gorm:"column:password;type:varchar(255)"                 json:"-"`
+	ID                 int            `gorm:"column:id;primaryKey;autoIncrement"                json:"id"`
+	FirstName          *string        `gorm:"column:first_name;type:varchar(191)"               json:"first_name"`
+	LastName           *string        `gorm:"column:last_name;type:varchar(191)"                json:"last_name"`
+	Email              *string        `gorm:"column:email;type:varchar(191)"                    json:"email"`
+	RespondentID       *int64         `gorm:"column:respondent_id"                              json:"respondent_id"`
+	NIK                *string        `gorm:"column:nik;type:varchar(191)"                      json:"nik"`
+	CreatedAt          *time.Time     `gorm:"column:created_at;autoCreateTime"                  json:"created_at"`
+	UpdatedAt          *time.Time     `gorm:"column:updated_at;autoUpdateTime"                  json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index"                           json:"deleted_at,omitempty"`
+	Password           *string        `gorm:"column:password;type:varchar(255)"                 json:"-"`
+	LastLogin          *time.Time     `gorm:"column:last_login"`
+	MustChangePassword *bool          `gorm:"column:must_change_password"`
 
 	Respondent     *RespondentProfile     `gorm:"foreignKey:RespondentID" json:"respondent"`
 	PejabatWilayah *PejabatWilayahProfile `gorm:"foreignKey:IdResponden;references:RespondentID" json:"pejabat_wilayah"`
@@ -71,4 +73,25 @@ type PejabatWilayahProfile struct {
 
 func (PejabatWilayahProfile) TableName() string {
 	return "pejabat__wilayahs"
+}
+
+type UserModel struct {
+	ID                 int            `gorm:"column:id;primaryKey"`
+	FirstName          *string        `gorm:"column:first_name"`
+	LastName           *string        `gorm:"column:last_name"`
+	Email              *string        `gorm:"column:email"`
+	Password           *string        `gorm:"column:password"`
+	EmailToken         *string        `gorm:"column:email_token"`
+	RespondentID       *int64         `gorm:"column:respondent_id"`
+	RememberToken      *string        `gorm:"column:remember_token"`
+	Nik                *string        `gorm:"column:nik"`
+	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	CreatedAt          time.Time      `gorm:"column:created_at"`
+	UpdatedAt          time.Time      `gorm:"column:updated_at"`
+	LastLogin          *time.Time     `gorm:"column:last_login"`
+	MustChangePassword bool           `gorm:"column:must_change_password;not null;default:false"`
+}
+
+func (UserModel) TableName() string {
+	return "users"
 }

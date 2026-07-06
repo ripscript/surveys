@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 type PenggunaService interface {
@@ -22,14 +23,17 @@ type PenggunaService interface {
 
 type penggunaService struct {
 	penggunaRepo repository.PenggunaRepo
+	usersRepo    repository.UsersRepo
 }
 
 func NewPenggunaService(
 	penggunaRepo repository.PenggunaRepo,
+	usersRepo repository.UsersRepo,
 
 ) PenggunaService {
 	return &penggunaService{
 		penggunaRepo,
+		usersRepo,
 	}
 }
 
@@ -56,19 +60,27 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		return utils.SendError(errors.New("data responden tidak ditemukan"), http.StatusUnauthorized)
 	}
 
-	storedUser, err := service.penggunaRepo.FindUserByRespondentID(respondent.ID)
+	storedUser, err := service.usersRepo.GetUserByRespondentId(respondent.ID)
 	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+	}
+
+	if storedUser == nil {
 		return utils.SendError(errors.New("user tidak ditemukan"), http.StatusUnauthorized)
 	}
+
+	// storedUser, err := service.penggunaRepo.FindUserByRespondentID(respondent.ID)
 
 	loginCount, err := service.penggunaRepo.CountFailedLogin(int(storedUser.ID))
 	if err == nil && loginCount >= 3 {
 		service.penggunaRepo.BlockRespondent(respondent.ID)
 		return utils.SendError(errors.New("akun diblokir"), http.StatusUnauthorized)
 	}
-	isPasswordValid := utils.VerifyPassword(storedUser.Password, payload.Password)
+	isPasswordValid := utils.VerifyPassword(*storedUser.Password, payload.Password)
 	if !isPasswordValid {
-		if storedUser.Email != "admin@gmail.com" {
+		if *storedUser.Email != "admin@gmail.com" {
 			service.penggunaRepo.InsertFailedLogin(storedUser.ID)
 		}
 		return utils.SendError(errors.New("password salah"), http.StatusUnauthorized)
@@ -116,7 +128,11 @@ func (service *penggunaService) Login(usr models.JwtCustomClaims, req map[string
 		return utils.SendError(errors.New("gagal membuat token"), http.StatusBadRequest)
 	}
 
-	storedUser.LastLogin = utils.TimeNow()
+	storedUser.LastLogin = utils.TimeNowPointer()
+	_, err = service.usersRepo.UpdateUser(storedUser)
+	if err != nil {
+		return utils.SendError(errors.New("gagal memperbarui data user"), http.StatusInternalServerError)
+	}
 	// service.penggunaRepo.EditLastLog(storedUser)
 
 	return utils.SendData(encryptedToken, "Login berhasil")

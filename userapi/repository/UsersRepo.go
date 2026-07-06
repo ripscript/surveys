@@ -330,6 +330,7 @@ func (r *usersRepo) StoreUsers(data models.CreateRespondent) error {
 	dataUsers.RespondentId = data.Id
 	dataUsers.CreatedAt = utils.TimeNow()
 	dataUsers.UpdatedAt = utils.TimeNow()
+	dataUsers.MustChangePassword = true
 
 	err = tx.Create(&dataUsers).Error
 	if err != nil {

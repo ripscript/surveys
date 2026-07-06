@@ -71,15 +71,16 @@ type PejabatWilayah struct {
 }
 
 type StoreUsers struct {
-	FirstName    string `json:"firstName"`
-	LastName     string `json:"lastName"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	EmailToken   string `json:"emailToken"`
-	RespondentId int    `json:"respondentId"`
-	Nik          string `json:"nik"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	FirstName          string `json:"firstName"`
+	LastName           string `json:"lastName"`
+	Email              string `json:"email"`
+	Password           string `json:"password"`
+	EmailToken         string `json:"emailToken"`
+	RespondentId       int    `json:"respondentId"`
+	Nik                string `json:"nik"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	MustChangePassword bool `gorm:"column:must_change_password;not null;default:false"`
 }
 
 func (PejabatWilayah) TableName() string {

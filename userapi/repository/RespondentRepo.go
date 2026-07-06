@@ -386,6 +386,7 @@ func (r *respondentRepo) StoreUsers(tx *gorm.DB, data models.CreateRespondents) 
 	dataUsers.Nik = data.NIK
 	dataUsers.CreatedAt = utils.TimeNow()
 	dataUsers.UpdatedAt = utils.TimeNow()
+	dataUsers.MustChangePassword = true
 
 	err = tx.Create(&dataUsers).Error
 	if err != nil {

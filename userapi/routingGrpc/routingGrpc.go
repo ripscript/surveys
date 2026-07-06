@@ -45,6 +45,7 @@ var (
 var (
 	penggunaService service.PenggunaService = service.NewPenggunaService(
 		penggunaRepo,
+		usersRepo,
 	)
 	regionService service.RegionService = service.NewRegionService(
 		regionRepo,
