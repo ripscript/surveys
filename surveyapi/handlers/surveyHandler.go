@@ -120,6 +120,10 @@ func (handler *surveyHandler) GetHistoryDetailPerWilayah(ctx context.Context, re
 }
 
 func (handler *surveyHandler) GetSurveyKewilayahan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	go func() {
+		bgCtx := context.Background()
+		handler.surveyService.SyncExpiredSurveysStatus(bgCtx)
+	}()
 	return handler.surveyService.GetSurveyKewilayahan(ctx, req, usr, param, slug)
 }
 
