@@ -26,11 +26,11 @@ type UpdateProfileBundlePayload struct {
 	PhoneNumber  *string `json:"nomor_telepon"`
 	Email        string  `json:"email" validate:"required,email"`
 
-	NoSK string `json:"no_sk" validate:"required"`
+	NoSK *string `json:"no_sk"`
 
 	CurrentPassword string `json:"password_saat_ini,omitempty" validate:"omitempty,required_with=NewPassword"`
 
-	NewPassword string `json:"password_baru,omitempty" validate:"omitempty,password_rule,required_with=CurrentPassword"`
+	NewPassword string `json:"password_baru,omitempty" validate:"omitempty,password_rule"`
 
 	ConfirmNewPassword string `json:"konfirmasi_password_baru,omitempty" validate:"omitempty,eqfield=NewPassword,required_with=NewPassword"`
 }

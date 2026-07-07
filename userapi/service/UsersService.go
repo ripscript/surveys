@@ -598,7 +598,21 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 
 	user, err := service.usersRepo.GetUserRawById(int(usr.ID))
 	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, coba lagi nanti"), http.StatusNotFound)
+	}
+
+	if user == nil {
 		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if user.MustChangePassword != nil {
+		if *user.MustChangePassword == false {
+			if payload.NewPassword != "" {
+				if payload.CurrentPassword == "" {
+					return utils.SendError(errors.New("Password saat ini harus diisi"), http.StatusBadRequest)
+				}
+			}
+		}
 	}
 
 	var respondentID int
@@ -618,19 +632,26 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 	}
 
 	var hashedPassword string
-	if payload.NewPassword != "" {
-		var oldPassword string
-		if user.Password != nil {
-			oldPassword = *user.Password
-		}
+	if user.MustChangePassword != nil {
+		if *user.MustChangePassword == true {
+			hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
+			hashedPassword = string(hashedBytes)
+		} else {
+			if payload.NewPassword != "" {
+				var oldPassword string
+				if user.Password != nil {
+					oldPassword = *user.Password
+				}
 
-		errCompare := bcrypt.CompareHashAndPassword([]byte(oldPassword), []byte(payload.CurrentPassword))
-		if errCompare != nil {
-			return utils.SendError(errors.New("Password saat ini yang Anda masukkan salah"), http.StatusBadRequest)
+				errCompare := bcrypt.CompareHashAndPassword([]byte(oldPassword), []byte(payload.CurrentPassword))
+				if errCompare != nil {
+					return utils.SendError(errors.New("Password saat ini yang Anda masukkan salah"), http.StatusBadRequest)
+				}
+				// Generate Hash Baru
+				hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
+				hashedPassword = string(hashedBytes)
+			}
 		}
-		// Generate Hash Baru
-		hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
-		hashedPassword = string(hashedBytes)
 	}
 
 	isPejabat := user.PejabatWilayah != nil
