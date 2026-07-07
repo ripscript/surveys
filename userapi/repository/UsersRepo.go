@@ -367,7 +367,10 @@ func (r *usersRepo) UpdateProfileBundleTx(userID int, respondentID int, isPejaba
 	}
 
 	if hashedPassword != "" {
-		if err := tx.Table("users").Where("id = ?", userID).Update("password", hashedPassword).Error; err != nil {
+		if err := tx.Table("users").Where("id = ?", userID).Updates(map[string]interface{}{
+			"password":             hashedPassword,
+			"must_change_password": false,
+		}).Error; err != nil {
 			tx.Rollback()
 			return errors.New("gagal mengupdate password")
 		}
