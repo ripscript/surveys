@@ -94,7 +94,9 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		kecamatanCodeStr = &kecamatanCode
 	}
 
-	user.Respondent.KecamatanCode = kecamatanCodeStr
+	if user.Respondent != nil {
+		user.Respondent.KecamatanCode = kecamatanCodeStr
+	}
 
 	var kelurahanCodeStr *string
 	if user.Respondent != nil && user.Respondent.KelurahanID != nil {

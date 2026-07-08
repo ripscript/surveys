@@ -37,12 +37,16 @@ type RespondentProfile struct {
 	NIK           *string        `gorm:"column:nik;type:varchar(191)"                      json:"nik"`
 	KecamatanID   *int64         `gorm:"column:kecamatan_id"                               json:"kecamatan_id"`
 	KecamatanCode *string        `json:"kecamatan_code"`
+	NamaKecamatan *string        `json:"nama_kecamatan"`
 	KelurahanID   *int64         `gorm:"column:kelurahan_id"                               json:"kelurahan_id"`
 	KelurahanCode *string        `json:"kelurahan_code"`
+	NamaKelurahan *string        `json:"nama_kelurahan"`
 	RwID          *int64         `gorm:"column:rw_id"                                      json:"rw_id"`
 	RwCode        *string        `json:"rw_code"`
+	NamaRw        *string        `json:"nama_rw"`
 	RtID          *int64         `gorm:"column:rt_id"                                      json:"rt_id"`
 	RtCode        *string        `json:"rt_code"`
+	NamaRt        *string        `json:"nama_rt"`
 	RoleID        int64          `gorm:"column:role_id;not null"                           json:"role_id"`
 	TanggalLahir  *time.Time     `gorm:"column:tanggal_lahir;type:date"                    json:"tanggal_lahir"`
 	Alamat        *string        `gorm:"column:alamat;type:text"                           json:"alamat"`

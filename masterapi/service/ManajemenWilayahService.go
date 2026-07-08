@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
@@ -425,10 +426,10 @@ func (service *manajemenWilayahService) UpdateKelurahan(usr models.JwtCustomClai
 		return utils.SendError(err, http.StatusBadRequest)
 	}
 
-	// if payload.NamaKelurahan == "" {
-	// 	err := errors.New("Nama kelurahan tidak boleh kosong")
-	// 	return utils.SendError(err, http.StatusBadRequest)
-	// }
+	if payload.NamaKelurahan == "" {
+		err := errors.New("Nama kelurahan tidak boleh kosong")
+		return utils.SendError(err, http.StatusBadRequest)
+	}
 
 	getKelurahanById, err := service.manajemenWilayahRepo.GetKelurahanByID(int(Id))
 	if err != nil {
@@ -441,33 +442,33 @@ func (service *manajemenWilayahService) UpdateKelurahan(usr models.JwtCustomClai
 
 	newSlug := getKelurahanById.VillageNameSlug
 
-	// if getKelurahanById.VillageName != payload.NamaKelurahan {
-	// 	getKelurahanByName, err := service.manajemenWilayahRepo.GetKelurahanByName(payload.NamaKelurahan)
-	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-	// 		return utils.SendError(err, http.StatusInternalServerError)
-	// 	}
+	if getKelurahanById.VillageName != payload.NamaKelurahan {
+		getKelurahanByName, err := service.manajemenWilayahRepo.GetKelurahanByName(payload.NamaKelurahan)
+		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
 
-	// 	if getKelurahanByName != nil {
-	// 		err := errors.New("Nama kelurahan sudah digunakan")
-	// 		return utils.SendError(err, http.StatusBadRequest)
-	// 	}
+		if getKelurahanByName != nil {
+			err := errors.New("Nama kelurahan sudah digunakan")
+			return utils.SendError(err, http.StatusBadRequest)
+		}
 
-	// 	newSlug = utils.StringToSlug(payload.NamaKelurahan, "-")
-	// 	getKelurahanBySlug, err := service.manajemenWilayahRepo.GetKelurahanBySlug(newSlug)
-	// 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-	// 		return utils.SendError(err, http.StatusInternalServerError)
-	// 	}
+		newSlug = utils.StringToSlug(payload.NamaKelurahan, "-")
+		getKelurahanBySlug, err := service.manajemenWilayahRepo.GetKelurahanBySlug(newSlug)
+		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
 
-	// 	if getKelurahanBySlug != nil && getKelurahanBySlug.ID != Id {
-	// 		newSlug = utils.StringToSlug(payload.NamaKelurahan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
-	// 	}
-	// }
+		if getKelurahanBySlug != nil && getKelurahanBySlug.ID != Id {
+			newSlug = utils.StringToSlug(payload.NamaKelurahan+" "+strconv.FormatInt(time.Now().Unix(), 10), "-")
+		}
+	}
 
 	var data = models.Kelurahan{
 		ID:            getKelurahanById.ID,
 		SubDistrictId: getKelurahanById.SubDistrictId,
-		// VillageName:       payload.NamaKelurahan,
-		VillageName:       getKelurahanById.VillageName,
+		VillageName:   payload.NamaKelurahan,
+		// VillageName:       getKelurahanById.VillageName,
 		VillageNameSlug:   newSlug,
 		VillagePostalCode: getKelurahanById.VillagePostalCode,
 		KodeWilayah:       payload.KodeWilayah,

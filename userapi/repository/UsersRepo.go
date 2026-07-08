@@ -355,6 +355,41 @@ func (r *usersRepo) GetUserRawById(id int) (*models.UserProfile, error) {
 		return nil, err
 	}
 
+	if user.Respondent != nil {
+		type wilayahNames struct {
+			NamaKecamatan *string
+			NamaKelurahan *string
+			NamaRw        *string
+			NamaRt        *string
+		}
+
+		var names wilayahNames
+
+		err = r.dbSlave.
+			Table("respondents").
+			Select(
+				"kecamatans.sub_district_name AS nama_kecamatan",
+				"kelurahans.village_name AS nama_kelurahan",
+				"data__rws.nama_rw AS nama_rw",
+				"data__rts.nama_rt AS nama_rt",
+			).
+			Joins("LEFT JOIN kecamatans ON kecamatans.id = respondents.kecamatan_id").
+			Joins("LEFT JOIN kelurahans ON kelurahans.id = respondents.kelurahan_id").
+			Joins("LEFT JOIN data__rws ON data__rws.id = respondents.rw_id").
+			Joins("LEFT JOIN data__rts ON data__rts.id = respondents.rt_id").
+			Where("respondents.id = ?", user.Respondent.ID).
+			Scan(&names).Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		user.Respondent.NamaKecamatan = names.NamaKecamatan
+		user.Respondent.NamaKelurahan = names.NamaKelurahan
+		user.Respondent.NamaRw = names.NamaRw
+		user.Respondent.NamaRt = names.NamaRt
+	}
+
 	return &user, nil
 }
 
