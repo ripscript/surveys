@@ -52,3 +52,16 @@ type UpdatePasswordRespondent struct {
 	PasswordBaru           string `json:"password" validate:"required,min=8,max=191,password_rule"`
 	KonfirmasiPasswordBaru string `json:"confirm_password" validate:"required,min=8,max=191,eqfield=PasswordBaru"`
 }
+
+type RespondentOptionsPayload struct {
+	Q           string   `form:"q" query:"q"`
+	Page        int      `form:"page" query:"page"`
+	Limit       int      `form:"limit" query:"limit"`
+	IDs         []string `form:"id[]" query:"id[]"`
+	KecamatanId string   `form:"kecamatan_id" query:"kecamatan_id"`
+	KelurahanId string   `form:"kelurahan_id" query:"kelurahan_id"`
+	RWId        string   `form:"rw_id" query:"rw_id"`
+	RTId        string   `form:"rt_id" query:"rt_id"`
+	Status      string   `form:"status" query:"status"`
+	HasJabatan  string   `form:"has_jabatan" query:"has_jabatan"`
+}

@@ -36,7 +36,7 @@ func (repository *regionRepo) KecamatanOptions(search string) ([]models.Kecamata
 	if search != "" {
 		query = query.Where("LOWER(sub_district_name) LIKE LOWER(?)", "%"+search+"%")
 	}
-	err := query.Find(&data).Error
+	err := query.Where("deleted_at IS NULL").Find(&data).Error
 	if err != nil {
 		return data, err
 	}
@@ -53,7 +53,7 @@ func (repository *regionRepo) KelurahanOptions(search string, id int) ([]models.
 	if search != "" {
 		query = query.Where("LOWER(village_name) LIKE LOWER(?)", "%"+search+"%")
 	}
-	err := query.Find(&data).Error
+	err := query.Where("deleted_at IS NULL").Find(&data).Error
 	if err != nil {
 		return data, err
 	}
@@ -70,7 +70,7 @@ func (repository *regionRepo) RwOptions(search string, id int) ([]models.RwOptio
 	if search != "" {
 		query = query.Where("LOWER(nama_rw) LIKE LOWER(?)", "%"+search+"%")
 	}
-	err := query.Find(&data).Error
+	err := query.Where("deleted_at IS NULL").Find(&data).Error
 	if err != nil {
 		return data, err
 	}
@@ -87,7 +87,7 @@ func (repository *regionRepo) RtOptions(search string, id int) ([]models.RtOptio
 	if search != "" {
 		query = query.Where("LOWER(nama_rt) LIKE LOWER(?)", "%"+search+"%")
 	}
-	err := query.Find(&data).Error
+	err := query.Where("deleted_at IS NULL").Find(&data).Error
 	if err != nil {
 		return data, err
 	}

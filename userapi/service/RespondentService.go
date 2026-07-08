@@ -44,6 +44,8 @@ type RespondentService interface {
 	GetRespondentByRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	UpdatePasswordRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	RespondentOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -789,4 +791,59 @@ func (service *respondentService) UpdatePasswordRespondent(ctx context.Context, 
 	}
 
 	return utils.SendData("Password berhasil diperbarui")
+}
+
+func (service *respondentService) RespondentOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var respondentIds []string
+	if len(param["id[]"]) > 0 {
+		respondentIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		respondentIds = param["id"]
+	}
+
+	_req := payloads.RespondentOptionsPayload{
+		Q:           param.Get("q"),
+		Page:        page,
+		Limit:       limit,
+		IDs:         respondentIds,
+		KecamatanId: param.Get("kecamatan_id"),
+		KelurahanId: param.Get("kelurahan_id"),
+		RWId:        param.Get("rw_id"),
+		RTId:        param.Get("rt_id"),
+		Status:      param.Get("status"),
+		HasJabatan:  param.Get("has_jabatan"),
+	}
+
+	data, totalData, err := service.respondentRepo.RespondentOptions(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	// MENGGUNAKAN STRUCT BARU
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi responden")
 }

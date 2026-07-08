@@ -89,6 +89,8 @@ type SurveyRepo interface {
 
 	CheckUnresolvedRevision(surveyRespondentId int64) (bool, error)
 	ResolveFlaggingBySection(ctx context.Context, tx *gorm.DB, respondentID int64, fieldIDs []int64) error
+
+	ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error
 }
 
 type surveyRepo struct {
@@ -1608,5 +1610,18 @@ func (repository *surveyRepo) ResolveFlaggingBySection(ctx context.Context, tx *
 	return tx.WithContext(ctx).
 		Table("flagging_edit_pertanyaan_surveys").
 		Where("survey_respondent_id = ? AND form_field_id IN ? AND is_revisied = ?", respondentID, fieldIDs, "true").
+		Update("is_revisied", "false").Error
+}
+
+func (repository *surveyRepo) ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error {
+	db := tx
+	if db == nil {
+		db = repository.dbMaster
+	}
+
+	return db.WithContext(ctx).
+		Table("flagging_edit_pertanyaan_surveys").
+		Where("is_revisied = ?", "true").
+		Where("survey_respondent_id IN (SELECT id FROM survey_respondents WHERE survey_id = ?)", surveyID).
 		Update("is_revisied", "false").Error
 }

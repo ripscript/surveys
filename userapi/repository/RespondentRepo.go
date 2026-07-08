@@ -41,6 +41,8 @@ type RespondentRepo interface {
 	WithTx(tx *gorm.DB) *respondentRepo
 	GetRespondentById(respondentId int) (*models.RespondentRaw, error)
 	CheckIsWilayahAvailable(roleID, kecamatanID, kelurahanID, rwID, rtID *int) (bool, error)
+
+	RespondentOptions(req payloads.RespondentOptionsPayload) ([]response.OptionItem, int64, error)
 }
 
 type respondentRepo struct {
@@ -99,11 +101,12 @@ func (r *respondentRepo) GetOptionsRespondent(param url.Values) ([]models.Respon
 		query = query.Where("rt_id = ?", rtId)
 	}
 	if status != "" {
-		if status == "active" {
+		switch status {
+		case "active":
 			query = query.Where("deleted_at IS NULL AND is_blocked = ?", "false")
-		} else if status == "blocked" {
+		case "blocked":
 			query = query.Where("deleted_at IS NULL AND is_blocked = ?", "true")
-		} else if status == "inactive" {
+		case "inactive":
 			query = query.Where("deleted_at IS NOT NULL")
 		}
 	} else {
@@ -596,4 +599,103 @@ func (repository *respondentRepo) CheckIsWilayahAvailable(roleID, kecamatanID, k
 	}
 
 	return count == 0, nil
+}
+
+func (r *respondentRepo) RespondentOptions(req payloads.RespondentOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+
+	var data []response.OptionItem
+	var totalData int64
+
+	db := r.dbSlave.Table("respondents").
+		Select(`
+			respondents.id, 
+			respondents.name AS label
+		`)
+
+	filterCond := r.dbSlave.Session(&gorm.Session{})
+
+	if req.Q != "" {
+		filterCond = filterCond.Where("respondents.name ILIKE ?", "%"+req.Q+"%")
+	}
+
+	if req.KecamatanId != "" {
+		filterCond = filterCond.Where("respondents.kecamatan_id = ?", req.KecamatanId)
+	}
+	if req.KelurahanId != "" {
+		filterCond = filterCond.Where("respondents.kelurahan_id = ?", req.KelurahanId)
+	}
+	if req.RWId != "" {
+		filterCond = filterCond.Where("respondents.rw_id = ?", req.RWId)
+	}
+	if req.RTId != "" {
+		filterCond = filterCond.Where("respondents.rt_id = ?", req.RTId)
+	}
+
+	if req.Status != "" {
+		switch req.Status {
+		case "active":
+			filterCond = filterCond.Where("respondents.deleted_at IS NULL AND respondents.is_blocked = ?", false)
+		case "blocked":
+			filterCond = filterCond.Where("respondents.deleted_at IS NULL AND respondents.is_blocked = ?", true)
+		case "inactive":
+			filterCond = filterCond.Where("respondents.deleted_at IS NOT NULL")
+		}
+	} else {
+		filterCond = filterCond.Where("respondents.deleted_at IS NULL")
+	}
+
+	if req.HasJabatan != "" {
+		hasJabatanBool, err := strconv.ParseBool(req.HasJabatan)
+		if err == nil {
+			if hasJabatanBool {
+				filterCond = filterCond.Where(
+					`EXISTS (
+						SELECT 1 FROM pejabat__wilayahs pw
+						WHERE pw.id_responden = respondents.id
+						AND pw.status_jabat = 1
+					)`,
+				)
+			} else {
+				filterCond = filterCond.Where(
+					`NOT EXISTS (
+						SELECT 1 FROM pejabat__wilayahs pw
+						WHERE pw.id_responden = respondents.id
+						AND pw.status_jabat = 1
+					)`,
+				)
+			}
+		}
+	}
+
+	if len(req.IDs) > 0 {
+		db = db.Where(filterCond).Or("respondents.id IN ?", req.IDs)
+	} else {
+		db = db.Where(filterCond)
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("respondents.name ASC")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
 }

@@ -80,7 +80,7 @@ func (handler *respondentHandler) BlockRespondent(ctx context.Context, req map[s
 }
 
 func (handler *respondentHandler) GetOptionsRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.respondentService.GetOptionsRespondent(param)
+	return handler.respondentService.RespondentOptions(ctx, req, usr, param, slug)
 }
 
 func (handler *respondentHandler) GetRespondentByKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

@@ -1663,6 +1663,14 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	currentTime := time.Now()
+
+	surveyBerakhir := utils.ParseToWIB(surveyDetail.EndDate)
+
+	if surveyBerakhir.Before(currentTime) {
+		return utils.SendError(errors.New("Masa berlaku survei ini telah berakhir"), http.StatusBadRequest)
+	}
+
 	respondentId := usr.RespondentID
 	if respondentId == 0 {
 		return utils.SendError(errors.New("Respondent tidak ditemukan"), http.StatusNotFound)
@@ -5004,6 +5012,11 @@ func (service *surveyService) SyncExpiredSurveysStatus(ctx context.Context) {
 				oldSurvey.UpdatedAt = time.Now()
 				if err := txRepo.UpdateSurvey(&oldSurvey); err != nil {
 					return err
+				}
+
+				errReset := txRepo.ResetFlaggingBySurveyID(ctx, nil, int64(oldSurvey.ID))
+				if errReset != nil {
+					return errReset
 				}
 
 				surveyors, _ := service.surveyRepo.GetSurveyorsBySurveyId(int64(oldSurvey.ID))
