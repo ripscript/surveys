@@ -1578,14 +1578,46 @@ func (repository *surveyRepo) UpdateSurveyTx(ctx context.Context, tx *gorm.DB, s
 	return tx.WithContext(ctx).Save(survey).Error
 }
 
-func (repository *surveyRepo) MarkExpiredSurveysAsFinished(ctx context.Context) error {
-	err := repository.dbMaster.WithContext(ctx).
-		Table("surveys").
-		Where("end_date < ?", time.Now()).
-		Where("status != ?", "finished").
-		Update("status", "finished").Error
+// func (repository *surveyRepo) MarkExpiredSurveysAsFinished(ctx context.Context) error {
+// 	err := repository.dbMaster.WithContext(ctx).
+// 		Table("surveys").
+// 		Where("end_date < ?", time.Now()).
+// 		Where("status != ?", "finished").
+// 		Update("status", "finished").Error
 
-	return err
+// 	return err
+// }
+
+func (repository *surveyRepo) MarkExpiredSurveysAsFinished(ctx context.Context) error {
+	return repository.dbMaster.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		errReset := tx.Exec(`
+			UPDATE flagging_edit_pertanyaan_surveys
+			SET is_revisied = 'false'
+			WHERE is_revisied = 'true'
+			AND survey_respondent_id IN (
+				SELECT sr.id 
+				FROM survey_respondents sr
+				JOIN surveys s ON s.id = sr.survey_id
+				WHERE s.end_date < NOW() AND s.status != 'finished'
+			)
+		`).Error
+
+		if errReset != nil {
+			return errReset
+		}
+
+		errUpdate := tx.Exec(`
+			UPDATE surveys
+			SET status = 'finished'
+			WHERE end_date < NOW() AND status != 'finished'
+		`).Error
+
+		if errUpdate != nil {
+			return errUpdate // Jika gagal, batalkan transaksi (Flagging batal direset)
+		}
+
+		return nil // Sukses mengeksekusi keduanya
+	})
 }
 
 func (repository *surveyRepo) CheckUnresolvedRevision(surveyRespondentId int64) (bool, error) {
