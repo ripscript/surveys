@@ -149,15 +149,17 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			role = 2
 		}
 
-		checkIsWilayahAvailable, err := service.respondentRepo.CheckIsWilayahAvailable(&role, dataRespondent.Kecamatan, dataRespondent.Kelurahan, dataRespondent.RW, dataRespondent.RT)
-		if err != nil {
-			tx.Rollback()
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
+		fmt.Println(role)
 
-		if !checkIsWilayahAvailable {
-			return utils.SendError(errors.New("Wilayah sudah digunakan oleh responden lain"), http.StatusBadRequest)
-		}
+		// checkIsWilayahAvailable, err := service.respondentRepo.CheckIsWilayahAvailable(&role, dataRespondent.Kecamatan, dataRespondent.Kelurahan, dataRespondent.RW, dataRespondent.RT)
+		// if err != nil {
+		// 	tx.Rollback()
+		// 	return utils.SendError(err, http.StatusInternalServerError)
+		// }
+
+		// if !checkIsWilayahAvailable {
+		// 	return utils.SendError(errors.New("Wilayah sudah digunakan oleh responden lain"), http.StatusBadRequest)
+		// }
 
 		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(dataRespondent.Email)
 		if err != nil {

@@ -34,18 +34,23 @@ var (
 )
 
 var (
-	txManager       transaction.TxManager      = transaction.NewTxManager(dbMaster)
-	penggunaRepo    repository.PenggunaRepo    = repository.NewPenggunaRepo(dbSlave, dbMaster)
-	regionRepo      repository.RegionRepo      = repository.NewRegionRepo(dbSlave, dbMaster)
-	respondentRepo  repository.RespondentRepo  = repository.NewRespondentRepo(dbSlave, dbMaster)
-	usersRepo       repository.UsersRepo       = repository.NewUsersRepo(dbSlave, dbMaster)
-	usersBlokirRepo repository.UsersBlokirRepo = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
+	txManager        transaction.TxManager             = transaction.NewTxManager(dbMaster)
+	penggunaRepo     repository.PenggunaRepo           = repository.NewPenggunaRepo(dbSlave, dbMaster)
+	regionRepo       repository.RegionRepo             = repository.NewRegionRepo(dbSlave, dbMaster)
+	respondentRepo   repository.RespondentRepo         = repository.NewRespondentRepo(dbSlave, dbMaster)
+	usersRepo        repository.UsersRepo              = repository.NewUsersRepo(dbSlave, dbMaster)
+	usersBlokirRepo  repository.UsersBlokirRepo        = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
+	loginAttemptRepo repository.LoginAttemptRepository = repository.NewloginAttemptRepository(dbSlave, dbMaster)
+	permissionRepo   repository.PermissionRepository   = repository.NewPermissionRepository(dbSlave, dbMaster)
 )
 
 var (
 	penggunaService service.PenggunaService = service.NewPenggunaService(
 		penggunaRepo,
 		usersRepo,
+		respondentRepo,
+		loginAttemptRepo,
+		permissionRepo,
 	)
 	regionService service.RegionService = service.NewRegionService(
 		regionRepo,
@@ -145,8 +150,8 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/respondent/:id/update-password":     {"PUT": {Handler: respondentHandler.UpdatePasswordRespondent, MenuKey: "management-responden"}},
 
 	// Users
-	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: "profile"}},
-	"/update-profile":     {"PUT": {Handler: usersHandler.UpdateProfile, MenuKey: "profile"}},
+	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: "user"}},
+	"/update-profile":     {"PUT": {Handler: usersHandler.UpdateProfile, MenuKey: "user"}},
 	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
 	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},
 	"/users/:id":          {"GET": {Handler: usersHandler.GetDetailUsers, MenuKey: "user"}, "PUT": {Handler: usersHandler.UpdateUsers, MenuKey: "user"}, "DELETE": {Handler: usersHandler.DeleteUsers, MenuKey: "user"}},

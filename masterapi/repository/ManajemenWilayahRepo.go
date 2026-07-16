@@ -1421,7 +1421,7 @@ func (repository *manajemenWilayahRepo) GetListKecamatanV2(ctx context.Context, 
 		(SELECT COUNT(*) FROM kelurahans WHERE sub_district_id = kecamatans.id) AS total_kelurahan,
 		(SELECT COUNT(*) FROM data__rws JOIN kelurahans k ON k.id = data__rws.kelurahan_id WHERE k.sub_district_id = kecamatans.id) AS total_rw,
 		(SELECT COUNT(*) FROM data__rts JOIN data__rws rw ON rw.id = data__rts.rw_id JOIN kelurahans k ON k.id = rw.kelurahan_id WHERE k.sub_district_id = kecamatans.id) AS total_rt
-	`)
+	`).Where("deleted_at IS NULL")
 
 	if payload.Search != "" {
 		query = query.Where("sub_district_name ILIKE ?", "%"+payload.Search+"%")
@@ -1444,7 +1444,7 @@ func (repository *manajemenWilayahRepo) GetListKelurahanV2(ctx context.Context, 
 		(SELECT COUNT(*) FROM data__rws WHERE kelurahan_id = kelurahans.id) AS total_rw,
 		(SELECT COUNT(*) FROM data__rts JOIN data__rws rw ON rw.id = data__rts.rw_id WHERE rw.kelurahan_id = kelurahans.id) AS total_rt
 	`).
-		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id").Where("kelurahans.deleted_at IS NULL AND kecamatans.deleted_at IS NULL")
 
 	if payload.KecamatanId != nil && *payload.KecamatanId > 0 {
 		query = query.Where("kelurahans.sub_district_id = ?", *payload.KecamatanId)
@@ -1476,7 +1476,8 @@ func (repository *manajemenWilayahRepo) GetListRWV2(ctx context.Context, payload
 		(SELECT COUNT(*) FROM data__rts WHERE rw_id = data__rws.id) AS total_rt
 	`).
 		Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
-		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id").
+		Where("data__rws.deleted_at IS NULL AND kelurahans.deleted_at IS NULL AND kecamatans.deleted_at IS NULL")
 
 	if payload.KelurahanId != nil && *payload.KelurahanId > 0 {
 		query = query.Where("data__rws.kelurahan_id = ?", *payload.KelurahanId)
@@ -1507,7 +1508,8 @@ func (repository *manajemenWilayahRepo) GetListRTV2(ctx context.Context, payload
 		Select("data__rts.id, data__rts.nama_rt, data__rws.nama_rw, kelurahans.village_name, kecamatans.sub_district_name").
 		Joins("LEFT JOIN data__rws ON data__rws.id = data__rts.rw_id").
 		Joins("LEFT JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
-		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id")
+		Joins("LEFT JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id").
+		Where("data__rts.deleted_at IS NULL AND data__rws.deleted_at IS NULL AND kelurahans.deleted_at IS NULL AND kecamatans.deleted_at IS NULL")
 
 	if payload.RWId != nil && *payload.RWId > 0 {
 		query = query.Where("data__rts.rw_id = ?", *payload.RWId)

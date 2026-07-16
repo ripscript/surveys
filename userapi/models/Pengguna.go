@@ -57,11 +57,11 @@ type User struct {
 }
 
 type LogBlockLogin struct {
-	ID             int  `gorm:"primaryKey"`
-	UserCredential int  `gorm:"column:user_credential"`
-	IsBlocked      bool `gorm:"column:is_blocked"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             int       `gorm:"column:id;primaryKey"`
+	UserCredential string    `gorm:"column:user_credential;type:varchar(191);not null"`
+	IsBlocked      string    `gorm:"column:is_blocked;type:varchar(255);not null;default:'false'"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	UpdatedAt      time.Time `gorm:"column:updated_at"`
 }
 
 type PejabatWilayah struct {

@@ -4,7 +4,9 @@ import (
 	"backend/userapi/models"
 	"backend/userapi/payloads"
 	"backend/userapi/utils"
+	"errors"
 	"strconv"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -19,6 +21,7 @@ type PenggunaRepo interface {
 	FindUserByID(id int) (*models.User, error)
 	GetMenuPermission(roleId int) ([]models.MenuPermission, error)
 	ListMenus(RoleId int64) ([]models.MenuPermissionRole, error)
+	GetRespondentHasJabatanActive(payload payloads.LoginPayload) (*models.Respondent, string, error)
 }
 
 type penggunaRepo struct {
@@ -38,48 +41,54 @@ func (r *penggunaRepo) ListMenus(roleId int64) ([]models.MenuPermissionRole, err
 	defer utils.GeneralRecover()
 
 	var menuPermissions []models.MenuPermission
-	err := r.dbSlave.Debug().
+	err := r.dbSlave.
 		Preload("Menu").
-		Where("role_id = ?", roleId).
+		Joins("JOIN menus ON menus.id = menu_permissions.menu_id").
+		Where("menu_permissions.role_id = ?", roleId).
+		Where("menu_permissions.view_action = ?", true).
+		Order("menus.sort_order ASC").
 		Find(&menuPermissions).Error
 	if err != nil {
 		return nil, err
 	}
-	menuMap := make(map[int]models.MenuPermission)
+
+	// childrenByParentID mengelompokkan menu per parent, urutan slice tetap
+	// mengikuti urutan hasil query (sudah sort_order ASC) karena di-append berurutan.
+	childrenByParentID := make(map[int][]models.Menu)
+	var roots []models.Menu
 	for _, mp := range menuPermissions {
-		menuMap[mp.MenuID] = mp
+		if mp.Menu.ParentID == nil {
+			roots = append(roots, mp.Menu)
+		} else {
+			childrenByParentID[*mp.Menu.ParentID] = append(childrenByParentID[*mp.Menu.ParentID], mp.Menu)
+		}
 	}
 
 	var result []models.MenuPermissionRole
-	for _, mp := range menuPermissions {
-		if mp.Menu.ParentID == nil {
-			node := buildMenuTree(mp.Menu, menuMap)
-			result = append(result, node)
-		}
+	for _, root := range roots {
+		result = append(result, buildMenuTree(root, childrenByParentID))
 	}
 
 	return result, nil
 }
 
-func buildMenuTree(menu models.Menu, menuMap map[int]models.MenuPermission) models.MenuPermissionRole {
+// buildMenuTree menyusun tree secara rekursif; urutan children mengikuti
+// urutan di childrenByParentID, yang sudah terjaga dari query sort_order ASC.
+func buildMenuTree(menu models.Menu, childrenByParentID map[int][]models.Menu) models.MenuPermissionRole {
 	node := models.MenuPermissionRole{
-		Icon:      menu.Icon,
-		Key:       menu.Key,
-		Title:     menu.MenuName,
-		ChildMenu: []models.ChildMenu{},
+		Key:   menu.Key,
+		Title: menu.MenuName,
+		Icon:  menu.Icon,
 	}
 
-	for _, mp := range menuMap {
-		if mp.Menu.ParentID != nil && *mp.Menu.ParentID == menu.ID {
-			child := buildMenuTree(mp.Menu, menuMap)
-
-			node.ChildMenu = append(node.ChildMenu, models.ChildMenu{
-				Icon:      child.Icon,
-				Key:       child.Key,
-				Title:     child.Title,
-				ChildMenu: child.ChildMenu,
-			})
-		}
+	for _, child := range childrenByParentID[menu.ID] {
+		childNode := buildMenuTree(child, childrenByParentID)
+		node.ChildMenu = append(node.ChildMenu, models.ChildMenu{
+			Key:       childNode.Key,
+			Title:     childNode.Title,
+			Icon:      childNode.Icon,
+			ChildMenu: childNode.ChildMenu,
+		})
 	}
 
 	return node
@@ -137,6 +146,72 @@ func (r *penggunaRepo) FindRespondentByRole(payload payloads.LoginPayload) (*mod
 	return &respondent, requestEmail, nil
 }
 
+var (
+	ErrRespondentNotFound = errors.New("respondent not found")
+	ErrJabatanNotActive   = errors.New("jabatan tidak aktif")
+)
+
+func (r *penggunaRepo) GetRespondentHasJabatanActive(payload payloads.LoginPayload) (*models.Respondent, string, error) {
+	var respondent models.Respondent
+	var requestEmail string
+
+	baseQuery := r.dbSlave.
+		Where("respondents.role_id = ?", payload.Role).
+		Where("respondents.deleted_at IS NULL")
+
+	if payload.Role == 8 || payload.Role == 7 || payload.Role == 9 {
+		baseQuery = baseQuery.Where("respondents.email = ?", payload.Email)
+	} else {
+		if payload.SelectedKecamatan != nil {
+			baseQuery = baseQuery.Where("respondents.kecamatan_id = ?", *payload.SelectedKecamatan)
+		}
+		if payload.SelectedKelurahan != nil {
+			baseQuery = baseQuery.Where("respondents.kelurahan_id = ?", *payload.SelectedKelurahan)
+		}
+		if payload.SelectedRW != nil {
+			baseQuery = baseQuery.Where("respondents.rw_id = ?", *payload.SelectedRW)
+		}
+		if payload.SelectedRT != nil {
+			baseQuery = baseQuery.Where("respondents.rt_id = ?", *payload.SelectedRT)
+		}
+	}
+
+	err := baseQuery.First(&respondent).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", ErrRespondentNotFound
+		}
+		return nil, "", err
+	}
+
+	var activeRespondent models.Respondent
+	jabatanQuery := r.dbSlave.
+		Joins("JOIN pejabat__wilayahs pw ON pw.id_responden = respondents.id").
+		Where("respondents.id = ?", respondent.ID).
+		Where("pw.status_jabat = ?", 1).
+		Where("pw.periode_akhir IS NULL OR pw.periode_akhir >= ?", time.Now())
+
+	err = jabatanQuery.First(&activeRespondent).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", ErrJabatanNotActive
+		}
+		return nil, "", err
+	}
+
+	respondent = activeRespondent
+
+	if respondent.Email != "" {
+		requestEmail = respondent.Email
+	} else if respondent.Username != "" {
+		requestEmail = respondent.Username
+	} else {
+		requestEmail = respondent.NIK
+	}
+
+	return &respondent, requestEmail, nil
+}
+
 func (r *penggunaRepo) FindUserByRespondentID(id int) (*models.User, error) {
 	var user models.User
 	err := r.dbSlave.Where("respondent_id = ?", id).First(&user).Error
@@ -154,8 +229,10 @@ func (r *penggunaRepo) CountFailedLogin(userID int) (int64, error) {
 }
 
 func (r *penggunaRepo) InsertFailedLogin(userID int) error {
+	var userIdStr = strconv.Itoa(userID)
+
 	return r.dbMaster.Create(&models.LogBlockLogin{
-		UserCredential: userID,
+		UserCredential: userIdStr,
 	}).Error
 }
 
@@ -170,9 +247,13 @@ func (r *penggunaRepo) CheckActiveJabatan(id int) (bool, error) {
 
 	err := r.dbSlave.Where("id_responden = ?", id).
 		Where("status_jabat = ?", 1).
+		Where("periode_akhir IS NULL OR periode_akhir >= ?", time.Now()).
 		First(&data).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
 		return false, err
 	}
 

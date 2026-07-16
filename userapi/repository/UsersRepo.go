@@ -34,6 +34,9 @@ type UsersRepo interface {
 	WithTx(tx *gorm.DB) *usersRepo
 	GetUserByRespondentId(respondentId int) (*models.UserProfile, error)
 	BeginTx() *gorm.DB
+
+	FindByRespondentID(respondentID int) (*models.UserProfile, error)
+	UpdateLastLogin(userID int, t time.Time) error
 }
 
 type usersRepo struct {
@@ -508,4 +511,19 @@ func (repository *usersRepo) GetUserByRespondentId(respondentId int) (*models.Us
 func (r *usersRepo) BeginTx() *gorm.DB {
 	defer utils.GeneralRecover()
 	return r.dbMaster.Begin()
+}
+
+func (r *usersRepo) FindByRespondentID(respondentID int) (*models.UserProfile, error) {
+	var user models.UserProfile
+	err := r.dbSlave.Where("respondent_id = ?", respondentID).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *usersRepo) UpdateLastLogin(userID int, t time.Time) error {
+	return r.dbMaster.Model(&models.UserProfile{}).
+		Where("id = ?", userID).
+		Update("last_login", t).Error
 }

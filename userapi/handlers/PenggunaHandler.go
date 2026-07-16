@@ -26,7 +26,8 @@ func NewPenggunaHandler(
 	}
 }
 func (handler *penggunaHandler) Login(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.penggunaService.Login(usr, req)
+	// return handler.penggunaService.Login(usr, req)
+	return handler.penggunaService.LoginV2(usr, req)
 }
 
 func (handler *penggunaHandler) Logout(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

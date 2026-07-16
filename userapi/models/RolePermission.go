@@ -10,6 +10,7 @@ type Menu struct {
 	ParentID  *int   `json:"parent_id" gorm:"default:null"`
 	Parent    *Menu  `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"`
 	Children  []Menu `gorm:"foreignKey:ParentID"`
+	SortOrder int    `json:"sort_order" gorm:"default:0"`
 	CreatedBy uint
 	UpdatedBy uint
 	DeletedBy *uint

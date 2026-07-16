@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -43,6 +44,10 @@ type RespondentRepo interface {
 	CheckIsWilayahAvailable(roleID, kecamatanID, kelurahanID, rwID, rtID *int) (bool, error)
 
 	RespondentOptions(req payloads.RespondentOptionsPayload) ([]response.OptionItem, int64, error)
+
+	FindByRole(payload payloads.LoginPayload) (*models.Respondent, error)
+	IsJabatanActive(respondentID int) (bool, error)
+	Block(respondentID int) error
 }
 
 type respondentRepo struct {
@@ -698,4 +703,90 @@ func (r *respondentRepo) RespondentOptions(req payloads.RespondentOptionsPayload
 	}
 
 	return data, totalData, nil
+}
+
+var directLoginRoles = map[int]bool{
+	1: true,
+	6: true,
+	7: true,
+	8: true,
+	9: true,
+}
+
+func isDirectLoginRole(role int) bool {
+	return directLoginRoles[role]
+}
+
+func (r *respondentRepo) FindByRole(payload payloads.LoginPayload) (*models.Respondent, error) {
+	var respondent models.Respondent
+
+	query := r.buildCriteriaQuery(payload)
+
+	if !isDirectLoginRole(payload.Role) {
+		query = query.
+			Joins("JOIN pejabat__wilayahs pw ON pw.id_responden = respondents.id").
+			Where("pw.status_jabat = ?", 1).
+			Where("pw.periode_akhir IS NULL OR pw.periode_akhir >= ?", time.Now())
+	}
+
+	err := query.First(&respondent).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRespondentNotFound
+		}
+		return nil, err
+	}
+
+	return &respondent, nil
+}
+
+func (r *respondentRepo) buildCriteriaQuery(payload payloads.LoginPayload) *gorm.DB {
+	query := r.dbSlave.
+		Where("respondents.role_id = ?", payload.Role).
+		Where("respondents.deleted_at IS NULL")
+
+	if isDirectLoginRole(payload.Role) {
+		query = query.Where("respondents.email = ?", payload.Email)
+		return query
+	}
+
+	if payload.SelectedKecamatan != nil {
+		query = query.Where("respondents.kecamatan_id = ?", *payload.SelectedKecamatan)
+	}
+	if payload.SelectedKelurahan != nil {
+		query = query.Where("respondents.kelurahan_id = ?", *payload.SelectedKelurahan)
+	}
+	if payload.SelectedRW != nil {
+		query = query.Where("respondents.rw_id = ?", *payload.SelectedRW)
+	}
+	if payload.SelectedRT != nil {
+		query = query.Where("respondents.rt_id = ?", *payload.SelectedRT)
+	}
+
+	return query
+}
+
+func (r *respondentRepo) IsJabatanActive(respondentID int) (bool, error) {
+	var data models.PejabatWilayah
+
+	err := r.dbSlave.
+		Where("id_responden = ?", respondentID).
+		Where("status_jabat = ?", 1).
+		Where("periode_akhir IS NULL OR periode_akhir >= ?", time.Now()).
+		First(&data).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *respondentRepo) Block(respondentID int) error {
+	return r.dbMaster.Model(&models.Respondent{}).
+		Where("id = ?", respondentID).
+		Update("is_blocked", true).Error
 }
