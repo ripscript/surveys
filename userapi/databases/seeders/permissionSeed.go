@@ -1,7 +1,7 @@
 package seeders
 
 import (
-	"backend/surveyapi/utils"
+	"backend/userapi/utils"
 	"backend/userapi/models"
 	"fmt"
 	"strings"
