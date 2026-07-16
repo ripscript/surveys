@@ -20,14 +20,15 @@ type Menu struct {
 }
 
 type MenuPermission struct {
-	ID           int  `json:"id" gorm:"primaryKey;autoIncrement"`
-	MenuID       int  `gorm:"uniqueIndex:idx_role_menu"`
-	Menu         Menu `gorm:"foreignKey:MenuID;constraint:OnDelete:CASCADE;"`
-	RoleID       int  `gorm:"uniqueIndex:idx_role_menu"`
-	ViewAction   bool `json:"view_action"`
-	CreateAction bool `json:"create_action"`
-	UpdateAction bool `json:"update_action"`
-	DeleteAction bool `json:"delete_action"`
+	ID           int   `json:"id" gorm:"primaryKey;autoIncrement"`
+	MenuID       int   `gorm:"uniqueIndex:idx_role_menu"`
+	Menu         Menu  `gorm:"foreignKey:MenuID;constraint:OnDelete:CASCADE;"`
+	RoleID       int   `gorm:"uniqueIndex:idx_role_menu"`
+	ViewAction   bool  `json:"view_action"`
+	CreateAction bool  `json:"create_action"`
+	UpdateAction bool  `json:"update_action"`
+	DeleteAction bool  `json:"delete_action"`
+	ShowInMenu   *bool `json:"show_in_menu" gorm:"default:true"`
 }
 
 type MenuPermissionRole struct {

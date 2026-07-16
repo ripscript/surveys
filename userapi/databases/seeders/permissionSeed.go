@@ -1,6 +1,7 @@
 package seeders
 
 import (
+	"backend/surveyapi/utils"
 	"backend/userapi/models"
 	"fmt"
 	"strings"
@@ -33,26 +34,38 @@ func PermissionSeed(db *gorm.DB) error {
 		return models.MenuPermission{
 			MenuID: menuID, RoleID: roleID,
 			ViewAction: true, CreateAction: true, UpdateAction: true, DeleteAction: true,
+			ShowInMenu: utils.BoolToPointer(true),
 		}
 	}
 	none := func(menuID, roleID int) models.MenuPermission {
 		return models.MenuPermission{
 			MenuID: menuID, RoleID: roleID,
 			ViewAction: false, CreateAction: false, UpdateAction: false, DeleteAction: false,
+			ShowInMenu: utils.BoolToPointer(false),
 		}
 	}
 	viewOnly := func(menuID, roleID int) models.MenuPermission {
 		return models.MenuPermission{
 			MenuID: menuID, RoleID: roleID,
 			ViewAction: true, CreateAction: false, UpdateAction: false, DeleteAction: false,
+			ShowInMenu: utils.BoolToPointer(true), // default nongol; override manual kalau perlu
 		}
 	}
-	// custom := func(menuID, roleID int, view, create, update, delete bool) models.MenuPermission {
-	// 	return models.MenuPermission{
-	// 		MenuID: menuID, RoleID: roleID,
-	// 		ViewAction: view, CreateAction: create, UpdateAction: update, DeleteAction: delete,
-	// 	}
-	// }
+	custom := func(menuID, roleID int, view, create, update, delete, showInMenu bool) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: view, CreateAction: create, UpdateAction: update, DeleteAction: delete,
+			ShowInMenu: utils.BoolToPointer(showInMenu),
+		}
+	}
+
+	viewOnlyHidden := func(menuID, roleID int) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: true, CreateAction: false, UpdateAction: false, DeleteAction: false,
+			ShowInMenu: utils.BoolToPointer(false),
+		}
+	}
 
 	type P = models.MenuPermission
 	var (
@@ -99,15 +112,21 @@ func PermissionSeed(db *gorm.DB) error {
 		full(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
 		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
 
-		// Survey Kewilayahan
-		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
-		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
-		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
-
 		// List Survey
 		none(ListSurvey, public), none(ListSurvey, rt), none(ListSurvey, rw), none(ListSurvey, lurah),
 		full(ListSurvey, camat), none(ListSurvey, pemkot), full(ListSurvey, admin),
 		none(ListSurvey, surveyor), none(ListSurvey, walikota),
+
+		// Survey (Master Data)
+		full(masterData, camat),
+		none(masterData, public), none(masterData, rt), none(masterData, rw), full(masterData, lurah),
+		none(masterData, pemkot), full(masterData, admin),
+		none(masterData, surveyor), none(masterData, walikota),
+
+		// Survey Kewilayahan
+		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
+		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
+		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
 
 		// Manajemen Responden
 		none(ManajemenResponden, public), viewOnly(ManajemenResponden, rt), viewOnly(ManajemenResponden, rw), viewOnly(ManajemenResponden, lurah),
@@ -124,16 +143,16 @@ func PermissionSeed(db *gorm.DB) error {
 		none(beranda, camat), none(beranda, pemkot), full(beranda, admin),
 		none(beranda, surveyor), none(beranda, walikota),
 
-		// Pengelola Survey (Master Data)
-		none(masterData, public), none(masterData, rt), none(masterData, rw), full(masterData, lurah),
-		none(masterData, camat), none(masterData, pemkot), full(masterData, admin),
-		none(masterData, surveyor), none(masterData, walikota),
-
 		// Pengaturan
-		// custom(pengaturan, rt, true, false, false, false),
-		none(pengaturan, public), none(pengaturan, rt), none(pengaturan, rw), full(pengaturan, lurah),
-		none(pengaturan, camat), none(pengaturan, pemkot), full(pengaturan, admin),
-		none(pengaturan, surveyor), none(pengaturan, walikota),
+		none(pengaturan, public),
+		custom(pengaturan, rt, true, false, false, false, true),
+		custom(pengaturan, rw, true, false, false, false, true),
+		custom(pengaturan, lurah, true, true, true, true, true),
+		custom(pengaturan, camat, true, false, false, false, true),
+		custom(pengaturan, pemkot, true, false, false, false, true),
+		custom(pengaturan, admin, true, true, true, true, true),
+		custom(pengaturan, surveyor, false, false, false, false, true),
+		custom(pengaturan, walikota, false, false, false, false, true),
 
 		// Ucapan
 		none(ucapan, public), none(ucapan, rt), none(ucapan, rw), none(ucapan, lurah),
@@ -147,7 +166,7 @@ func PermissionSeed(db *gorm.DB) error {
 
 		// Manajemen Alur
 		none(alur, public), none(alur, rt), none(alur, rw), none(alur, lurah),
-		none(alur, camat), none(alur, pemkot), full(alur, admin),
+		viewOnlyHidden(alur, camat), none(alur, pemkot), full(alur, admin),
 		none(alur, surveyor), none(alur, walikota),
 
 		// Kategori
@@ -207,7 +226,7 @@ func PermissionSeed(db *gorm.DB) error {
 
 		if err := tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "menu_id"}, {Name: "role_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"view_action", "create_action", "update_action", "delete_action"}),
+			DoUpdates: clause.AssignmentColumns([]string{"view_action", "create_action", "update_action", "delete_action", "show_in_menu"}),
 		}).Create(&MenuPermission).Error; err != nil {
 			return err
 		}

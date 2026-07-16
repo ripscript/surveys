@@ -150,8 +150,8 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/respondent/:id/update-password":     {"PUT": {Handler: respondentHandler.UpdatePasswordRespondent, MenuKey: "management-responden"}},
 
 	// Users
-	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: "user"}},
-	"/update-profile":     {"PUT": {Handler: usersHandler.UpdateProfile, MenuKey: "user"}},
+	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: ""}},
+	"/update-profile":     {"PUT": {Handler: usersHandler.UpdateProfile, MenuKey: ""}},
 	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
 	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},
 	"/users/:id":          {"GET": {Handler: usersHandler.GetDetailUsers, MenuKey: "user"}, "PUT": {Handler: usersHandler.UpdateUsers, MenuKey: "user"}, "DELETE": {Handler: usersHandler.DeleteUsers, MenuKey: "user"}},

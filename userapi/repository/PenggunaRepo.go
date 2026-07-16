@@ -46,14 +46,13 @@ func (r *penggunaRepo) ListMenus(roleId int64) ([]models.MenuPermissionRole, err
 		Joins("JOIN menus ON menus.id = menu_permissions.menu_id").
 		Where("menu_permissions.role_id = ?", roleId).
 		Where("menu_permissions.view_action = ?", true).
+		Where("menu_permissions.show_in_menu = ?", true).
 		Order("menus.sort_order ASC").
 		Find(&menuPermissions).Error
 	if err != nil {
 		return nil, err
 	}
 
-	// childrenByParentID mengelompokkan menu per parent, urutan slice tetap
-	// mengikuti urutan hasil query (sudah sort_order ASC) karena di-append berurutan.
 	childrenByParentID := make(map[int][]models.Menu)
 	var roots []models.Menu
 	for _, mp := range menuPermissions {
@@ -72,8 +71,6 @@ func (r *penggunaRepo) ListMenus(roleId int64) ([]models.MenuPermissionRole, err
 	return result, nil
 }
 
-// buildMenuTree menyusun tree secara rekursif; urutan children mengikuti
-// urutan di childrenByParentID, yang sudah terjaga dari query sort_order ASC.
 func buildMenuTree(menu models.Menu, childrenByParentID map[int][]models.Menu) models.MenuPermissionRole {
 	node := models.MenuPermissionRole{
 		Key:   menu.Key,
