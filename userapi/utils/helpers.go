@@ -126,3 +126,7 @@ func SplitFullName(fullName string) (firstName string, lastName string) {
 
 	return firstName, lastName
 }
+
+func BoolToPointer(data bool) *bool {
+	return &data
+}
