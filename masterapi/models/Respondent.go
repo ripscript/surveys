@@ -31,3 +31,18 @@ type Respondent struct {
 func (u *Respondent) TableName() string {
 	return "respondents"
 }
+
+type DetailRespondent struct {
+	Email       string `json:"email"`
+	ID          int64  `json:"id"`
+	Kecamatan   string `json:"kecamatan"`
+	Kelurahan   string `json:"kelurahan"`
+	NIK         string `json:"nik"`
+	Name        string `json:"name"`
+	PhoneNumber string `json:"PhoneNumber"`
+	RT          string `json:"Rt"`
+	RW          string `json:"Rw"`
+	Username    string `json:"username"`
+	No          int    `json:"no"`
+	Role        string `json:"role"`
+}

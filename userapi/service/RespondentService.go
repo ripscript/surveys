@@ -820,6 +820,7 @@ func (service *respondentService) RespondentOptions(ctx context.Context, req map
 		Page:        page,
 		Limit:       limit,
 		IDs:         respondentIds,
+		TipeWilayah: param.Get("tipe_wilayah"),
 		KecamatanId: param.Get("kecamatan_id"),
 		KelurahanId: param.Get("kelurahan_id"),
 		RWId:        param.Get("rw_id"),

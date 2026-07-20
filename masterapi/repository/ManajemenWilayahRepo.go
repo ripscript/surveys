@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"backend/masterapi/enums"
 	"backend/masterapi/models"
 	"backend/masterapi/payloads"
 	"backend/masterapi/response"
@@ -19,7 +20,7 @@ type ManajemenWilayahRepo interface {
 	GetKecamatanByName(name string) (*models.Kecamatan, error)
 	GetKecamatanByNameToLower(name string) (*models.Kecamatan, error)
 	GetKecamatanBySlug(slug string) (*models.Kecamatan, error)
-	GetListKecamatan(req payloads.DatatablePayload) ([]models.KecamatanDatatableResponse, int64, error)
+	GetListKecamatan(req payloads.DatatablePayload, respondent *models.Respondent) ([]models.KecamatanDatatableResponse, int64, error)
 	GetKecamatanOptions(req payloads.KecamatanOptionsPayload) ([]response.OptionItem, int64, error)
 	IsKecamatanUsed(id int64) (bool, error)
 	DeleteKecamatanById(id int64) error
@@ -30,7 +31,7 @@ type ManajemenWilayahRepo interface {
 	GetKelurahanByName(name string) (*models.KelurahanDetail, error)
 	GetKelurahanBySlug(slug string) (*models.KelurahanDetail, error)
 	UpdateKelurahan(kelurahan models.Kelurahan) (*models.Kelurahan, error)
-	GetListKelurahan(req payloads.DatatablePayload, kecamatanId *int64) ([]models.KelurahanDatatableResponse, int64, error)
+	GetListKelurahan(req payloads.DatatablePayload, kecamatanId *int64, respondent *models.Respondent) ([]models.KelurahanDatatableResponse, int64, error)
 	GetKelurahanOptions(req payloads.KelurahanOptionsPayload) ([]response.OptionItem, int64, error)
 	IsKelurahanUsed(id int64) (bool, error)
 	DeleteKelurahanById(id int64) error
@@ -38,7 +39,7 @@ type ManajemenWilayahRepo interface {
 	GetRwByID(id int) (*models.DataRwDetail, error)
 	GetRwByName(name string, kelurahanId *int64) (*models.DataRwDetail, error)
 	UpdateRw(rw models.DataRw) (*models.DataRw, error)
-	GetListRw(req payloads.DatatablePayload, kelurahanId *int64) ([]models.RwDatatableResponse, int64, error)
+	GetListRw(req payloads.DatatablePayload, kelurahanId *int64, respondent *models.Respondent) ([]models.RwDatatableResponse, int64, error)
 	CreateRw(rw models.DataRw) (*models.DataRw, error)
 	GetRwOptions(req payloads.RwOptionsPayload) ([]response.OptionItem, int64, error)
 	IsRwUsed(id int64) (bool, error)
@@ -152,7 +153,7 @@ func (repository *manajemenWilayahRepo) UpdateKecamatan(kecamatan models.Kecamat
 	return kecamatan, nil
 }
 
-func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatablePayload) ([]models.KecamatanDatatableResponse, int64, error) {
+func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatablePayload, respondent *models.Respondent) ([]models.KecamatanDatatableResponse, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.KecamatanDatatableResponse
 	var totalData int64
@@ -193,6 +194,18 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		Joins(pejabatJoinQuery).
 		Joins(`LEFT JOIN respondents ON respondents.id = pejabat__wilayahs.id_responden AND respondents.deleted_at IS NULL`).
 		Where("kecamatans.deleted_at IS NULL")
+
+	if respondent != nil {
+		if *respondent.RoleId != int64(enums.ROLE_ADMIN) && *respondent.RoleId != int64(enums.ROLE_KECAMATAN) {
+			db = db.Where("1 = 0")
+			countDB = countDB.Where("1 = 0")
+		} else {
+			if *respondent.RoleId == int64(enums.ROLE_KECAMATAN) {
+				db = db.Where("kecamatans.id = ?", *respondent.KecamatanId)
+				countDB = countDB.Where("kecamatans.id = ?", *respondent.KecamatanId)
+			}
+		}
+	}
 
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
@@ -479,7 +492,7 @@ func (repository *manajemenWilayahRepo) UpdateKelurahan(kelurahan models.Kelurah
 	return &kelurahan, nil
 }
 
-func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatablePayload, kecamatanId *int64) ([]models.KelurahanDatatableResponse, int64, error) {
+func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatablePayload, kecamatanId *int64, respondent *models.Respondent) ([]models.KelurahanDatatableResponse, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.KelurahanDatatableResponse
 	var totalData int64
@@ -524,9 +537,33 @@ func (repository *manajemenWilayahRepo) GetListKelurahan(req payloads.DatatableP
 		Joins(`JOIN kecamatans ON kecamatans.id = kelurahans.sub_district_id AND kecamatans.deleted_at IS NULL`).
 		Where("kelurahans.deleted_at IS NULL")
 
-	if kecamatanId != nil {
-		db = db.Where("kelurahans.sub_district_id = ?", *kecamatanId)
-		countDB = countDB.Where("kelurahans.sub_district_id = ?", *kecamatanId)
+	if respondent != nil && respondent.RoleId != nil {
+		roleId := *respondent.RoleId
+
+		switch roleId {
+		case 5:
+			if respondent.KecamatanId != nil {
+				db = db.Where("kelurahans.sub_district_id = ?", *respondent.KecamatanId)
+				countDB = countDB.Where("kelurahans.sub_district_id = ?", *respondent.KecamatanId)
+			} else {
+				db = db.Where("1 = 0")
+				countDB = countDB.Where("1 = 0")
+			}
+		case 4:
+			db = db.Where("kelurahans.id = ?", *respondent.KelurahanId)
+			countDB = countDB.Where("kelurahans.id = ?", *respondent.KelurahanId)
+		case 3, 2:
+			db = db.Where("1 = 0")
+			countDB = countDB.Where("1 = 0")
+		default:
+			if kecamatanId != nil {
+				db = db.Where("kelurahans.sub_district_id = ?", *kecamatanId)
+				countDB = countDB.Where("kelurahans.sub_district_id = ?", *kecamatanId)
+			}
+		}
+	} else {
+		db = db.Where("1 = 0")
+		countDB = countDB.Where("1 = 0")
 	}
 
 	if req.Search != "" {
@@ -780,7 +817,7 @@ func (repository *manajemenWilayahRepo) UpdateRw(rw models.DataRw) (*models.Data
 	return &rw, nil
 }
 
-func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload, kelurahanId *int64) ([]models.RwDatatableResponse, int64, error) {
+func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload, kelurahanId *int64, respondent *models.Respondent) ([]models.RwDatatableResponse, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.RwDatatableResponse
 	var totalData int64
@@ -829,9 +866,36 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		Joins(`JOIN kecamatans ON kelurahans.sub_district_id = kecamatans.id AND kecamatans.deleted_at IS NULL`).
 		Where("data__rws.deleted_at IS NULL")
 
-	if kelurahanId != nil {
-		db = db.Where("data__rws.kelurahan_id = ?", *kelurahanId)
-		countDB = countDB.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+	if respondent != nil && respondent.RoleId != nil {
+		roleId := *respondent.RoleId
+
+		switch roleId {
+		case 5:
+			if respondent.KecamatanId != nil {
+				db = db.Where("kecamatans.id = ?", *respondent.KecamatanId)
+				countDB = countDB.Where("kecamatans.id = ?", *respondent.KecamatanId)
+			} else {
+				db = db.Where("1 = 0")
+				countDB = countDB.Where("1 = 0")
+			}
+		case 4:
+			db = db.Where("kelurahans.id = ?", *respondent.KelurahanId)
+			countDB = countDB.Where("kelurahans.id = ?", *respondent.KelurahanId)
+		case 3:
+			db = db.Where("data__rws.id = ?", *respondent.RWId)
+			countDB = countDB.Where("data__rws.id = ?", *respondent.RWId)
+		case 2:
+			db = db.Where("1 = 0")
+			countDB = countDB.Where("1 = 0")
+		default:
+			if kelurahanId != nil {
+				db = db.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+				countDB = countDB.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+			}
+		}
+	} else {
+		db = db.Where("1 = 0")
+		countDB = countDB.Where("1 = 0")
 	}
 
 	if req.Search != "" {

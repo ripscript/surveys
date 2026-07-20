@@ -25,9 +25,9 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Template",
-				Key:       "template",
-				Icon:      "-",
+				MenuName:  "Pengaturan Pengguna",
+				Key:       "user",
+				Icon:      "profile-user",
 				SortOrder: 2,
 				CreatedBy: 0,
 				UpdatedBy: 0,
@@ -45,11 +45,9 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName: "Pengaturan",
-				// MenuName:  "Pengaturan Pengguna",
-				Key: "user",
-				// Icon:      "profile-user",
-				Icon:      "gear",
+				MenuName:  "Monitoring Dan Laporan",
+				Key:       "monitoring-dan-laporan",
+				Icon:      "note-2",
 				SortOrder: 4,
 				CreatedBy: 0,
 				UpdatedBy: 0,
@@ -57,9 +55,9 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Laporan",
-				Key:       "laporan",
-				Icon:      "-",
+				MenuName:  "Pengaturan Aplikasi",
+				Key:       "pengaturan-aplikasi",
+				Icon:      "setting-2",
 				SortOrder: 5,
 				CreatedBy: 0,
 				UpdatedBy: 0,
@@ -67,10 +65,21 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
+				MenuName:  "Template",
+				Key:       "template",
+				Icon:      "-",
+				SortOrder: 6,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+
+			{
 				MenuName:  "Monitoring",
 				Key:       "monitoring",
 				Icon:      "-",
-				SortOrder: 6,
+				SortOrder: 7,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -80,7 +89,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Admin",
 				Key:       "admin",
 				Icon:      "-",
-				SortOrder: 7,
+				SortOrder: 8,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -90,7 +99,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Survey Kewilayahan",
 				Key:       "survey-kewilayahan",
 				Icon:      "geolocation",
-				SortOrder: 8,
+				SortOrder: 9,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -110,56 +119,14 @@ func MenuSeed(db *gorm.DB) error {
 
 		pengelolaSurvey := int(menuIDMap["pengelola-survey"])
 		pengaturanID := int(menuIDMap["user"])
-		monitoringID := int(menuIDMap["monitoring"])
-		adminID := int(menuIDMap["admin"])
+		monitoringDanLaporanID := int(menuIDMap["monitoring-dan-laporan"])
+		pengaturanAplikasiID := int(menuIDMap["pengaturan-aplikasi"])
+		// monitoringID := int(menuIDMap["monitoring"])
+		// adminID := int(menuIDMap["admin"])
 
 		// Create Child Menus
 		ChildMenus := []models.Menu{
-			{
-				MenuName:  "Survey",
-				Key:       "master-data",
-				ParentID:  &pengelolaSurvey,
-				Icon:      "-",
-				SortOrder: 1,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			{
-				MenuName:  "Template Pertanyaan",
-				Key:       "template-pertanyaan",
-				ParentID:  &pengelolaSurvey,
-				Icon:      "-",
-				SortOrder: 2,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			{
-				MenuName:  "Template Ucapan",
-				Key:       "template-ucapan",
-				ParentID:  &pengelolaSurvey,
-				Icon:      "-",
-				SortOrder: 3,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			{
-				MenuName:  "Manajemen Alur",
-				Key:       "management-alur",
-				ParentID:  &pengelolaSurvey,
-				Icon:      "-",
-				SortOrder: 4,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-
+			// BEGIN: PENGATURAN PENGGUNA =======================================
 			{
 				MenuName:  "Manajemen Pengguna",
 				Key:       "management-pengguna",
@@ -182,10 +149,35 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			// END: PENGATURAN PENGGUNA =======================================
+
+			// BEGIN: PENGELOLA SURVEY =======================================
 			{
-				MenuName:  "Manajemen Artikel",
-				Key:       "management-artikel",
-				ParentID:  &pengaturanID,
+				MenuName:  "Template Ucapan",
+				Key:       "template-ucapan",
+				ParentID:  &pengelolaSurvey,
+				Icon:      "-",
+				SortOrder: 1,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Template Pertanyaan",
+				Key:       "template-pertanyaan",
+				ParentID:  &pengelolaSurvey,
+				Icon:      "-",
+				SortOrder: 2,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Manajemen Alur",
+				Key:       "management-alur",
+				ParentID:  &pengelolaSurvey,
 				Icon:      "-",
 				SortOrder: 3,
 				CreatedBy: 0,
@@ -194,9 +186,9 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Manajemen CMS",
-				Key:       "management-cms",
-				ParentID:  &pengaturanID,
+				MenuName:  "Survey",
+				Key:       "master-data",
+				ParentID:  &pengelolaSurvey,
 				Icon:      "-",
 				SortOrder: 4,
 				CreatedBy: 0,
@@ -204,23 +196,13 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			// END: PENGELOLA SURVEY =======================================
 
-			{
-				MenuName:  "Rating",
-				Key:       "rating",
-				ParentID:  &pengaturanID,
-				Icon:      "-",
-				SortOrder: 5,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-
+			// BEGIN: MONITORING DAN LAPORAN =======================================
 			{
 				MenuName:  "Statistik",
 				Key:       "statistik",
-				ParentID:  &monitoringID,
+				ParentID:  &monitoringDanLaporanID,
 				Icon:      "-",
 				SortOrder: 1,
 				CreatedBy: 0,
@@ -231,7 +213,7 @@ func MenuSeed(db *gorm.DB) error {
 			{
 				MenuName:  "Aktifitas Survey",
 				Key:       "aktifitas-survey",
-				ParentID:  &monitoringID,
+				ParentID:  &monitoringDanLaporanID,
 				Icon:      "-",
 				SortOrder: 2,
 				CreatedBy: 0,
@@ -239,11 +221,24 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			{
+				MenuName:  "Laporan",
+				Key:       "laporan",
+				ParentID:  &monitoringDanLaporanID,
+				Icon:      "-",
+				SortOrder: 3,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			// END: MONITORING DAN LAPORAN =======================================
 
+			// BEGIN: PENGATURAN APLIKASI =======================================
 			{
-				MenuName:  "Profil Saya",
-				Key:       "profil-saya",
-				ParentID:  &adminID,
+				MenuName:  "Manajemen CMS",
+				Key:       "management-cms",
+				ParentID:  &pengaturanAplikasiID,
 				Icon:      "-",
 				SortOrder: 1,
 				CreatedBy: 0,
@@ -252,16 +247,17 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Keluar",
-				Key:       "keluar",
-				ParentID:  &adminID,
+				MenuName:  "Manajemen Artikel",
+				Key:       "management-artikel",
+				ParentID:  &pengaturanAplikasiID,
 				Icon:      "-",
-				SortOrder: 1,
+				SortOrder: 2,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			// END: PENGATURAN APLIKASI =======================================
 		}
 
 		if err := upsertMenus(tx, ChildMenus); err != nil {
@@ -281,6 +277,7 @@ func MenuSeed(db *gorm.DB) error {
 
 		// Create Grandchild
 		GrindChildMenus := []models.Menu{
+			// BEGIN: MANAJEMEN PENGGUNA =======================================
 			{
 				MenuName:  "Manajemen Responden",
 				Key:       "management-responden",
@@ -303,18 +300,20 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
-			{
-				MenuName:  "Manajemen Blokir",
-				Key:       "management-blokir",
-				ParentID:  &manajemenPenggunaID,
-				Icon:      "-",
-				SortOrder: 3,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
+			// {
+			// 	MenuName:  "Manajemen Blokir",
+			// 	Key:       "management-blokir",
+			// 	ParentID:  &manajemenPenggunaID,
+			// 	Icon:      "-",
+			// 	SortOrder: 3,
+			// 	CreatedBy: 0,
+			// 	UpdatedBy: 0,
+			// 	CreatedAt: now,
+			// 	UpdatedAt: now,
+			// },
+			// END: MANAJEMEN PENGGUNA =======================================
 
+			// BEGIN: MANAJEMEN WILAYAH =======================================
 			{
 				MenuName:  "Manajemen Wilayah",
 				Key:       "management-wilayah",
@@ -337,7 +336,34 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			// END: MANAJEMEN WILAYAH =======================================
 
+			// BEGIN: SURVEY =======================================
+			{
+				MenuName:  "List Survey",
+				Key:       "list-survey",
+				ParentID:  &masterDataID,
+				Icon:      "-",
+				SortOrder: 1,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Hasil Survey",
+				Key:       "hasil-survey",
+				ParentID:  &masterDataID,
+				Icon:      "-",
+				SortOrder: 2,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			// END: SURVEY =======================================
+
+			// BEGIN: MANAJEMEN ARTIKEL =======================================
 			{
 				MenuName:  "Artikel",
 				Key:       "artikel",
@@ -371,29 +397,7 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
-
-			{
-				MenuName:  "List Survey",
-				Key:       "list-survey",
-				ParentID:  &masterDataID,
-				Icon:      "-",
-				SortOrder: 1,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			{
-				MenuName:  "Hasil Survey",
-				Key:       "hasil-survey",
-				ParentID:  &masterDataID,
-				Icon:      "-",
-				SortOrder: 2,
-				CreatedBy: 0,
-				UpdatedBy: 0,
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
+			// END: MANAJEMEN ARTIKEL =======================================
 		}
 
 		if err := upsertMenus(tx, GrindChildMenus); err != nil {

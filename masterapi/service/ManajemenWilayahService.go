@@ -8,6 +8,7 @@ import (
 	"backend/masterapi/utils"
 	"backend/siccore/pb"
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
@@ -228,7 +229,20 @@ func (service *manajemenWilayahService) GetListKecamatan(ctx context.Context, re
 		payload.Limit = 5
 	}
 
-	data, totalData, err := service.manajemenWilayahRepo.GetListKecamatan(payload)
+	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+	_slug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", _slug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentData models.Respondent
+	if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.manajemenWilayahRepo.GetListKecamatan(payload, &respondentData)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -520,7 +534,20 @@ func (service *manajemenWilayahService) GetListKelurahan(ctx context.Context, re
 		payload.Limit = 5
 	}
 
-	data, totalData, err := service.manajemenWilayahRepo.GetListKelurahan(payload, kecamatanId)
+	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+	_slug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", _slug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentData models.Respondent
+	if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.manajemenWilayahRepo.GetListKelurahan(payload, kecamatanId, &respondentData)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -760,7 +787,20 @@ func (service *manajemenWilayahService) GetListRw(ctx context.Context, req map[s
 		payload.Limit = 5
 	}
 
-	data, totalData, err := service.manajemenWilayahRepo.GetListRw(payload, kelurahanId)
+	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+	_slug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", _slug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentData models.Respondent
+	if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.manajemenWilayahRepo.GetListRw(payload, kelurahanId, &respondentData)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}

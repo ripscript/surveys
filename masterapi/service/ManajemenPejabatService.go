@@ -71,6 +71,18 @@ func (service *manajemenPejabatService) CreatePejabat(ctx context.Context, usr m
 		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
 	}
 
+	_slug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	_dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", _slug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentLogin models.Respondent
+	if err := json.Unmarshal(_dataBytes, &respondentLogin); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
 	tipeWilayah, isValid := enums.GetWilayahFromRole(respondentData.RoleId)
 	if !isValid {
 		return utils.SendError(errors.New("Role respondent tidak valid untuk dijadikan pejabat wilayah"), http.StatusBadRequest)
@@ -89,21 +101,41 @@ func (service *manajemenPejabatService) CreatePejabat(ctx context.Context, usr m
 
 	switch tipeWilayah {
 	case int64(enums.KECAMATAN):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat kecamatan"), http.StatusBadRequest)
+		}
+
 		if respondentData.KecamatanId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kecamatan"), http.StatusBadRequest)
 		}
 		IdWilayah = int64(*respondentData.KecamatanId)
 	case int64(enums.KELURAHAN):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat kelurahan"), http.StatusBadRequest)
+		}
+
 		if respondentData.KelurahanId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kelurahan"), http.StatusBadRequest)
 		}
 		IdWilayah = int64(*respondentData.KelurahanId)
 	case int64(enums.RW):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat RW"), http.StatusBadRequest)
+		}
+
+		// if respondentData.KecamatanId != respondentLogin.KecamatanId && respondentData.KelurahanId != respondentLogin.KelurahanId && respondentData.RWId != respondentLogin.RWId {
+		// 	return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat lintas wilayah"), http.StatusBadRequest)
+		// }
+
 		if respondentData.RWId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID RW"), http.StatusBadRequest)
 		}
 		IdWilayah = int64(*respondentData.RWId)
 	case int64(enums.RT):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat RT"), http.StatusBadRequest)
+		}
+
 		if respondentData.RTId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID RT"), http.StatusBadRequest)
 		}
@@ -243,6 +275,18 @@ func (service *manajemenPejabatService) UpdatePejabat(ctx context.Context, usr m
 		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
 	}
 
+	respLoginSlug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	_dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", respLoginSlug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentLogin models.Respondent
+	if err := json.Unmarshal(_dataBytes, &respondentLogin); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
 	if isRespondenBerubah {
 		isPejabatExist, err := service.manajemenPejabatRepo.IsRespondentHaveActivePejabat(finalIdResponden)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -260,21 +304,37 @@ func (service *manajemenPejabatService) UpdatePejabat(ctx context.Context, usr m
 
 	switch tipeWilayah {
 	case int64(enums.KECAMATAN):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat kecamatan"), http.StatusBadRequest)
+		}
+
 		if respondentData.KecamatanId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kecamatan"), http.StatusBadRequest)
 		}
 		finalIdWilayah = int64(*respondentData.KecamatanId)
 	case int64(enums.KELURAHAN):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat kelurahan"), http.StatusBadRequest)
+		}
+
 		if respondentData.KelurahanId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID Kelurahan"), http.StatusBadRequest)
 		}
 		finalIdWilayah = int64(*respondentData.KelurahanId)
 	case int64(enums.RW):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat rw"), http.StatusBadRequest)
+		}
+
 		if respondentData.RWId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID RW"), http.StatusBadRequest)
 		}
 		finalIdWilayah = int64(*respondentData.RWId)
 	case int64(enums.RT):
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses untuk menambahkan pejabat rt"), http.StatusBadRequest)
+		}
+
 		if respondentData.RTId == nil {
 			return utils.SendError(errors.New("Data respondent tidak memiliki ID RT"), http.StatusBadRequest)
 		}
@@ -452,7 +512,20 @@ func (service *manajemenPejabatService) GetListPejabat(ctx context.Context, req 
 		payload.Limit = 5
 	}
 
-	data, totalData, err := service.manajemenPejabatRepo.GetListPejabat(payload)
+	hostUserAPI := os.Getenv("USERAPI_HOST") + ":" + os.Getenv("USERAPI_PORT")
+	_slug := map[string]interface{}{"id": strconv.FormatInt(usr.RespondentID, 10)}
+
+	dataBytes, err := utils.HitBackend(ctx, hostUserAPI, "GET", "/respondent/raw/:id", _slug, nil)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	var respondentData models.Respondent
+	if err := json.Unmarshal(dataBytes, &respondentData); err != nil {
+		return utils.SendError(errors.New("Gagal memparsing data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	data, totalData, err := service.manajemenPejabatRepo.GetListPejabat(payload, &respondentData)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}

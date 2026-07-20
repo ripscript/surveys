@@ -1,8 +1,8 @@
 package seeders
 
 import (
-	"backend/userapi/utils"
 	"backend/userapi/models"
+	"backend/userapi/utils"
 	"fmt"
 	"strings"
 
@@ -11,11 +11,10 @@ import (
 )
 
 func PermissionSeed(db *gorm.DB) error {
-	var menuKeys = []string{"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
+	var menuKeys = []string{
+		"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
 		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
-		"management-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "profil-saya", "keluar",
-		"management-responden", "management-user", "management-blokir", "management-wilayah", "management-pejabat",
-		"artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey",
+		"management-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -82,13 +81,22 @@ func PermissionSeed(db *gorm.DB) error {
 		category          = menuIDs.Kategori
 		ListSurvey        = menuIDs.ListSurvey
 		promote           = menuIDs.Promote
-		artikel           = menuIDs.ManajemenArtikel
+		manajemenArtkel   = menuIDs.ManajemenArtikel
+		artikel           = menuIDs.Artikel
 		pejabat           = menuIDs.ManajemenPejabat
 		mUser             = menuIDs.ManajemenUser
 		mWilayah          = menuIDs.ManajemenWilayahChild
 		SurveyKewilayahan = menuIDs.SurveyKewilayahan
 		PengelolaSurvey   = menuIDs.PengelolaSurvey
 		Hasil             = menuIDs.Hasil
+
+		MonitoringDanLaporan = menuIDs.MonitoringDanLaporan
+		Statistik            = menuIDs.Statistik
+		AktifitasSurvey      = menuIDs.AktifitasSurvey
+		Laporan              = menuIDs.Laporan
+
+		PengaturanAplikasi = menuIDs.PengaturanAplikasi
+		ManajemenCMS       = menuIDs.ManajemenCMS
 
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
@@ -102,107 +110,135 @@ func PermissionSeed(db *gorm.DB) error {
 	)
 
 	MenuPermission := []P{
-		// Hasil Survey
-		none(Hasil, public), none(Hasil, rt), none(Hasil, rw), none(Hasil, lurah),
-		none(Hasil, camat), none(Hasil, pemkot), full(Hasil, admin),
-		none(Hasil, surveyor), none(Hasil, walikota),
+		// BEGIN:BERANDA ==================================================
+		none(beranda, public), none(beranda, rt), viewOnly(beranda, rw), full(beranda, lurah),
+		none(beranda, camat), none(beranda, pemkot), full(beranda, admin),
+		none(beranda, surveyor), none(beranda, walikota),
+		// END:BERANDA ==================================================
 
-		// Pengelola Survey
-		viewOnly(PengelolaSurvey, public), viewOnly(PengelolaSurvey, rt), viewOnly(PengelolaSurvey, rw), viewOnly(PengelolaSurvey, lurah),
-		full(PengelolaSurvey, camat), viewOnly(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
-		viewOnly(PengelolaSurvey, surveyor), viewOnly(PengelolaSurvey, walikota),
+		// BEGIN:PENGATURAN PENGGUNA ==================================================
+		custom(pengaturan, public, true, false, false, false, true),
+		viewOnlyHidden(pengaturan, rt),
+		viewOnlyHidden(pengaturan, rw),
+		custom(pengaturan, lurah, true, true, true, true, true),
+		custom(pengaturan, camat, true, false, false, false, true),
+		custom(pengaturan, pemkot, true, false, false, false, true),
+		custom(pengaturan, admin, true, true, true, true, true),
+		custom(pengaturan, surveyor, true, false, false, false, true),
+		custom(pengaturan, walikota, true, false, false, false, true),
+		// BEGIN:MANAJEMEN PENGGUNA ==================================================
+		none(pengguna, public), none(pengguna, rt), none(pengguna, rw), none(pengguna, lurah),
+		none(pengguna, camat), none(pengguna, pemkot), full(pengguna, admin),
+		none(pengguna, surveyor), none(pengguna, walikota),
 
-		// List Survey
-		none(ListSurvey, public), none(ListSurvey, rt), none(ListSurvey, rw), none(ListSurvey, lurah),
-		full(ListSurvey, camat), none(ListSurvey, pemkot), full(ListSurvey, admin),
-		none(ListSurvey, surveyor), none(ListSurvey, walikota),
+		// BEGIN:MANAJEMEN RESPONDEN ==================================================
+		viewOnly(ManajemenResponden, public), viewOnly(ManajemenResponden, rt), viewOnly(ManajemenResponden, rw), viewOnly(ManajemenResponden, lurah),
+		viewOnly(ManajemenResponden, camat), viewOnly(ManajemenResponden, pemkot), full(ManajemenResponden, admin),
+		viewOnly(ManajemenResponden, surveyor), viewOnly(ManajemenResponden, walikota),
 
-		// Survey (Master Data)
+		// BEGIN:MANAJEMEN USER ==================================================
+		viewOnly(mUser, public), viewOnly(mUser, rt), viewOnly(mUser, rw), viewOnly(mUser, lurah),
+		viewOnly(mUser, camat), viewOnly(mUser, pemkot), full(mUser, admin),
+		viewOnly(mUser, surveyor), viewOnly(mUser, walikota),
+		// END:MANAJEMEN PENGGUNA ==================================================
+
+		// BEGIN:MANAJEMEN WILAYAH ==================================================
+		viewOnlyHidden(mWilayah, public), viewOnlyHidden(mWilayah, rt), viewOnlyHidden(mWilayah, rw), full(mWilayah, lurah),
+		full(mWilayah, camat), viewOnly(mWilayah, pemkot), full(mWilayah, admin),
+		viewOnly(mWilayah, surveyor), viewOnly(mWilayah, walikota),
+
+		// BEGIN:MANAJEMEN WILAYAH ==================================================
+		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
+		full(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
+		viewOnly(ManajemenWilayah, surveyor), viewOnly(ManajemenWilayah, walikota),
+
+		// BEGIN:MANAJEMEN PEJABAT ==================================================
+		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), full(pejabat, lurah),
+		none(pejabat, camat), none(pejabat, pemkot), full(pejabat, admin),
+		none(pejabat, surveyor), none(pejabat, walikota),
+		// END:MANAJEMEN WILAYAH ==================================================
+
+		// END:PENGATURAN PENGGUNA ==================================================
+
+		// BEGIN:PENGELOLA SURVEY ==================================================
+		viewOnlyHidden(PengelolaSurvey, public), viewOnlyHidden(PengelolaSurvey, rt), viewOnlyHidden(PengelolaSurvey, rw), viewOnlyHidden(PengelolaSurvey, lurah),
+		full(PengelolaSurvey, camat), viewOnlyHidden(PengelolaSurvey, pemkot), full(PengelolaSurvey, admin),
+		viewOnlyHidden(PengelolaSurvey, surveyor), viewOnlyHidden(PengelolaSurvey, walikota),
+
+		// BEGIN:TEMPLATE UCAPAN ==================================================
+		none(ucapan, public), none(ucapan, rt), none(ucapan, rw), none(ucapan, lurah),
+		none(ucapan, camat), none(ucapan, pemkot), full(ucapan, admin),
+		none(ucapan, surveyor), none(ucapan, walikota),
+
+		// BEGIN:TEMPLATE PERTANYAAN ==================================================
+		none(formulir, public), none(formulir, rt), none(formulir, rw), none(formulir, lurah),
+		none(formulir, camat), none(formulir, pemkot), full(formulir, admin),
+		none(formulir, surveyor), none(formulir, walikota),
+
+		// BEGIN:TEMPLATE ALUR ==================================================
+		none(alur, public), none(alur, rt), none(alur, rw), none(alur, lurah),
+		viewOnlyHidden(alur, camat), none(alur, pemkot), full(alur, admin),
+		none(alur, surveyor), none(alur, walikota),
+
+		// BEGIN:SURVEY ==================================================
 		full(masterData, camat),
 		none(masterData, public), none(masterData, rt), none(masterData, rw), full(masterData, lurah),
 		none(masterData, pemkot), full(masterData, admin),
 		none(masterData, surveyor), none(masterData, walikota),
+
+		// BEGIN:LIST SURVEY ==================================================
+		none(ListSurvey, public), none(ListSurvey, rt), none(ListSurvey, rw), none(ListSurvey, lurah),
+		full(ListSurvey, camat), none(ListSurvey, pemkot), full(ListSurvey, admin),
+		none(ListSurvey, surveyor), none(ListSurvey, walikota),
+
+		// BEGIN:HASIL SURVEY ==================================================
+		none(Hasil, public), none(Hasil, rt), none(Hasil, rw), none(Hasil, lurah),
+		none(Hasil, camat), none(Hasil, pemkot), full(Hasil, admin),
+		none(Hasil, surveyor), none(Hasil, walikota),
+		// END:PENGELOLA SURVEY ==================================================
+
+		// BEGIN:MONITORING DAN LAPORAN ===================================================
+		none(MonitoringDanLaporan, public), none(MonitoringDanLaporan, rt), viewOnly(MonitoringDanLaporan, rw), viewOnly(MonitoringDanLaporan, lurah), full(MonitoringDanLaporan, camat), none(MonitoringDanLaporan, pemkot), full(MonitoringDanLaporan, admin), none(MonitoringDanLaporan, surveyor), none(MonitoringDanLaporan, walikota),
+		// BEGIN:STATISTIK ===================================================
+		none(Statistik, public), none(Statistik, rt), viewOnly(Statistik, rw), viewOnly(Statistik, lurah), full(Statistik, camat), none(Statistik, pemkot), full(Statistik, admin), none(Statistik, surveyor), none(Statistik, walikota),
+
+		// BEGIN:AKTIFITAS SURVEY ===================================================
+		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), none(AktifitasSurvey, walikota),
+
+		// BEGIN:LAPORAN ===================================================
+		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), none(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
+		// END:MONITORING DAN LAPORAN ===================================================
 
 		// Survey Kewilayahan
 		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
 		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
 		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
 
-		// Manajemen Responden
-		none(ManajemenResponden, public), viewOnly(ManajemenResponden, rt), viewOnly(ManajemenResponden, rw), viewOnly(ManajemenResponden, lurah),
-		viewOnly(ManajemenResponden, camat), none(ManajemenResponden, pemkot), full(ManajemenResponden, admin),
-		none(ManajemenResponden, surveyor), none(ManajemenResponden, walikota),
+		// BEGIN:PENGATURAN APLIKASI ===================================================
+		none(PengaturanAplikasi, public), none(PengaturanAplikasi, rt), none(PengaturanAplikasi, rw), none(PengaturanAplikasi, lurah), custom(PengaturanAplikasi, camat, true, false, false, false, true), none(PengaturanAplikasi, pemkot), full(PengaturanAplikasi, admin), none(PengaturanAplikasi, surveyor), none(PengaturanAplikasi, walikota),
 
-		// Manajemen Wilayah
-		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
-		full(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
-		viewOnly(ManajemenWilayah, surveyor), viewOnly(ManajemenWilayah, walikota),
+		// BEGIN:MANAJEMEN CMS ===================================================
+		none(ManajemenCMS, public), none(ManajemenCMS, rt), none(ManajemenCMS, rw), none(ManajemenCMS, lurah),
+		none(ManajemenCMS, camat), none(ManajemenCMS, pemkot), full(ManajemenCMS, admin),
+		none(ManajemenCMS, surveyor), none(ManajemenCMS, walikota),
 
-		// Beranda
-		none(beranda, public), none(beranda, rt), none(beranda, rw), full(beranda, lurah),
-		none(beranda, camat), none(beranda, pemkot), full(beranda, admin),
-		none(beranda, surveyor), none(beranda, walikota),
+		// BEGIN:MANAJEMEN ARTIKEL ===================================================
+		none(manajemenArtkel, public), none(manajemenArtkel, rt), none(manajemenArtkel, rw), none(manajemenArtkel, lurah), full(manajemenArtkel, camat), none(manajemenArtkel, pemkot), full(manajemenArtkel, admin), none(manajemenArtkel, surveyor), none(manajemenArtkel, walikota),
 
-		// Pengaturan
-		none(pengaturan, public),
-		custom(pengaturan, rt, true, false, false, false, true),
-		custom(pengaturan, rw, true, false, false, false, true),
-		custom(pengaturan, lurah, true, true, true, true, true),
-		custom(pengaturan, camat, true, false, false, false, true),
-		custom(pengaturan, pemkot, true, false, false, false, true),
-		custom(pengaturan, admin, true, true, true, true, true),
-		custom(pengaturan, surveyor, false, false, false, false, true),
-		custom(pengaturan, walikota, false, false, false, false, true),
+		// MANAJEMEN ARTIKEL | ARTIKEL ===================================================
+		none(artikel, public), none(artikel, rt), none(artikel, rw), none(artikel, lurah), full(artikel, camat), none(artikel, pemkot), full(artikel, admin), none(artikel, surveyor), none(artikel, walikota),
 
-		// Ucapan
-		none(ucapan, public), none(ucapan, rt), none(ucapan, rw), none(ucapan, lurah),
-		none(ucapan, camat), none(ucapan, pemkot), full(ucapan, admin),
-		none(ucapan, surveyor), none(ucapan, walikota),
-
-		// Formulir Pertanyaan
-		none(formulir, public), none(formulir, rt), none(formulir, rw), none(formulir, lurah),
-		none(formulir, camat), none(formulir, pemkot), full(formulir, admin),
-		none(formulir, surveyor), none(formulir, walikota),
-
-		// Manajemen Alur
-		none(alur, public), none(alur, rt), none(alur, rw), none(alur, lurah),
-		viewOnlyHidden(alur, camat), none(alur, pemkot), full(alur, admin),
-		none(alur, surveyor), none(alur, walikota),
-
-		// Kategori
-		none(category, public), none(category, rt), none(category, rw), none(category, lurah),
-		full(category, camat), none(category, pemkot), full(category, admin),
-		none(category, surveyor), none(category, walikota),
-
-		// Promote
+		// MANAJEMEN ARTIKEL | PROMOTE ===================================================
 		none(promote, public), none(promote, rt), none(promote, rw), none(promote, lurah),
-		full(promote, camat), none(promote, pemkot), full(promote, admin),
+		none(promote, camat), none(promote, pemkot), full(promote, admin),
 		none(promote, surveyor), none(promote, walikota),
 
-		// Manajemen Artikel
-		none(artikel, public), none(artikel, rt), none(artikel, rw), none(artikel, lurah),
-		full(artikel, camat), none(artikel, pemkot), full(artikel, admin),
-		none(artikel, surveyor), none(artikel, walikota),
-
-		// Manajemen Pejabat
-		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), none(pejabat, lurah),
-		none(pejabat, camat), none(pejabat, pemkot), full(pejabat, admin),
-		none(pejabat, surveyor), none(pejabat, walikota),
-
-		// Manajemen Pengguna
-		none(pengguna, public), none(pengguna, rt), none(pengguna, rw), none(pengguna, lurah),
-		none(pengguna, camat), none(pengguna, pemkot), full(pengguna, admin),
-		none(pengguna, surveyor), none(pengguna, walikota),
-
-		// Manajemen User
-		none(mUser, public), none(mUser, rt), none(mUser, rw), none(mUser, lurah),
-		none(mUser, camat), none(mUser, pemkot), full(mUser, admin),
-		none(mUser, surveyor), none(mUser, walikota),
-
-		// Manajemen Wilayah
-		viewOnly(mWilayah, public), viewOnly(mWilayah, rt), viewOnly(mWilayah, rw), full(mWilayah, lurah),
-		full(mWilayah, camat), viewOnly(mWilayah, pemkot), full(mWilayah, admin),
-		viewOnly(mWilayah, surveyor), viewOnly(mWilayah, walikota),
+		// MANAJEMEN ARTIKEL | KATEGORI ===================================================
+		none(category, public), none(category, rt), none(category, rw), none(category, lurah),
+		none(category, camat), none(category, pemkot), full(category, admin),
+		none(category, surveyor), none(category, walikota),
+		// END:MANAJEMEN ARTIKEL ===================================================
+		// END:PENGATURAN APLIKASI ===================================================
 	}
 
 	seen := make(map[[2]int]bool)
@@ -276,7 +312,6 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		ManajemenAlur:      m["management-alur"],
 		Beranda:            m["beranda"],
 		Pengaturan:         m["user"],
-		Laporan:            m["laporan"],
 		Monitoring:         m["monitoring"],
 		Admin:              m["admin"],
 		FormulirPertanyaan: m["template-pertanyaan"],
@@ -288,14 +323,9 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		ManajemenWilayah:      m["manage-wilayah"],
 		ManajemenCMS:          m["management-cms"],
 		ManajemenArtikel:      m["management-artikel"],
-		Rating:                m["rating"],
-		Statistik:             m["statistik"],
 		AktifitasSurvey:       m["aktifitas-survey"],
-		ProfilSaya:            m["profil-saya"],
-		Keluar:                m["keluar"],
 		ManajemenResponden:    m["management-responden"],
 		ManajemenUser:         m["management-user"],
-		ManajemenBlokir:       m["management-blokir"],
 		ManajemenWilayahChild: m["management-wilayah"],
 		ManajemenPejabat:      m["management-pejabat"],
 		Artikel:               m["artikel"],
@@ -304,6 +334,11 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		MasterData:            m["master-data"],
 		SurveyKewilayahan:     m["survey-kewilayahan"],
 		PengelolaSurvey:       m["pengelola-survey"],
+
+		MonitoringDanLaporan: m["monitoring-dan-laporan"],
+		Statistik:            m["statistik"],
+		Laporan:              m["laporan"],
+		PengaturanAplikasi:   m["pengaturan-aplikasi"],
 	}
 }
 

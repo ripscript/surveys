@@ -17,7 +17,7 @@ type ManajemenPejabatRepo interface {
 	GetPejabatById(id int64) (*models.DetailPejabatWilayah, error)
 	UpdatePejabat(pejabat *models.PejabatWilayah) (*models.PejabatWilayah, error)
 	DeletePejabatById(id int64) error
-	GetListPejabat(req payloads.DatatablePejabatPayload) ([]models.PejabatWilayahList, int64, error)
+	GetListPejabat(req payloads.DatatablePejabatPayload, respondent *models.Respondent) ([]models.PejabatWilayahList, int64, error)
 	IsRespondentHaveActivePejabat(respondenId int64) (bool, error)
 }
 
@@ -147,7 +147,7 @@ func (repository *manajemenPejabatRepo) DeletePejabatById(id int64) error {
 	return nil
 }
 
-func (repository *manajemenPejabatRepo) GetListPejabat(req payloads.DatatablePejabatPayload) ([]models.PejabatWilayahList, int64, error) {
+func (repository *manajemenPejabatRepo) GetListPejabat(req payloads.DatatablePejabatPayload, respondent *models.Respondent) ([]models.PejabatWilayahList, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.PejabatWilayahList
 	var totalData int64
@@ -192,6 +192,16 @@ func (repository *manajemenPejabatRepo) GetListPejabat(req payloads.DatatablePej
 		Joins("LEFT JOIN kelurahans ON respondents.kelurahan_id = kelurahans.id").
 		Joins("LEFT JOIN data__rws ON respondents.rw_id = data__rws.id").
 		Joins("LEFT JOIN data__rts ON respondents.rt_id = data__rts.id")
+
+	switch *respondent.RoleId {
+	case 7:
+	case 4:
+		db = db.Where("data__rws.kelurahan_id = ?", *respondent.KelurahanId)
+		countDB = countDB.Where("data__rws.kelurahan_id = ?", *respondent.KelurahanId)
+	default:
+		db = db.Where("1 = 0")
+		countDB = countDB.Where("1 = 0")
+	}
 
 	if req.FNama != nil {
 		db = db.Where("respondents.name ILIKE ?", "%"+*req.FNama+"%")

@@ -624,6 +624,12 @@ func (r *respondentRepo) RespondentOptions(req payloads.RespondentOptionsPayload
 		filterCond = filterCond.Where("respondents.name ILIKE ?", "%"+req.Q+"%")
 	}
 
+	if req.TipeWilayah != "" {
+		if roleId, err := strconv.Atoi(req.TipeWilayah); err == nil {
+			filterCond = filterCond.Where("respondents.role_id = ?", roleId)
+		}
+	}
+
 	if req.KecamatanId != "" {
 		filterCond = filterCond.Where("respondents.kecamatan_id = ?", req.KecamatanId)
 	}

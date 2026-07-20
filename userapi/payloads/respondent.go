@@ -58,6 +58,7 @@ type RespondentOptionsPayload struct {
 	Page        int      `form:"page" query:"page"`
 	Limit       int      `form:"limit" query:"limit"`
 	IDs         []string `form:"id[]" query:"id[]"`
+	TipeWilayah string   `form:"tipe_wilayah" query:"tipe_wilayah"`
 	KecamatanId string   `form:"kecamatan_id" query:"kecamatan_id"`
 	KelurahanId string   `form:"kelurahan_id" query:"kelurahan_id"`
 	RWId        string   `form:"rw_id" query:"rw_id"`
