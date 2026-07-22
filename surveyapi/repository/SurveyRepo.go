@@ -458,8 +458,9 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		surveys.status,
 		surveys.approval_survey,
 
+		-- HANYA MENGHITUNG DARI FLOW_FIELDS
 		(
-			SELECT COUNT(DISTINCT form_field_id) 
+			SELECT COUNT(id) 
 			FROM flow_fields 
 			WHERE flow_detail_id = surveys.flow_detail_id
 		) AS jumlah_total_soal,
@@ -485,9 +486,12 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				INNER JOIN survey_respondents sr ON sr.id = fr.form_response_id 
 				WHERE sr.survey_id = surveys.id AND sr.respondent_id = %d
 			) >= (
-				SELECT COUNT(DISTINCT form_field_id) 
-				FROM flow_fields 
-				WHERE flow_detail_id = surveys.flow_detail_id
+				-- Menghitung JUMLAH SOAL WAJIB (Required) dari flow_fields
+				SELECT COUNT(flf.id) 
+				FROM flow_fields flf
+				INNER JOIN form_fields ff ON ff.id = flf.form_field_id
+				WHERE flf.flow_detail_id = surveys.flow_detail_id
+				AND ff.required = true
 			) THEN 'Sudah Terisi' 
 
 			ELSE 'Sedang Berjalan' 

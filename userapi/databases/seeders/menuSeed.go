@@ -25,7 +25,7 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Dashboard",
+				MenuName:  "Dasbor",
 				Key:       "dashboard",
 				Icon:      "category",
 				SortOrder: 2,
@@ -272,7 +272,7 @@ func MenuSeed(db *gorm.DB) error {
 
 			// BEGIN: DASHBOARD =======================================
 			{
-				MenuName:  "Dashboard Utama",
+				MenuName:  "Dasbor Utama",
 				Key:       "dashboard-utama",
 				ParentID:  &dashboardID,
 				Icon:      "-",
@@ -283,7 +283,7 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Dashboard Wilayah",
+				MenuName:  "Dasbor Wilayah",
 				Key:       "dashboard-wilayah",
 				ParentID:  &dashboardID,
 				Icon:      "-",
@@ -294,7 +294,7 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Dashboard RT",
+				MenuName:  "Dasbor RT",
 				Key:       "dashboard-rt",
 				ParentID:  &dashboardID,
 				Icon:      "-",
