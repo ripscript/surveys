@@ -25,10 +25,20 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
+				MenuName:  "Dashboard",
+				Key:       "dashboard",
+				Icon:      "category",
+				SortOrder: 2,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
 				MenuName:  "Pengaturan Pengguna",
 				Key:       "user",
 				Icon:      "profile-user",
-				SortOrder: 2,
+				SortOrder: 3,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -38,7 +48,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Pengelola Survey",
 				Key:       "pengelola-survey",
 				Icon:      "questionnaire-tablet",
-				SortOrder: 3,
+				SortOrder: 4,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -48,7 +58,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Monitoring Dan Laporan",
 				Key:       "monitoring-dan-laporan",
 				Icon:      "note-2",
-				SortOrder: 4,
+				SortOrder: 5,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -58,7 +68,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Pengaturan Aplikasi",
 				Key:       "pengaturan-aplikasi",
 				Icon:      "setting-2",
-				SortOrder: 5,
+				SortOrder: 6,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -68,7 +78,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Template",
 				Key:       "template",
 				Icon:      "-",
-				SortOrder: 6,
+				SortOrder: 7,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -79,7 +89,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Monitoring",
 				Key:       "monitoring",
 				Icon:      "-",
-				SortOrder: 7,
+				SortOrder: 8,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -89,7 +99,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Admin",
 				Key:       "admin",
 				Icon:      "-",
-				SortOrder: 8,
+				SortOrder: 9,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -99,7 +109,7 @@ func MenuSeed(db *gorm.DB) error {
 				MenuName:  "Survey Kewilayahan",
 				Key:       "survey-kewilayahan",
 				Icon:      "geolocation",
-				SortOrder: 9,
+				SortOrder: 10,
 				CreatedBy: 0,
 				UpdatedBy: 0,
 				CreatedAt: now,
@@ -121,6 +131,7 @@ func MenuSeed(db *gorm.DB) error {
 		pengaturanID := int(menuIDMap["user"])
 		monitoringDanLaporanID := int(menuIDMap["monitoring-dan-laporan"])
 		pengaturanAplikasiID := int(menuIDMap["pengaturan-aplikasi"])
+		dashboardID := int(menuIDMap["dashboard"])
 		// monitoringID := int(menuIDMap["monitoring"])
 		// adminID := int(menuIDMap["admin"])
 
@@ -258,6 +269,42 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			// END: PENGATURAN APLIKASI =======================================
+
+			// BEGIN: DASHBOARD =======================================
+			{
+				MenuName:  "Dashboard Utama",
+				Key:       "dashboard-utama",
+				ParentID:  &dashboardID,
+				Icon:      "-",
+				SortOrder: 1,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Dashboard Wilayah",
+				Key:       "dashboard-wilayah",
+				ParentID:  &dashboardID,
+				Icon:      "-",
+				SortOrder: 2,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Dashboard RT",
+				Key:       "dashboard-rt",
+				ParentID:  &dashboardID,
+				Icon:      "-",
+				SortOrder: 3,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			// END: DASHBOARD =======================================
 		}
 
 		if err := upsertMenus(tx, ChildMenus); err != nil {

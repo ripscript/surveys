@@ -14,7 +14,7 @@ func PermissionSeed(db *gorm.DB) error {
 	var menuKeys = []string{
 		"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
 		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
-		"management-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi",
+		"management-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -98,6 +98,11 @@ func PermissionSeed(db *gorm.DB) error {
 		PengaturanAplikasi = menuIDs.PengaturanAplikasi
 		ManajemenCMS       = menuIDs.ManajemenCMS
 
+		Dashboard        = menuIDs.Dashboard
+		DashboardUtama   = menuIDs.DashboardUtama
+		DashboardWilayah = menuIDs.DashboardWilayah
+		DashboardRT      = menuIDs.DashboardRT
+
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
 		rw       = roleIDs.Rw
@@ -111,10 +116,29 @@ func PermissionSeed(db *gorm.DB) error {
 
 	MenuPermission := []P{
 		// BEGIN:BERANDA ==================================================
-		none(beranda, public), none(beranda, rt), viewOnly(beranda, rw), full(beranda, lurah),
-		none(beranda, camat), none(beranda, pemkot), full(beranda, admin),
-		none(beranda, surveyor), none(beranda, walikota),
+		none(beranda, public), viewOnly(beranda, rt), viewOnly(beranda, rw), full(beranda, lurah),
+		viewOnly(beranda, camat), none(beranda, pemkot), viewOnlyHidden(beranda, admin),
+		none(beranda, surveyor), viewOnly(beranda, walikota),
 		// END:BERANDA ==================================================
+
+		// BEGIN:DASHBOARD ===================================================
+		none(Dashboard, public), viewOnly(Dashboard, rt), viewOnly(Dashboard, rw), viewOnly(Dashboard, lurah),
+		viewOnly(Dashboard, camat), none(Dashboard, pemkot), viewOnly(Dashboard, admin),
+		none(Dashboard, surveyor), none(Dashboard, walikota),
+
+		// BEGIN:DASHBOARD UTAMA ===================================================
+		none(DashboardUtama, public), viewOnly(DashboardUtama, rt), viewOnly(DashboardUtama, rw), viewOnly(DashboardUtama, lurah),
+		viewOnly(DashboardUtama, camat), none(DashboardUtama, pemkot), viewOnly(DashboardUtama, admin),
+		viewOnly(DashboardUtama, surveyor), none(DashboardUtama, walikota),
+		// BEGIN:DASHBOARD WILAYAH ===================================================
+		none(DashboardWilayah, public), viewOnly(DashboardWilayah, rt), none(DashboardWilayah, rw), none(DashboardWilayah, lurah),
+		none(DashboardWilayah, camat), none(DashboardWilayah, pemkot), none(DashboardWilayah, admin),
+		viewOnly(DashboardWilayah, surveyor), none(DashboardWilayah, walikota),
+		// BEGIN:DASHBOARD RT ===================================================
+		none(DashboardRT, public), viewOnly(DashboardRT, rt), none(DashboardRT, rw), none(DashboardRT, lurah),
+		none(DashboardRT, camat), none(DashboardRT, pemkot), none(DashboardRT, admin),
+		none(DashboardRT, surveyor), none(DashboardRT, walikota),
+		// END:DASHBOARD ===================================================
 
 		// BEGIN:PENGATURAN PENGGUNA ==================================================
 		custom(pengaturan, public, true, false, false, false, true),
@@ -125,7 +149,7 @@ func PermissionSeed(db *gorm.DB) error {
 		custom(pengaturan, pemkot, true, false, false, false, true),
 		custom(pengaturan, admin, true, true, true, true, true),
 		custom(pengaturan, surveyor, true, false, false, false, true),
-		custom(pengaturan, walikota, true, false, false, false, true),
+		viewOnlyHidden(pengaturan, walikota),
 		// BEGIN:MANAJEMEN PENGGUNA ==================================================
 		none(pengguna, public), none(pengguna, rt), none(pengguna, rw), none(pengguna, lurah),
 		none(pengguna, camat), none(pengguna, pemkot), full(pengguna, admin),
@@ -145,12 +169,12 @@ func PermissionSeed(db *gorm.DB) error {
 		// BEGIN:MANAJEMEN WILAYAH ==================================================
 		viewOnlyHidden(mWilayah, public), viewOnlyHidden(mWilayah, rt), viewOnlyHidden(mWilayah, rw), full(mWilayah, lurah),
 		full(mWilayah, camat), viewOnly(mWilayah, pemkot), full(mWilayah, admin),
-		viewOnly(mWilayah, surveyor), viewOnly(mWilayah, walikota),
+		viewOnly(mWilayah, surveyor), none(mWilayah, walikota),
 
 		// BEGIN:MANAJEMEN WILAYAH ==================================================
 		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
 		full(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
-		viewOnly(ManajemenWilayah, surveyor), viewOnly(ManajemenWilayah, walikota),
+		viewOnly(ManajemenWilayah, surveyor), none(ManajemenWilayah, walikota),
 
 		// BEGIN:MANAJEMEN PEJABAT ==================================================
 		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), full(pejabat, lurah),
@@ -198,12 +222,12 @@ func PermissionSeed(db *gorm.DB) error {
 		// END:PENGELOLA SURVEY ==================================================
 
 		// BEGIN:MONITORING DAN LAPORAN ===================================================
-		none(MonitoringDanLaporan, public), none(MonitoringDanLaporan, rt), viewOnly(MonitoringDanLaporan, rw), viewOnly(MonitoringDanLaporan, lurah), full(MonitoringDanLaporan, camat), none(MonitoringDanLaporan, pemkot), full(MonitoringDanLaporan, admin), none(MonitoringDanLaporan, surveyor), none(MonitoringDanLaporan, walikota),
+		none(MonitoringDanLaporan, public), none(MonitoringDanLaporan, rt), viewOnly(MonitoringDanLaporan, rw), viewOnly(MonitoringDanLaporan, lurah), full(MonitoringDanLaporan, camat), none(MonitoringDanLaporan, pemkot), full(MonitoringDanLaporan, admin), none(MonitoringDanLaporan, surveyor), viewOnly(MonitoringDanLaporan, walikota),
 		// BEGIN:STATISTIK ===================================================
-		none(Statistik, public), none(Statistik, rt), viewOnly(Statistik, rw), viewOnly(Statistik, lurah), full(Statistik, camat), none(Statistik, pemkot), full(Statistik, admin), none(Statistik, surveyor), none(Statistik, walikota),
+		none(Statistik, public), none(Statistik, rt), viewOnly(Statistik, rw), viewOnly(Statistik, lurah), full(Statistik, camat), none(Statistik, pemkot), full(Statistik, admin), none(Statistik, surveyor), viewOnly(Statistik, walikota),
 
 		// BEGIN:AKTIFITAS SURVEY ===================================================
-		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), none(AktifitasSurvey, walikota),
+		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), viewOnly(AktifitasSurvey, walikota),
 
 		// BEGIN:LAPORAN ===================================================
 		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), none(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
@@ -212,7 +236,7 @@ func PermissionSeed(db *gorm.DB) error {
 		// Survey Kewilayahan
 		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
 		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
-		viewOnly(SurveyKewilayahan, surveyor), viewOnly(SurveyKewilayahan, walikota),
+		viewOnly(SurveyKewilayahan, surveyor), viewOnlyHidden(SurveyKewilayahan, walikota),
 
 		// BEGIN:PENGATURAN APLIKASI ===================================================
 		none(PengaturanAplikasi, public), none(PengaturanAplikasi, rt), none(PengaturanAplikasi, rw), none(PengaturanAplikasi, lurah), custom(PengaturanAplikasi, camat, true, false, false, false, true), none(PengaturanAplikasi, pemkot), full(PengaturanAplikasi, admin), none(PengaturanAplikasi, surveyor), none(PengaturanAplikasi, walikota),
@@ -339,6 +363,11 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		Statistik:            m["statistik"],
 		Laporan:              m["laporan"],
 		PengaturanAplikasi:   m["pengaturan-aplikasi"],
+
+		Dashboard:        m["dashboard"],
+		DashboardUtama:   m["dashboard-utama"],
+		DashboardWilayah: m["dashboard-wilayah"],
+		DashboardRT:      m["dashboard-rt"],
 	}
 }
 

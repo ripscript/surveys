@@ -91,6 +91,10 @@ type MenuIDs struct {
 	PengelolaSurvey       int
 	MonitoringDanLaporan  int
 	PengaturanAplikasi    int
+	Dashboard             int
+	DashboardUtama        int
+	DashboardWilayah      int
+	DashboardRT           int
 }
 
 type RoleIDs struct {
