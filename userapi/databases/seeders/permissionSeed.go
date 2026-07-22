@@ -234,7 +234,7 @@ func PermissionSeed(db *gorm.DB) error {
 		// END:MONITORING DAN LAPORAN ===================================================
 
 		// Survey Kewilayahan
-		viewOnly(SurveyKewilayahan, public), viewOnly(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
+		viewOnly(SurveyKewilayahan, public), full(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
 		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
 		viewOnly(SurveyKewilayahan, surveyor), viewOnlyHidden(SurveyKewilayahan, walikota),
 
