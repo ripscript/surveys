@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -49,18 +50,21 @@ type RespondentService interface {
 }
 
 type respondentService struct {
-	respondentRepo repository.RespondentRepo
-	usersRepo      repository.UsersRepo
+	respondentRepo   repository.RespondentRepo
+	usersRepo        repository.UsersRepo
+	loginAttemptRepo repository.LoginAttemptRepository
 }
 
 func NewRespondentService(
 	respondentRepo repository.RespondentRepo,
 	usersRepo repository.UsersRepo,
+	loginAttemptRepo repository.LoginAttemptRepository,
 
 ) RespondentService {
 	return &respondentService{
 		respondentRepo,
 		usersRepo,
+		loginAttemptRepo,
 	}
 }
 
@@ -178,6 +182,8 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			tx.Rollback()
 			return utils.SendError(err, http.StatusInternalServerError)
 		}
+
+		spew.Dump(checkNikRespondent, checkNikUsers)
 
 		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
 			tx.Rollback()
@@ -623,6 +629,21 @@ func (service *respondentService) BlockRespondent(usr models.JwtCustomClaims, pa
 	}
 
 	var data models.BlockRespondent
+
+	getUserByRespondentId, err := service.usersRepo.GetUserByRespondentId(checkRespondent.ID)
+	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+		return utils.SendError(fmt.Errorf("Terjadi Kesalahan Saat Melakukan Pengecekan Data User"), http.StatusInternalServerError)
+	}
+
+	if getUserByRespondentId == nil {
+		return utils.SendError(fmt.Errorf("User tidak ditemukan"), http.StatusBadRequest)
+	}
+
+	if blockStatus == "false" {
+		if err := service.loginAttemptRepo.ResetFailed(getUserByRespondentId.ID); err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+	}
 
 	data.ID = int(intRespondentId)
 	data.IsBlocked = blockStatus

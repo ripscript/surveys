@@ -7,7 +7,10 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	err := db.AutoMigrate(&models.UserModel{}, &models.Menu{}, &models.MenuPermission{}, &models.Survey{})
+	db.Exec("ALTER TABLE respondents DROP CONSTRAINT IF EXISTS respondents_nik_unique;")
+	db.Exec("DROP INDEX IF EXISTS respondents_nik_unique;")
+
+	err := db.AutoMigrate(&models.UserModel{}, &models.RespondentModel{}, &models.Menu{}, &models.MenuPermission{}, &models.Survey{})
 	if err != nil {
 		return err
 	}

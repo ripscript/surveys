@@ -66,7 +66,7 @@ func (service *penggunaService) LoginV2(usr models.JwtCustomClaims, req map[stri
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrRespondentNotFound):
-			return utils.SendError(errors.New("data responden tidak ditemukan"), http.StatusUnauthorized)
+			return utils.SendError(errors.New("NIK, email atau password salah"), http.StatusUnauthorized)
 		default:
 			return utils.SendError(err, http.StatusBadRequest)
 		}
@@ -79,7 +79,7 @@ func (service *penggunaService) LoginV2(usr models.JwtCustomClaims, req map[stri
 		}
 	}
 	if storedUser == nil {
-		return utils.SendError(errors.New("user tidak ditemukan"), http.StatusUnauthorized)
+		return utils.SendError(errors.New("NIK, email atau password salah"), http.StatusUnauthorized)
 	}
 
 	if err := service.checkNotBlocked(storedUser.ID, respondent.ID); err != nil {
@@ -92,7 +92,7 @@ func (service *penggunaService) LoginV2(usr models.JwtCustomClaims, req map[stri
 				return utils.SendError(err, http.StatusInternalServerError)
 			}
 		}
-		return utils.SendError(errors.New("password salah"), http.StatusUnauthorized)
+		return utils.SendError(errors.New("NIK, email atau password salah"), http.StatusUnauthorized)
 	}
 
 	if err := service.attemptRepo.ResetFailed(int(storedUser.ID)); err != nil {

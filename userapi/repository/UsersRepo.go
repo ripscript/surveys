@@ -258,11 +258,11 @@ func (r *usersRepo) CheckEmail(email string) (int64, int64, error) {
 	var countUsers int64
 	db := r.dbSlave
 
-	err := db.Model(models.Respondent{}).Where("email = ?", email).Count(&countRespondent).Error
+	err := db.Model(models.Respondent{}).Where("email = ? AND deleted_at IS NULL", email).Count(&countRespondent).Error
 	if err != nil {
 		return 0, 0, err
 	}
-	err = db.Model(models.Users{}).Where("email = ?", email).Count(&countUsers).Error
+	err = db.Model(models.Users{}).Where("email = ? AND deleted_at IS NULL", email).Count(&countUsers).Error
 	if err != nil {
 		return 0, 0, err
 	}
@@ -289,11 +289,11 @@ func (r *usersRepo) CheckNik(nik string) (int64, int64, error) {
 	var countUsers int64
 	db := r.dbSlave
 
-	err := db.Model(models.Respondent{}).Where("nik = ?", nik).Count(&countRespondent).Error
+	err := db.Model(models.Respondent{}).Where("nik = ? AND deleted_at IS NULL", nik).Count(&countRespondent).Error
 	if err != nil {
 		return 0, 0, err
 	}
-	err = db.Model(models.Users{}).Where("nik = ?", nik).Count(&countUsers).Error
+	err = db.Model(models.Users{}).Where("nik = ? AND deleted_at IS NULL", nik).Count(&countUsers).Error
 	if err != nil {
 		return 0, 0, err
 	}

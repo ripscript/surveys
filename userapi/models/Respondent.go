@@ -257,3 +257,30 @@ type RespondentRaw struct {
 func (RespondentRaw) TableName() string {
 	return "respondents"
 }
+
+type RespondentModel struct {
+	ID           int        `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Name         string     `gorm:"column:name;type:varchar(70);not null" json:"name"`
+	PhoneNumber  *string    `gorm:"column:phone_number;type:varchar(191)" json:"phone_number,omitempty"`
+	Email        *string    `gorm:"column:email;type:varchar(191)" json:"email,omitempty"`
+	BlkID        int        `gorm:"column:blk_id;not null" json:"blk_id"`
+	CreatedAt    *time.Time `gorm:"column:created_at" json:"created_at,omitempty"`
+	UpdatedAt    *time.Time `gorm:"column:updated_at" json:"updated_at,omitempty"`
+	NIK          *string    `gorm:"column:nik;type:varchar(191)" json:"nik,omitempty"`
+	KecamatanID  *int64     `gorm:"column:kecamatan_id" json:"kecamatan_id,omitempty"`
+	KelurahanID  *int64     `gorm:"column:kelurahan_id" json:"kelurahan_id,omitempty"`
+	RwID         *int64     `gorm:"column:rw_id" json:"rw_id,omitempty"`
+	RtID         *int64     `gorm:"column:rt_id" json:"rt_id,omitempty"`
+	RoleID       int64      `gorm:"column:role_id;not null" json:"role_id"`
+	TanggalLahir *time.Time `gorm:"column:tanggal_lahir;type:date" json:"tanggal_lahir,omitempty"`
+	Alamat       *string    `gorm:"column:alamat;type:text" json:"alamat,omitempty"`
+	TempatLahir  *string    `gorm:"column:tempat_lahir;type:varchar(100)" json:"tempat_lahir,omitempty"`
+	IsBlocked    string     `gorm:"column:is_blocked;type:varchar(255);not null;default:'false'" json:"is_blocked"`
+	Username     *string    `gorm:"column:username;type:varchar(255)" json:"username,omitempty"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
+}
+
+// TableName overrides the default table name used by GORM
+func (RespondentModel) TableName() string {
+	return "respondents"
+}

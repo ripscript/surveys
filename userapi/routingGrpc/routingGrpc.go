@@ -58,6 +58,7 @@ var (
 	respondentService service.RespondentService = service.NewRespondentService(
 		respondentRepo,
 		usersRepo,
+		loginAttemptRepo,
 	)
 	usersService service.UsersService = service.NewUsersService(
 		usersRepo,
