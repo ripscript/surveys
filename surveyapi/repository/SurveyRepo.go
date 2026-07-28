@@ -458,9 +458,9 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		surveys.status,
 		surveys.approval_survey,
 
-		-- HANYA MENGHITUNG DARI FLOW_FIELDS
+		-- [UPDATE DISINI] Gunakan DISTINCT form_field_id agar soal multiple-choices tidak terhitung ganda
 		(
-			SELECT COUNT(id) 
+			SELECT COUNT(DISTINCT form_field_id) 
 			FROM flow_fields 
 			WHERE flow_detail_id = surveys.flow_detail_id
 		) AS jumlah_total_soal,
@@ -624,11 +624,65 @@ func (repository *surveyRepo) BulkInsertFieldResponses(ctx context.Context, tx *
 	return nil
 }
 
+// func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx *gorm.DB, surveyID int64, respondent *models.Respondent) (bool, error) {
+// 	defer utils.GeneralRecover()
+
+// 	if respondent == nil {
+// 		return false, errors.New("data respondent tidak valid")
+// 	}
+
+// 	db := tx
+// 	if db == nil {
+// 		db = repository.dbSlave
+// 	}
+
+// 	var count int64
+
+// 	var kecId, kelId, rwId int64
+// 	if respondent.KecamatanId != nil {
+// 		kecId = *respondent.KecamatanId
+// 	}
+// 	if respondent.KelurahanId != nil {
+// 		kelId = *respondent.KelurahanId
+// 	}
+// 	if respondent.RWId != nil {
+// 		rwId = *respondent.RWId
+// 	}
+
+// 	err := db.WithContext(ctx).Table("surveys").
+// 		Where("surveys.id = ?", surveyID).
+// 		Where(`
+// 			EXISTS (
+// 				SELECT 1 FROM survey_wilayahs
+// 				WHERE survey_wilayahs.survey_id = surveys.id
+// 				AND survey_wilayahs.kecamatan_id = ?
+// 				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+// 				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+// 			)
+// 			OR NOT EXISTS (
+// 				SELECT 1 FROM survey_wilayahs
+// 				WHERE survey_wilayahs.survey_id = surveys.id
+// 			)
+// 		`, kecId, kelId, rwId).
+// 		Count(&count).Error
+
+// 	if err != nil {
+// 		return false, err
+// 	}
+
+// 	return count > 0, nil
+// }
+
 func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx *gorm.DB, surveyID int64, respondent *models.Respondent) (bool, error) {
 	defer utils.GeneralRecover()
 
 	if respondent == nil {
 		return false, errors.New("data respondent tidak valid")
+	}
+
+	// Bypass pengecekan wilayah jika yang login adalah Admin
+	if respondent.RoleId != nil && *respondent.RoleId == int64(enums.ROLE_ADMIN) {
+		return true, nil
 	}
 
 	db := tx
@@ -649,23 +703,50 @@ func (repository *surveyRepo) CheckRespondentEligibility(ctx context.Context, tx
 		rwId = *respondent.RWId
 	}
 
-	err := db.WithContext(ctx).Table("surveys").
-		Where("surveys.id = ?", surveyID).
-		Where(`
+	query := db.WithContext(ctx).Table("surveys").Where("surveys.id = ?", surveyID)
+
+	// Menerapkan logika Strict Top-Down Hierarchy
+	if rwId != 0 {
+		query = query.Where(`
 			EXISTS (
 				SELECT 1 FROM survey_wilayahs 
 				WHERE survey_wilayahs.survey_id = surveys.id 
 				AND survey_wilayahs.kecamatan_id = ?
-				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
-				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+				AND survey_wilayahs.kelurahan_id = ?
+				AND survey_wilayahs.rw_id = ?
 			) 
 			OR NOT EXISTS (
 				SELECT 1 FROM survey_wilayahs 
 				WHERE survey_wilayahs.survey_id = surveys.id
-			)
-		`, kecId, kelId, rwId).
-		Count(&count).Error
+			)`, kecId, kelId, rwId)
 
+	} else if kelId != 0 {
+		query = query.Where(`
+			EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id 
+				AND survey_wilayahs.kecamatan_id = ?
+				AND survey_wilayahs.kelurahan_id = ?
+			) 
+			OR NOT EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id
+			)`, kecId, kelId)
+
+	} else if kecId != 0 {
+		query = query.Where(`
+			EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id 
+				AND survey_wilayahs.kecamatan_id = ?
+			) 
+			OR NOT EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id
+			)`, kecId)
+	}
+
+	err := query.Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -846,18 +927,54 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 				rwId = *respondentLogin.RWId
 			}
 
-			db = db.Where(`
-			EXISTS (
-				SELECT 1 FROM survey_wilayahs 
-				WHERE survey_wilayahs.survey_id = surveys.id 
-				AND survey_wilayahs.kecamatan_id = ?
-				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
-				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
-			) 
-			OR NOT EXISTS (
-				SELECT 1 FROM survey_wilayahs 
-				WHERE survey_wilayahs.survey_id = surveys.id
-			)`, kecId, kelId, rwId)
+			// Menggunakan pendekatan Strict Top-Down Hierarchy
+			if rwId != 0 {
+				// 1. Login sebagai RW / RT
+				// BISA lihat: Survei yang ditargetkan KHUSUS untuk RW ini saja.
+				// TIDAK BISA lihat: Survei Kelurahan (karena rw_id di DB NULL) atau Survei Kecamatan.
+				db = db.Where(`
+				EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id 
+					AND survey_wilayahs.kecamatan_id = ?
+					AND survey_wilayahs.kelurahan_id = ?
+					AND survey_wilayahs.rw_id = ?
+				) 
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`, kecId, kelId, rwId)
+
+			} else if kelId != 0 {
+				// 2. Login sebagai Kelurahan
+				// BISA lihat: Survei KHUSUS Kelurahan ini, DAN Survei untuk seluruh RW di bawahnya (karena rw_id tidak di-filter).
+				// TIDAK BISA lihat: Survei Kecamatan (karena kelurahan_id di DB NULL).
+				db = db.Where(`
+				EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id 
+					AND survey_wilayahs.kecamatan_id = ?
+					AND survey_wilayahs.kelurahan_id = ?
+				) 
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`, kecId, kelId)
+
+			} else if kecId != 0 {
+				// 3. Login sebagai Kecamatan
+				// BISA lihat: Survei KHUSUS Kecamatan ini, DAN Survei Kelurahan/RW di bawahnya.
+				db = db.Where(`
+				EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id 
+					AND survey_wilayahs.kecamatan_id = ?
+				) 
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`, kecId)
+			}
 		}
 	}
 

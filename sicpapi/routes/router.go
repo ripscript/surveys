@@ -146,6 +146,7 @@ func SetupRoutes(e *echo.Echo) {
 
 	// DOCAPI SERVICE
 	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	e.GET("/view-cms-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -274,4 +275,29 @@ func SetupRoutes(e *echo.Echo) {
 
 	surveyKewilayahanGroup.GET("/respondent-rejected-all", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/respondent-rejected-survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	// BEGIN::MONITORING & LAPORAN ==========================
+	monitoringDanLaporanGroup := e.Group("/monitoring-dan-laporan")
+	// BEGIN::STATISTIK ==========================
+	statistikGroup := monitoringDanLaporanGroup.Group("/statistik")
+	statistikGroup.GET("", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	statistikGroup.GET("/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	// END::STATISTIK ==========================
+	// END::MONITORING & LAPORAN ==========================
+
+	// BEGIN::PENGATURAN APLIKASI ==========================
+	pengaturanAplikasi := e.Group("/pengaturan-aplikasi")
+	// BEGIN::MANAJEMEN CMS ==========================
+	manajemenCMSGroup := pengaturanAplikasi.Group("/manajemen-cms")
+	manajemenCMSGroup.GET("/list-section", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.PATCH("/update-status-section/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.PATCH("/update-name-section/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.DELETE("/delete-section/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.POST("/create-section", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	manajemenCMSGroup.GET("/section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.PATCH("/update-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.PATCH("/reorder-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::MANAJEMEN CMS ==========================
+	// END::PENGATURAN APLIKASI ==========================
 }

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"backend/masterapi/configs"
+	"backend/masterapi/databases/migrations"
+	"backend/masterapi/databases/seeders"
 	"backend/masterapi/routingGrpc"
 	"backend/masterapi/utils"
 	pb "backend/siccore/pb"
@@ -31,41 +34,48 @@ func main() {
 		fmt.Println("Error loading .env file :" + err.Error())
 	}
 
-	// Middleware untuk logging ke file app.log
 	logFile, err := os.Create("logs/app.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logFile.Close()
-
-	// Middleware untuk menangani error dan logging ke file error.log
-	errorFile, err := os.Create("errors/error.log")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer errorFile.Close()
-
+	migrateFlag := flag.Bool("migrate", false, "Jalankan migrasi database")
+	seederFlag := flag.Bool("seeder", false, "Jalankan seeder database")
 	flag.Parse()
+	if *migrateFlag {
+		fmt.Println("Masuk Create Database")
+		db := configs.SetupDatabaseMasterConnection()
+		if err := migrations.Migrate(db); err != nil {
+			log.Fatal("Gagal melakukan migrasi:", err)
+		}
+		log.Println("Migrasi berhasil")
+	} else if *seederFlag {
+		db := configs.SetupDatabaseMasterConnection()
+		if err := seeders.Seed(db); err != nil {
+			log.Fatal("Gagal melakukan seeder:", err)
+		}
+		log.Println("Seeder berhasil")
+	} else {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8081"
+		}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
+		listener, err := net.Listen("tcp", ":"+port)
+		if err != nil {
+			log.Fatalf("Failed to listen: %v", err)
+		}
 
-	listener, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
+		s := grpc.NewServer()
 
-	s := grpc.NewServer()
+		// LIST GRPC HANDLER
+		grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
+		pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
 
-	// LIST GRPC HANDLER
-	grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
-	pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
-
-	log.Println("gRPC server is running on port " + port)
-	if err := s.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		log.Println("gRPC server is running on port " + port)
+		if err := s.Serve(listener); err != nil {
+			log.Fatalf("Failed to serve: %v", err)
+		}
 	}
 }
 

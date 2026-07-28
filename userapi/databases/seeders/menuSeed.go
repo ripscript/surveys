@@ -248,7 +248,7 @@ func MenuSeed(db *gorm.DB) error {
 			// BEGIN: PENGATURAN APLIKASI =======================================
 			{
 				MenuName:  "Manajemen CMS",
-				Key:       "management-cms",
+				Key:       "manajemen-cms",
 				ParentID:  &pengaturanAplikasiID,
 				Icon:      "-",
 				SortOrder: 1,

@@ -29,6 +29,8 @@ type UploadService interface {
 	ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -428,4 +430,45 @@ func (service *uploadService) DownloadFilePathMinio(param url.Values) (*pb.Proxy
 	}
 
 	return utils.SetResponseData(jsonData, true, "Berhasil", 200, nil, ""), nil
+}
+
+func (service *uploadService) UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_CMS_IMAGE
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_CMS, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_CMS_IMAGE, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
 }

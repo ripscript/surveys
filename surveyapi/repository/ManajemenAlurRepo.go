@@ -420,10 +420,11 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 				flow__sections.id AS section_id,
 				flow__sections.name AS section_name,
 
-				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
-				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+				-- [UPDATE] Gunakan COUNT(DISTINCT form_fields.id) agar tidak double count
+				COUNT(DISTINCT CASE WHEN form_fields.required = true THEN form_fields.id END) AS total_required_questions,
+				COUNT(DISTINCT CASE WHEN form_fields.required = false THEN form_fields.id END) AS total_optional_questions,
 
-				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+				COUNT(DISTINCT CASE WHEN form_fields.required = true AND EXISTS (
 					SELECT 1 FROM field_responses
 					WHERE field_responses.form_field_id = form_fields.id
 					AND field_responses.form_response_id = ?
@@ -433,9 +434,9 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+				) THEN form_fields.id END) AS answered_required_questions,
 
-				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+				COUNT(DISTINCT CASE WHEN form_fields.required = false AND EXISTS (
 					SELECT 1 FROM field_responses
 					WHERE field_responses.form_field_id = form_fields.id
 					AND field_responses.form_response_id = ?
@@ -445,14 +446,15 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions,
+				) THEN form_fields.id END) AS answered_optional_questions,
 
-				COALESCE(SUM(CASE WHEN EXISTS (
+				COUNT(DISTINCT CASE WHEN EXISTS (
 					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS pending_revision_questions
+				) THEN form_fields.id END) AS pending_revision_questions
+
 			`, respID, respID, respID, respID, respID).
 			Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
 			Group("flow__sections.id, flow__sections.name").
@@ -467,10 +469,11 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 				0 AS section_id,
 				NULL AS section_name,
 
-				COUNT(CASE WHEN form_fields.required = true THEN 1 END) AS total_required_questions,
-				COUNT(CASE WHEN form_fields.required = false THEN 1 END) AS total_optional_questions,
+				-- [UPDATE] Penyesuaian yang sama untuk alur tanpa section
+				COUNT(DISTINCT CASE WHEN form_fields.required = true THEN form_fields.id END) AS total_required_questions,
+				COUNT(DISTINCT CASE WHEN form_fields.required = false THEN form_fields.id END) AS total_optional_questions,
 
-				COALESCE(SUM(CASE WHEN form_fields.required = true AND EXISTS (
+				COUNT(DISTINCT CASE WHEN form_fields.required = true AND EXISTS (
 					SELECT 1 FROM field_responses
 					WHERE field_responses.form_field_id = form_fields.id
 					AND field_responses.form_response_id = ?
@@ -480,9 +483,9 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS answered_required_questions,
+				) THEN form_fields.id END) AS answered_required_questions,
 
-				COALESCE(SUM(CASE WHEN form_fields.required = false AND EXISTS (
+				COUNT(DISTINCT CASE WHEN form_fields.required = false AND EXISTS (
 					SELECT 1 FROM field_responses
 					WHERE field_responses.form_field_id = form_fields.id
 					AND field_responses.form_response_id = ?
@@ -492,14 +495,15 @@ func (repositry *manajemenAlurRepo) GetPreviewSectionByFlowDetailId(detailID int
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS answered_optional_questions,
+				) THEN form_fields.id END) AS answered_optional_questions,
 
-				COALESCE(SUM(CASE WHEN EXISTS (
+				COUNT(DISTINCT CASE WHEN EXISTS (
 					SELECT 1 FROM flagging_edit_pertanyaan_surveys flag
 					WHERE flag.form_field_id = form_fields.id
 					AND flag.survey_respondent_id = ?
 					AND flag.is_revisied = 'true'
-				) THEN 1 ELSE 0 END), 0) AS pending_revision_questions
+				) THEN form_fields.id END) AS pending_revision_questions
+
 			`, respID, respID, respID, respID, respID).
 			Scan(&sections).Error
 

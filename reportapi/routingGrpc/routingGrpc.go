@@ -37,6 +37,8 @@ var (
 	logRepo          repository.LogRepo          = repository.NewLogRepo(dbSlave, dbMaster)
 	surveyRepo       repository.SurveyRepo       = repository.NewSurveyRepo(dbSlave, dbMaster)
 	surveyExportRepo repository.SurveyExportRepo = repository.NewSurveyExportRepo(dbSlave, dbMaster)
+	statistikRepo    repository.StatistikRepo    = repository.NewStatistikRepo(dbSlave, dbMaster)
+	userRepo         repository.UserRepo         = repository.NewUserRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -50,6 +52,10 @@ var (
 		surveyRepo,
 		surveyExportRepo,
 	)
+	statistikService service.StatistikService = service.NewStatistikService(
+		statistikRepo,
+		userRepo,
+	)
 )
 
 var (
@@ -61,6 +67,9 @@ var (
 	)
 	surveyHandler handlers.SurveyHandler = handlers.NewSurveyHandler(
 		surveyService,
+	)
+	statistikHandler handlers.StatistikHandler = handlers.NewStatistikHandler(
+		statistikService,
 	)
 )
 
@@ -117,6 +126,23 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/survey/activities":        {"GET": {Handler: surveyHandler.SurveyActivities, MenuKey: ""}},
 	"/survey/activities/export": {"GET": {Handler: surveyHandler.SurveyActvitiesExport, MenuKey: ""}},
 	"/log/surveys":              {"GET": {Handler: surveyHandler.LogSurveys, MenuKey: ""}, "POST": {Handler: surveyHandler.InsertLogSurveys, MenuKey: ""}},
+
+	// BEGIN:MONITORING & LAPORAN ==================================
+	// BEGIN:STATISTIK ==================================
+	"/monitoring-dan-laporan/statistik": {
+		"GET": {
+			Handler: statistikHandler.GetStatistikIndex,
+			MenuKey: "statistik",
+		},
+	},
+	"/monitoring-dan-laporan/statistik/survey/:survey_code": {
+		"GET": {
+			Handler: statistikHandler.GetStatistik,
+			MenuKey: "statistik",
+		},
+	},
+	// END:STATISTIK ==================================
+	// END:MONITORING & LAPORAN ==================================
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

@@ -18,3 +18,21 @@ func TimeNow() time.Time {
 	}
 	return time.Now().In(location)
 }
+
+func ParseToWIB(t time.Time) time.Time {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	return time.Date(
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		t.Minute(),
+		t.Second(),
+		0, loc,
+	)
+}
+
+func NowWIB() time.Time {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	return time.Now().In(loc)
+}

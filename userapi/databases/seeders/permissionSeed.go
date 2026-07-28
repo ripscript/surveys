@@ -14,7 +14,7 @@ func PermissionSeed(db *gorm.DB) error {
 	var menuKeys = []string{
 		"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
 		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
-		"management-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
+		"manajemen-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -36,6 +36,15 @@ func PermissionSeed(db *gorm.DB) error {
 			ShowInMenu: utils.BoolToPointer(true),
 		}
 	}
+
+	fullHidden := func(menuID, roleID int) models.MenuPermission {
+		return models.MenuPermission{
+			MenuID: menuID, RoleID: roleID,
+			ViewAction: true, CreateAction: true, UpdateAction: true, DeleteAction: true,
+			ShowInMenu: utils.BoolToPointer(false),
+		}
+	}
+
 	none := func(menuID, roleID int) models.MenuPermission {
 		return models.MenuPermission{
 			MenuID: menuID, RoleID: roleID,
@@ -235,7 +244,7 @@ func PermissionSeed(db *gorm.DB) error {
 
 		// Survey Kewilayahan
 		viewOnly(SurveyKewilayahan, public), full(SurveyKewilayahan, rt), full(SurveyKewilayahan, rw), full(SurveyKewilayahan, lurah),
-		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), full(SurveyKewilayahan, admin),
+		full(SurveyKewilayahan, camat), viewOnly(SurveyKewilayahan, pemkot), fullHidden(SurveyKewilayahan, admin),
 		viewOnly(SurveyKewilayahan, surveyor), viewOnlyHidden(SurveyKewilayahan, walikota),
 
 		// BEGIN:PENGATURAN APLIKASI ===================================================
@@ -345,7 +354,7 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		ListSurvey:            m["list-survey"],
 		ManajemenPengguna:     m["management-pengguna"],
 		ManajemenWilayah:      m["manage-wilayah"],
-		ManajemenCMS:          m["management-cms"],
+		ManajemenCMS:          m["manajemen-cms"],
 		ManajemenArtikel:      m["management-artikel"],
 		AktifitasSurvey:       m["aktifitas-survey"],
 		ManajemenResponden:    m["management-responden"],

@@ -59,6 +59,9 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/view-survey-image/:id":          {"GET": uploadHandler.ShowSurveyImage},
 	"/view-public-survey-image/:path": {"POST": uploadHandler.ShowPublicSurveyImage},
 	"/delete-bulk-survey-image":       {"POST": uploadHandler.DeleteBulkSurveyImage},
+
+	"/upload-cms-image":     {"POST": uploadHandler.UploadCMSImage},
+	"/view-cms-image/:path": {"GET": uploadHandler.ShowCMSImage},
 }
 
 // Metode untuk menangani permintaan yang masuk

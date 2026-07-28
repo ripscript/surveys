@@ -4,6 +4,7 @@ import (
 	pb "backend/siccore/pb"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -11,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 func SendData(js interface{}, messages ...string) (*pb.ProxyResponse, error) {
@@ -147,6 +150,34 @@ func ToInt64(value interface{}) (int64, error) {
 			return 0, err
 		}
 		return int64(i), nil
+	default:
+		return 0, fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+func ToInt(value interface{}) (int, error) {
+	switch v := value.(type) {
+	case int:
+		return v, nil
+	case int64:
+		if v > math.MaxInt || v < math.MinInt {
+			return 0, fmt.Errorf("value overflows int: %d", v)
+		}
+		return int(v), nil
+	case float64:
+		if v != math.Trunc(v) {
+			return 0, fmt.Errorf("value is not a whole number: %v", v)
+		}
+		if v > math.MaxInt || v < math.MinInt {
+			return 0, fmt.Errorf("value overflows int: %v", v)
+		}
+		return int(v), nil
+	case string:
+		i, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return 0, fmt.Errorf("invalid int string: %w", err)
+		}
+		return i, nil
 	default:
 		return 0, fmt.Errorf("unsupported type: %T", v)
 	}
@@ -521,4 +552,64 @@ func StringToSlug(s string, separator string) string {
 
 func StringToPointer(s string) *string {
 	return &s
+}
+
+func TranslateError(err validator.FieldError) string {
+	snakeCaseField := toSnakeCase(err.Field())
+	field := formatToTitleCase(snakeCaseField)
+	switch err.Tag() {
+	// Error dari Standard Tags
+	case "required":
+		return fmt.Sprintf("%s wajib diisi.", field)
+	case "min":
+		return fmt.Sprintf("%s tidak memenuhi batas minimal atau kosong.", field)
+	case "gt":
+		return fmt.Sprintf("%s harus lebih besar dari 0.", field)
+	case "oneof":
+		return fmt.Sprintf("%s nilainya tidak valid. Harus salah satu dari: %s.", field, strings.ReplaceAll(err.Param(), " ", ", "))
+
+	// Error dari Custom Business Rules (Section & Group Structure)
+	case "required_with_has_section":
+		return fmt.Sprintf("%s wajib diisi angka karena form ini diatur menggunakan sistem Section (has_section: true).", field)
+	case "must_be_null_if_no_section":
+		return fmt.Sprintf("%s harus dikirim sebagai null karena form ini tidak menggunakan sistem Section (has_section: false).", field)
+	case "group_cannot_breakdown":
+		return fmt.Sprintf("Terjadi kesalahan pada %s. Sebuah Grup Pertanyaan tidak boleh memiliki status breakdown.", field)
+	case "group_must_have_multiple_questions":
+		return fmt.Sprintf("%s tidak valid. Sebuah Grup minimal harus berisi 2 buah ID pertanyaan.", field)
+	case "group_cannot_use_logic":
+		return fmt.Sprintf("Terjadi kesalahan pada %s. Sebuah Grup Pertanyaan hanya dapat menggunakan rule 'jump-to', tidak boleh menggunakan rule 'logic'.", field)
+
+	// Error Penamaan (Section & Group Name)
+	case "group_must_have_name":
+		return fmt.Sprintf("Grup pada %s wajib diberikan nama (group_name).", field)
+	case "must_be_null_if_not_group":
+		return fmt.Sprintf("Atribut %s tidak diperlukan karena item ini bukan merupakan grup pertanyaan.", field)
+	case "duplicate_section_name":
+		return fmt.Sprintf("Nama section tidak valid pada %s. Nama ini sudah digunakan oleh Section Index ke-%s. Nama section harus unik.", field, err.Param())
+	case "section_must_have_name":
+		return fmt.Sprintf("Data tidak lengkap pada %s. Section Index ke-%s belum memiliki nama. Harap isi atribut section_name minimal satu kali pada anggota section ini.", field, err.Param())
+	case "must_be_null_if_not_using_section":
+		return fmt.Sprintf("Atribut %s harus dikosongkan (null) karena form ini tidak menggunakan sistem Section (has_section: false).", field)
+
+	// Error Routing / Logic
+	case "required_if_breakdown_true":
+		return fmt.Sprintf("Array %s wajib diisi detail opsinya karena is_breakdown bernilai true.", field)
+	case "must_be_null_if_breakdown":
+		return fmt.Sprintf("%s harus dikirim sebagai null karena pergerakan alur diatur oleh opsi jawaban (breakdown).", field)
+	case "required_if_rule_logic":
+		return fmt.Sprintf("Array %s wajib diisi karena rule diset sebagai 'logic'.", field)
+	case "must_be_null_if_end":
+		return fmt.Sprintf("Field %s harus dikirim sebagai null karena alur diset berakhir (is_end: true).", field)
+	case "must_have_target_or_end":
+		return fmt.Sprintf("Field %s tidak valid. Anda harus menyertakan target_question_id atau mengubah is_end menjadi true.", field)
+
+	// Error Duplikasi Data
+	case "duplicate_question_id":
+		return fmt.Sprintf("Ditemukan ID pertanyaan duplikat pada %s. ID ini sudah digunakan sebelumnya pada urutan (sequence) ke-%s.", field, err.Param())
+
+	// Default fallback
+	default:
+		return fmt.Sprintf("%s tidak valid pada validasi '%s'.", field, err.Tag())
+	}
 }

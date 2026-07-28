@@ -37,6 +37,8 @@ var (
 	manajemenPenggunaRepo repository.ManajemenPenggunaRepo = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
 	manajemenArtikelRepo  repository.ManajemenArtikelRepo  = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
 	manajemenPejabatRepo  repository.ManajemenPejabatRepo  = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
+	manajamenCMSRepo      repository.ManajemenCMSRepo      = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
+	fileRepo              repository.FileRepo              = repository.NewFileRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -52,6 +54,10 @@ var (
 	manajemenPejabatService service.ManajemenPejabatService = service.NewManajemenPejabatService(
 		manajemenPejabatRepo,
 	)
+	manajemenCMSService service.ManajemenCMSService = service.NewManajemenCMSService(
+		manajamenCMSRepo,
+		fileRepo,
+	)
 )
 
 var (
@@ -66,6 +72,9 @@ var (
 	)
 	manajemenPejabatHandler handlers.ManajemenPejabatHandler = handlers.NewManajemenPejabatHandler(
 		manajemenPejabatService,
+	)
+	manajemenCMSHandler handlers.ManajemenCMSHandler = handlers.NewManajemenCMSHandler(
+		manajemenCMSService,
 	)
 )
 
@@ -188,6 +197,60 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: manajemenWilayahHandler.TabelDataKotaBandung,
 		MenuKey: "management-wilayah",
 	}},
+
+	// BEGIN::PENGATURAN APLIKASI ===============================
+	// BEGIN::MANAJEMEN CMS ===============================
+	"/pengaturan-aplikasi/manajemen-cms/list-section": {
+		"GET": {
+			Handler: manajemenCMSHandler.ListSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/update-status-section/:id": {
+		"PATCH": {
+			Handler: manajemenCMSHandler.UpdateStatusSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/update-name-section/:id": {
+		"PATCH": {
+			Handler: manajemenCMSHandler.UpdateNameSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/delete-section/:id": {
+		"DELETE": {
+			Handler: manajemenCMSHandler.DeleteSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/create-section": {
+		"POST": {
+			Handler: manajemenCMSHandler.CreateSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+
+	"/pengaturan-aplikasi/manajemen-cms/section/:slug": {
+		"GET": {
+			Handler: manajemenCMSHandler.GetSectionBySlug,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/update-section/:slug": {
+		"PATCH": {
+			Handler: manajemenCMSHandler.UpdateSectionBySlug,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-cms/reorder-section/:slug": {
+		"PATCH": {
+			Handler: manajemenCMSHandler.UpdateOrderSection,
+			MenuKey: "manajemen-cms",
+		},
+	},
+	// END::MANAJEMEN CMS ===============================
+	// END::PENGATURAN APLIKASI ===============================
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

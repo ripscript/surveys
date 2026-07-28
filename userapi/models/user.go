@@ -48,6 +48,7 @@ type RespondentProfile struct {
 	RtCode        *string        `json:"rt_code"`
 	NamaRt        *string        `json:"nama_rt"`
 	RoleID        int64          `gorm:"column:role_id;not null"                           json:"role_id"`
+	WilayahCode   *string        `json:"wilayah_code"`
 	TanggalLahir  *time.Time     `gorm:"column:tanggal_lahir;type:date"                    json:"tanggal_lahir"`
 	Alamat        *string        `gorm:"column:alamat;type:text"                           json:"alamat"`
 	TempatLahir   *string        `gorm:"column:tempat_lahir;type:varchar(100)"             json:"tempat_lahir"`

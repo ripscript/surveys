@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
 func EncryptInt(data int) (string, error) {
@@ -71,4 +73,44 @@ func DecryptInt(encoded string) (int, error) {
 	}
 
 	return strconv.Atoi(string(plaintext))
+}
+
+func ContainsInt64(slice []int64, value int64) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+func TryParseIndonesianDate(input string) (string, bool) {
+	input = strings.ToLower(strings.TrimSpace(input))
+
+	// Map bulan bahasa Indonesia ke angka
+	bulanMap := map[string]string{
+		"januari": "01", "februari": "02", "maret": "03", "april": "04",
+		"mei": "05", "juni": "06", "juli": "07", "agustus": "08",
+		"september": "09", "oktober": "10", "november": "11", "desember": "12",
+	}
+
+	// Ganti kata bulan dengan angka
+	for id, num := range bulanMap {
+		if strings.Contains(input, id) {
+			input = strings.Replace(input, id, num, 1)
+			break
+		}
+	}
+
+	// Hapus spasi ekstra jika ada
+	input = strings.Join(strings.Fields(input), " ")
+
+	// Coba parsing ke format time.Time (format referensi Go: "02 01 2006")
+	t, err := time.Parse("02 01 2006", input)
+	if err == nil {
+		// Jika berhasil, kembalikan dalam format standar SQL (YYYY-MM-DD)
+		return t.Format("2006-01-02"), true
+	}
+
+	return "", false
 }

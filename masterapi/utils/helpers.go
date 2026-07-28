@@ -183,3 +183,7 @@ func FormatValidationError(err error) string {
 
 	return err.Error()
 }
+
+func BoolToPointer(data bool) *bool {
+	return &data
+}

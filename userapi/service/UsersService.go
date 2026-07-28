@@ -82,6 +82,8 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	var wilayahCodeStr *string
+
 	var kecamatanCodeStr *string
 	if user.Respondent != nil && user.Respondent.KecamatanID != nil {
 		kecamatanId := []int{int(*user.Respondent.KecamatanID)}
@@ -92,6 +94,12 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		}
 
 		kecamatanCodeStr = &kecamatanCode
+
+		wc, err := h.Encode([]int{int(user.Respondent.RoleID), int(*user.Respondent.KecamatanID)})
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		wilayahCodeStr = &wc
 	}
 
 	if user.Respondent != nil {
@@ -108,6 +116,12 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		}
 
 		kelurahanCodeStr = &kelurahanCode
+
+		wckel, err := h.Encode([]int{int(user.Respondent.RoleID), int(*user.Respondent.KelurahanID)})
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		wilayahCodeStr = &wckel
 	}
 
 	user.Respondent.KelurahanCode = kelurahanCodeStr
@@ -122,6 +136,12 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		}
 
 		RwCodeStr = &rwCode
+
+		wcrw, err := h.Encode([]int{int(user.Respondent.RoleID), int(*user.Respondent.RwID)})
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		wilayahCodeStr = &wcrw
 	}
 
 	user.Respondent.RwCode = RwCodeStr
@@ -136,9 +156,16 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		}
 
 		RtCodeStr = &rtCode
+
+		wcrt, err := h.Encode([]int{int(user.Respondent.RoleID), int(*user.Respondent.RtID)})
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		wilayahCodeStr = &wcrt
 	}
 
 	user.Respondent.RtCode = RtCodeStr
+	user.Respondent.WilayahCode = wilayahCodeStr
 
 	return utils.SendData(user, "Data Profil Pengguna Berhasil Ditemukan")
 }
