@@ -16,6 +16,7 @@ type StatistikRepo interface {
 	GetListAvailableSurvey(userLogin models.JwtCustomClaims, respondentLogin *models.RespondentModel_1, req request.SurveyWilayahDatatablePayload) ([]models.SurveyWilayahDatatableResponseV1, int64, error)
 	GetStatistikKewilayahan(req request.StatistikKewilayahanPayload) ([]response.StatistikKewilayahanDatatableResponse, int64, *response.StatistikKewilayahanAggregate, error)
 	GetWilayahAncestry(typeWilayah int, id int64) (int64, int64, int64, error)
+	GetExportStatistikExcel(surveyId int, typeWilayah int, parentId int64) ([]response.ExportStatistikRow, error)
 }
 
 func NewStatistikRepo(dbSlave, dbMaster *gorm.DB) *statistikRepo {
@@ -369,4 +370,50 @@ func (repository *statistikRepo) GetWilayahAncestry(typeWilayah int, id int64) (
 	}
 
 	return row.KecamatanId, row.KelurahanId, row.RwId, nil
+}
+
+func (repository *statistikRepo) GetExportStatistikExcel(surveyId int, typeWilayah int, parentId int64) ([]response.ExportStatistikRow, error) {
+	defer utils.GeneralRecover()
+
+	query := `
+		SELECT
+			kec.sub_district_name AS kecamatan,
+			kel.village_name AS kelurahan,
+			rw.nama_rw AS rw,
+			(SELECT COUNT(*) FROM data__rts rt WHERE rt.rw_id = rw.id AND rt.deleted_at IS NULL) AS jumlah_rt,
+			(
+				SELECT COUNT(DISTINCT r.rt_id) 
+				FROM respondents r
+				JOIN survey_respondents sr ON sr.respondent_id = r.id
+				WHERE sr.survey_id = ? AND sr.status = 2 AND r.rw_id = rw.id
+			) AS rt_sudah_mengisi
+		FROM data__rws rw
+		JOIN kelurahans kel ON rw.kelurahan_id = kel.id
+		JOIN kecamatans kec ON kel.sub_district_id = kec.id
+		WHERE rw.deleted_at IS NULL AND kel.deleted_at IS NULL AND kec.deleted_at IS NULL
+	`
+	args := []interface{}{surveyId}
+
+	// Filter berdasarkan jenjang kewilayahan yang di-request / hak akses user
+	switch typeWilayah {
+	case int(enums.ROLE_KECAMATAN):
+		query += " AND kec.id = ?"
+		args = append(args, parentId)
+	case int(enums.ROLE_KELURAHAN):
+		query += " AND kel.id = ?"
+		args = append(args, parentId)
+	case int(enums.ROLE_RW):
+		query += " AND rw.id = ?"
+		args = append(args, parentId)
+	}
+
+	query += " ORDER BY kec.sub_district_name ASC, kel.village_name ASC, rw.nama_rw ASC"
+
+	var data []response.ExportStatistikRow
+	err := repository.dbSlave.Raw(query, args...).Scan(&data).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

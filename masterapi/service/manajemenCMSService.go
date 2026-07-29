@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
@@ -306,12 +307,24 @@ func (service *manajemenCMSService) CreateSection(ctx context.Context, req map[s
 		Status:       true,
 	}
 
-	err = service.manajemenCMSRepo.CreateSection(&newSection)
+	createdSection, err := service.manajemenCMSRepo.CreateSection(&newSection)
 	if err != nil {
 		return utils.SendError(errors.New("Gagal membuat section baru"), http.StatusInternalServerError)
 	}
 
-	return utils.SendData(newSection, "Section berhasil dibuat")
+	if createdSection.Type == models.SectionTypeText {
+		content := models.CMSContent{
+			SectionID: createdSection.ID,
+			Key:       "konten",
+			Status:    true,
+		}
+		_, err = service.manajemenCMSRepo.CreateCMSContent(&content)
+		if err != nil {
+			return utils.SendError(errors.New("Gagal membuat konten untuk section baru"), http.StatusInternalServerError)
+		}
+	}
+
+	return utils.SendData(nil, "Section berhasil dibuat")
 }
 
 func (service *manajemenCMSService) GetSectionBySlug(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -338,6 +351,14 @@ func (service *manajemenCMSService) GetSectionBySlug(ctx context.Context, req ma
 			filePath = os.Getenv("API_GATEWAY_URL") + "/view-cms-image/" + _filePath
 		}
 		getSectionBySlug.Items[i].Image = &filePath
+	}
+
+	for i := range getSectionBySlug.Media {
+		var filePath string
+
+		_filePath := getSectionBySlug.Media[i].ImageURL
+		filePath = os.Getenv("API_GATEWAY_URL") + "/view-cms-image/" + _filePath
+		getSectionBySlug.Media[i].ImageURL = filePath
 	}
 
 	return utils.SendData(getSectionBySlug, "Berhasil mendapatkan section")
@@ -414,6 +435,16 @@ func (service *manajemenCMSService) updateContentSection(ctx context.Context, re
 	return utils.SendData(nil, "Konten section berhasil diperbarui")
 }
 
+const cmsImagePathMarker = "/view-cms-image/"
+
+func toRelativeImagePath(image string) string {
+	_, after, ok := strings.Cut(image, cmsImagePathMarker)
+	if !ok {
+		return image
+	}
+	return after
+}
+
 func (service *manajemenCMSService) updateItemsSection(ctx context.Context, req map[string]interface{}, section *models.CMSSection) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	detachedCtx := context.WithoutCancel(ctx)
@@ -439,77 +470,118 @@ func (service *manajemenCMSService) updateItemsSection(ctx context.Context, req 
 		return utils.SendError(errors.New("Section ini hanya boleh memiliki satu item"), http.StatusBadRequest)
 	}
 
-	items := make([]models.CMSItem, 0, len(payload.Items))
+	// gambar lama per item_order -> dipakai untuk tahu file mana yang harus
+	// dihapus kalau item tersebut diganti gambar barunya
+	oldImageByOrder := make(map[int]string, len(section.Items))
+	for _, it := range section.Items {
+		if it.Image != nil && *it.Image != "" {
+			oldImageByOrder[it.ItemOrder] = *it.Image
+		}
+	}
 
 	availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp"}
 	availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif"}
 	maxSizeInKB := float64(5120)
-	var uploadedPaths []string
-	var successfullyUploadedFiles []string
+
+	var uploadedFiles []string
+	rollbackUploadedFiles := func() {
+		if len(uploadedFiles) > 0 {
+			service.fileRepo.DeleteCMSImageBulk(detachedCtx, uploadedFiles)
+		}
+	}
 	defer func() {
 		if r := recover(); r != nil {
-			service.fileRepo.DeleteSurveyImageBulk(detachedCtx, successfullyUploadedFiles)
+			rollbackUploadedFiles()
 			panic(r)
 		}
 	}()
-	// gatewayURL := os.Getenv("API_GATEWAY_URL") + "/view-cms-image/"
+
+	items := make([]models.CMSItem, 0, len(payload.Items))
+	var oldPathsToDelete []string
+
 	for _, it := range payload.Items {
-		var _uploadedPath *string
-		if strings.HasPrefix(*it.Image, "data:") {
+		old, hadOldImage := oldImageByOrder[it.ItemOrder]
+
+		item := models.CMSItem{
+			SectionID:   section.ID,
+			ItemOrder:   it.ItemOrder,
+			Description: it.Description,
+			Category:    it.Category,
+			Status:      true,
+		}
+		if it.Title != nil {
+			item.Title = *it.Title
+		}
+
+		switch {
+		case it.Image == nil || *it.Image == "":
+			// tidak ada gambar sama sekali untuk item ini.
+			// kalau sebelumnya ada gambar, berarti sengaja dihapus user -> hapus filenya juga.
+			if hadOldImage {
+				oldPathsToDelete = append(oldPathsToDelete, old)
+			}
+
+		case strings.HasPrefix(*it.Image, "data:"):
+			// selalu berarti gambar BARU -> upload, replace yang lama
 			if !strings.HasPrefix(*it.Image, "data:image") {
+				rollbackUploadedFiles()
 				return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)"), http.StatusBadRequest)
 			}
 
 			base64Data, err := utils.ExtractBase64Info(*it.Image)
 			if err != nil {
+				rollbackUploadedFiles()
 				return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
 			}
-
 			if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+				rollbackUploadedFiles()
 				return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
 			}
-
 			if base64Data.SizeInKB > maxSizeInKB {
+				rollbackUploadedFiles()
 				return utils.SendError(errors.New("Ukuran gambar tidak boleh melebihi 5MB"), http.StatusBadRequest)
 			}
 
 			path, err := service.fileRepo.UploadCMSImage(ctx, it.Image)
-			if err != nil {
-				return utils.SendError(errors.New("Gagal mengunggah gambar: "+err.Error()), http.StatusInternalServerError)
+			if err != nil || path == nil {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Gagal mengunggah gambar"), http.StatusInternalServerError)
 			}
 
-			if path != nil {
-				_uploadedPath = path
-				uploadedPaths = append(uploadedPaths, *path)
-				successfullyUploadedFiles = append(successfullyUploadedFiles, *path)
+			item.Image = path
+			uploadedFiles = append(uploadedFiles, *path)
+
+			if hadOldImage && old != *path {
+				oldPathsToDelete = append(oldPathsToDelete, old)
 			}
 
+		default:
+			// bukan data URI -> dianggap link lama, TIDAK diupload ulang.
+			// normalisasi balik ke path relatif supaya konsisten dengan yang tersimpan.
+			relativePath := toRelativeImagePath(*it.Image)
+			item.Image = &relativePath
 		}
 
-		var itTitle string
-		if it.Title != nil {
-			itTitle = *it.Title
-		}
-		items = append(items, models.CMSItem{
-			SectionID:   section.ID,
-			ItemOrder:   it.ItemOrder,
-			Title:       itTitle,
-			Description: it.Description,
-			Category:    it.Category,
-			Image:       _uploadedPath,
-			Status:      true,
-		})
+		items = append(items, item)
 	}
 
-	err = service.manajemenCMSRepo.UpsertItems(section.ID, items)
-	if err != nil {
+	if err := service.manajemenCMSRepo.UpsertItems(section.ID, items); err != nil {
+		rollbackUploadedFiles()
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+
+	if len(oldPathsToDelete) > 0 {
+		spew.Dump(oldPathsToDelete)
+		service.fileRepo.DeleteCMSImageBulk(detachedCtx, oldPathsToDelete)
 	}
 
 	return utils.SendData(nil, "Konten section berhasil diperbarui")
 }
 
 func (service *manajemenCMSService) updateMediaSection(ctx context.Context, req map[string]interface{}, section *models.CMSSection) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	detachedCtx := context.WithoutCancel(ctx)
+
 	var payload payloads.UpdateMediaSectionPayload
 
 	err := utils.DynamicBind(req, &payload)
@@ -527,20 +599,85 @@ func (service *manajemenCMSService) updateMediaSection(ctx context.Context, req 
 		}
 	}
 
+	availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp"}
+	availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif"}
+	maxSizeInKB := float64(5120)
+
+	var uploadedFiles []string
+	rollbackUploadedFiles := func() {
+		if len(uploadedFiles) > 0 {
+			service.fileRepo.DeleteCMSImageBulk(detachedCtx, uploadedFiles)
+		}
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			rollbackUploadedFiles()
+			panic(r)
+		}
+	}()
+
 	media := make([]models.CMSMedia, 0, len(payload.Media))
+
 	for _, m := range payload.Media {
+		var finalPath string
+
+		switch {
+		case strings.HasPrefix(m.ImageURL, "data:"):
+			if !strings.HasPrefix(m.ImageURL, "data:image") {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)"), http.StatusBadRequest)
+			}
+
+			base64Data, err := utils.ExtractBase64Info(m.ImageURL)
+			if err != nil {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
+			}
+			if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
+			}
+			if base64Data.SizeInKB > maxSizeInKB {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Ukuran gambar tidak boleh melebihi 5MB"), http.StatusBadRequest)
+			}
+
+			path, err := service.fileRepo.UploadCMSImage(ctx, &m.ImageURL)
+			if err != nil || path == nil {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Gagal mengunggah gambar"), http.StatusInternalServerError)
+			}
+
+			finalPath = *path
+			uploadedFiles = append(uploadedFiles, *path)
+
+		default:
+			finalPath = toRelativeImagePath(m.ImageURL)
+		}
+
 		media = append(media, models.CMSMedia{
 			SectionID: section.ID,
 			ItemOrder: m.ItemOrder,
-			ImageURL:  m.ImageURL,
+			ImageURL:  finalPath,
 			Caption:   m.Caption,
 			Status:    true,
 		})
 	}
 
-	err = service.manajemenCMSRepo.UpsertMedia(section.ID, media)
+	removedImagePaths, err := service.manajemenCMSRepo.SyncMedia(section.ID, media)
 	if err != nil {
+		rollbackUploadedFiles()
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+
+	var pathsToDelete []string
+	for _, p := range removedImagePaths {
+		if p != "" && !slices.Contains(uploadedFiles, p) {
+			pathsToDelete = append(pathsToDelete, p)
+		}
+	}
+	if len(pathsToDelete) > 0 {
+		service.fileRepo.DeleteCMSImageBulk(detachedCtx, pathsToDelete)
 	}
 
 	return utils.SendData(nil, "Konten section berhasil diperbarui")

@@ -15,6 +15,7 @@ type FileRepo interface {
 	DeleteSurveyImageBulk(ctx context.Context, paths []string) (*bool, error)
 	GetPublicImageSurvey(ctx context.Context, path *string) ([]byte, error)
 	UploadCMSImage(ctx context.Context, datauri *string) (*string, error)
+	DeleteCMSImageBulk(ctx context.Context, paths []string) (*bool, error)
 }
 
 type fileRepo struct {
@@ -91,6 +92,24 @@ func (repository *fileRepo) UploadCMSImage(ctx context.Context, datauri *string)
 	}
 
 	var data *string
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data dari DOCAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *fileRepo) DeleteCMSImageBulk(ctx context.Context, paths []string) (*bool, error) {
+	defer utils.GeneralRecover()
+
+	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
+
+	dataBytes, err := utils.HitBackend(ctx, host, "POST", "/delete-bulk-cms-image", nil, map[string]interface{}{"paths": paths})
+	if err != nil {
+		return nil, errors.New("Delete file gagal error: " + err.Error())
+	}
+
+	var data *bool
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
 		return nil, errors.New("Gagal memparsing data dari DOCAPI")
 	}

@@ -141,6 +141,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "statistik",
 		},
 	},
+
+	"/monitoring-dan-laporan/statistik/survey/:survey_code/export-excel": {
+		"GET": {
+			Handler: statistikHandler.ExportExcelStatistik,
+			MenuKey: "statistik",
+		},
+	},
 	// END:STATISTIK ==================================
 	// END:MONITORING & LAPORAN ==================================
 }

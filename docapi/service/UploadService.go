@@ -31,6 +31,7 @@ type UploadService interface {
 	DeleteBulkSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -471,4 +472,26 @@ func (service *uploadService) ShowCMSImage(ctx context.Context, req map[string]i
 
 	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
 	return service.Show(newSlug)
+}
+
+func (service *uploadService) DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type Paths []string
+	tmp, _ := json.Marshal(req["paths"])
+	var paths Paths
+	json.Unmarshal(tmp, &paths)
+
+	for i := range paths {
+		paths[i] = enums.PATH_WEBROOT_FILES + "/" + enums.PATH_CMS_IMAGE + "/" + paths[i]
+	}
+
+	var success bool
+	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_CMS)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	success = true
+	return utils.SendData(success, "File berhasil dihapus")
 }

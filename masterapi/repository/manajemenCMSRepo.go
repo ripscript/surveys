@@ -13,7 +13,8 @@ import (
 
 type ManajemenCMSRepo interface {
 	Create(section *models.ManajemenCMS) error
-	CreateSection(section *models.CMSSection) error
+	CreateSection(section *models.CMSSection) (*models.CMSSection, error)
+	CreateCMSContent(content *models.CMSContent) (*models.CMSContent, error)
 	GetLastSection() (int, error)
 	IsNameSectionExist(nameSection string) (bool, error)
 	IsSlugSectionExist(slugSection string) (bool, error)
@@ -28,6 +29,7 @@ type ManajemenCMSRepo interface {
 	GetLastSectionOrder() (int, error)
 	GetAdjacentSectionForReorder(currentOrder int, direction string) (*models.CMSSection, error)
 	SwapSectionOrder(sectionA, sectionB *models.CMSSection) error
+	SyncMedia(sectionID int, media []models.CMSMedia) (removedImagePaths []string, err error)
 }
 
 type manajemenCMSRepo struct {
@@ -47,8 +49,20 @@ func (repo *manajemenCMSRepo) Create(section *models.ManajemenCMS) error {
 	return repo.dbMaster.Create(section).Error
 }
 
-func (repo *manajemenCMSRepo) CreateSection(section *models.CMSSection) error {
-	return repo.dbMaster.Create(section).Error
+func (repo *manajemenCMSRepo) CreateSection(section *models.CMSSection) (*models.CMSSection, error) {
+	err := repo.dbMaster.Create(section).Error
+	if err != nil {
+		return nil, err
+	}
+	return section, nil
+}
+
+func (repo *manajemenCMSRepo) CreateCMSContent(content *models.CMSContent) (*models.CMSContent, error) {
+	err := repo.dbMaster.Create(content).Error
+	if err != nil {
+		return nil, err
+	}
+	return content, nil
 }
 
 func (repo *manajemenCMSRepo) GetLastSection() (int, error) {
@@ -494,4 +508,56 @@ func (repo *manajemenCMSRepo) SwapSectionOrder(sectionA, sectionB *models.CMSSec
 
 		return nil
 	})
+}
+
+func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSMedia) (removedImagePaths []string, err error) {
+	err = repository.dbMaster.Transaction(func(tx *gorm.DB) error {
+		keepOrders := make([]int, 0, len(media))
+
+		for _, m := range media {
+			keepOrders = append(keepOrders, m.ItemOrder)
+
+			var existing models.CMSMedia
+			err := tx.Where("section_id = ? AND item_order = ?", sectionID, m.ItemOrder).First(&existing).Error
+
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := tx.Create(&m).Error; err != nil {
+					return err
+				}
+				continue
+			}
+			if err != nil {
+				return err
+			}
+
+			// gambar item ini diganti dengan yang baru -> path lama perlu dihapus juga
+			if existing.ImageURL != m.ImageURL {
+				removedImagePaths = append(removedImagePaths, existing.ImageURL)
+			}
+
+			existing.ImageURL = m.ImageURL
+			existing.Caption = m.Caption
+			existing.Status = m.Status
+			if err := tx.Save(&existing).Error; err != nil {
+				return err
+			}
+		}
+
+		// ambil row yang akan dihapus dulu supaya path-nya bisa dikembalikan ke service
+		var toDelete []models.CMSMedia
+		if err := tx.Where("section_id = ? AND item_order NOT IN ?", sectionID, keepOrders).
+			Find(&toDelete).Error; err != nil {
+			return err
+		}
+		for _, d := range toDelete {
+			if d.ImageURL != "" {
+				removedImagePaths = append(removedImagePaths, d.ImageURL)
+			}
+		}
+
+		return tx.Where("section_id = ? AND item_order NOT IN ?", sectionID, keepOrders).
+			Delete(&models.CMSMedia{}).Error
+	})
+
+	return removedImagePaths, err
 }

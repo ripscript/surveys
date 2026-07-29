@@ -11,6 +11,7 @@ import (
 type StatistikHandler interface {
 	GetStatistikIndex(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetStatistik(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelStatistik(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type statistikHandler struct {
@@ -29,4 +30,8 @@ func (handler *statistikHandler) GetStatistikIndex(ctx context.Context, req map[
 
 func (handler *statistikHandler) GetStatistik(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.statistikService.GetStatistik(ctx, req, usr, param, slug)
+}
+
+func (handler *statistikHandler) ExportExcelStatistik(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.statistikService.ExportExcelStatistik(ctx, req, usr, param, slug)
 }

@@ -282,6 +282,7 @@ func SetupRoutes(e *echo.Echo) {
 	statistikGroup := monitoringDanLaporanGroup.Group("/statistik")
 	statistikGroup.GET("", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	statistikGroup.GET("/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	statistikGroup.GET("/survey/:survey_code/export-excel", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::STATISTIK ==========================
 	// END::MONITORING & LAPORAN ==========================
 

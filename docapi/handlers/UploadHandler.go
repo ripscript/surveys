@@ -24,6 +24,7 @@ type UploadHandler interface {
 
 	UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadHandler struct {
@@ -92,4 +93,8 @@ func (handler *uploadHandler) UploadCMSImage(ctx context.Context, req map[string
 
 func (handler *uploadHandler) ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.uploadService.ShowCMSImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.DeleteBulkCMSImage(ctx, req, usr, param, slug)
 }
