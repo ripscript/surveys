@@ -278,6 +278,7 @@ type RespondentModel struct {
 	IsBlocked    string     `gorm:"column:is_blocked;type:varchar(255);not null;default:'false'" json:"is_blocked"`
 	Username     *string    `gorm:"column:username;type:varchar(255)" json:"username,omitempty"`
 	DeletedAt    *time.Time `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
+	Avatar       *string    `gorm:"column:avatar;type:varchar(255)" json:"avatar,omitempty"`
 }
 
 // TableName overrides the default table name used by GORM

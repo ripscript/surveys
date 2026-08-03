@@ -63,6 +63,11 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/upload-cms-image":      {"POST": uploadHandler.UploadCMSImage},
 	"/view-cms-image/:path":  {"GET": uploadHandler.ShowCMSImage},
 	"/delete-bulk-cms-image": {"POST": uploadHandler.DeleteBulkCMSImage},
+
+	"/upload-laporan-konten-image":                   {"POST": uploadHandler.UploadLaporanKontenImage},
+	"/view-laporan-konten-image/:path":               {"GET": uploadHandler.ShowLaporanKontenImage},
+	"/delete-bulk-laporan-konten-image":              {"POST": uploadHandler.DeleteBulkLaporanKontenImage},
+	"/internal/get-laporan-konten-image-bytes/:path": {"GET": uploadHandler.GetLaporanKontenImageBytes},
 }
 
 // Metode untuk menangani permintaan yang masuk

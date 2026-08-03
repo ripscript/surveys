@@ -25,6 +25,11 @@ type UploadHandler interface {
 	UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadHandler struct {
@@ -97,4 +102,20 @@ func (handler *uploadHandler) ShowCMSImage(ctx context.Context, req map[string]i
 
 func (handler *uploadHandler) DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.uploadService.DeleteBulkCMSImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) UploadLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadLaporanKontenImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) ShowLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.ShowLaporanKontenImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) DeleteBulkLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.DeleteBulkLaporanKontenImage(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.GetLaporanKontenImageBytes(ctx, req, usr, param, slug)
 }

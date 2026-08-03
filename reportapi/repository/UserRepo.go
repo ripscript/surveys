@@ -48,7 +48,6 @@ func (repository *userRepo) GetRespondentById(ctx context.Context, id int64) (*m
 
 	var data models.RespondentModel_1
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
-		fmt.Println(err.Error())
 		return nil, errors.New("Gagal memparsing data respondent dari UserAPI")
 	}
 	return &data, nil

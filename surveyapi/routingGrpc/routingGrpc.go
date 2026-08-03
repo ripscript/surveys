@@ -263,6 +263,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.GetPublicImageSurvey,
 		MenuKey: "pengelola-survey",
 	}},
+	"/survey/options": {"GET": {
+		Handler: surveyHandler.SurveyOptions,
+		MenuKey: "pengelola-survey",
+	}},
 
 	// SURVEY WILAYAH ===========================================
 	"/survey-wilayah/preview-index/:code": {"GET": {
@@ -295,6 +299,14 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/survey-kewilayahan/detail/:survey_code": {"GET": {
 		Handler: surveyHandler.GetDetailSurveyKewilayahan,
 		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-kewilayahan-aktifitas/list": {"GET": {
+		Handler: surveyHandler.GetSurveyKewilayahan,
+		MenuKey: "aktifitas-survey",
+	}},
+	"/survey-kewilayahan-aktifitas/detail/:survey_code": {"GET": {
+		Handler: surveyHandler.GetDetailSurveyKewilayahan,
+		MenuKey: "aktifitas-survey",
 	}},
 	"/survey-kewilayahan/survey/:survey_code/result-index/:code": {"GET": {
 		Handler: surveyHandler.SurveyResultIndex,

@@ -14,9 +14,10 @@ var Whitelist = map[string]map[string]bool{
 	"/rt/options":        {"GET": true},
 
 	// DOCAPI SERVICE
-	"/docapi/healthy":                 {"GET": true},
-	"/view-public-survey-image/:path": {"GET": true},
-	"/view-cms-image/:path":           {"GET": true},
+	"/docapi/healthy":                  {"GET": true},
+	"/view-public-survey-image/:path":  {"GET": true},
+	"/view-cms-image/:path":            {"GET": true},
+	"/view-laporan-konten-image/:path": {"GET": true},
 
 	// MASTERAPI SERVICE
 	"/masterapi/healthy":       {"GET": true},

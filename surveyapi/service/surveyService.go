@@ -63,6 +63,7 @@ type SurveyService interface {
 	ValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
@@ -2526,7 +2527,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 		case 0:
 			return utils.SendError(errors.New("Tipe wilayah harus diisi"), http.StatusBadRequest)
 		case 5:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2569,7 +2570,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 						Code:            kodeWilayah,
 					}
 
-					if usr.Role == int(enums.ROLE_ADMIN) {
+					if usr.Role == int(enums.ROLE_ADMIN) || usr.Role == int(enums.ROLE_WALIKOTA) {
 						newKecamatan.IsPosibleBackAccess = true
 					}
 
@@ -2582,7 +2583,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 4:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2649,7 +2650,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 3:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -2716,7 +2717,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 2:
-			if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -4107,6 +4108,92 @@ func (service *surveyService) GetPublicImageSurvey(ctx context.Context, req map[
 	mimeType := http.DetectContentType(fileBytes)
 
 	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *surveyService) SurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var alurIds []string
+	if len(param["id[]"]) > 0 {
+		alurIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		alurIds = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, alurId := range alurIds {
+		parsedIDs = append(parsedIDs, alurId)
+	}
+
+	var excludeAlurIds []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludeAlurIds = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludeAlurIds = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludeAlurIds {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	// Parsing filter wilayah
+	tingkatWilayah, _ := strconv.Atoi(param.Get("tingkat_wilayah"))
+
+	var kecamatanIDs []string
+	if len(param["kecamatan_id[]"]) > 0 {
+		kecamatanIDs = param["kecamatan_id[]"]
+	} else if len(param["kecamatan_id"]) > 0 {
+		kecamatanIDs = param["kecamatan_id"]
+	}
+
+	var kelurahanIDs []string
+	if len(param["kelurahan_id[]"]) > 0 {
+		kelurahanIDs = param["kelurahan_id[]"]
+	} else if len(param["kelurahan_id"]) > 0 {
+		kelurahanIDs = param["kelurahan_id"]
+	}
+
+	_req := payloads.SurveyOptionsPayload{
+		Q:              param.Get("q"),
+		Page:           page,
+		Limit:          limit,
+		IDs:            parsedIDs,
+		ExcludeIDs:     parsedExcludeIDs,
+		TingkatWilayah: tingkatWilayah,
+		KecamatanIDs:   kecamatanIDs,
+		KelurahanIDs:   kelurahanIDs,
+	}
+
+	data, totalData, err := service.surveyRepo.SurveyOptions(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
 }
 
 func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

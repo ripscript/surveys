@@ -196,7 +196,7 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		Where("kecamatans.deleted_at IS NULL")
 
 	if respondent != nil {
-		if *respondent.RoleId != int64(enums.ROLE_ADMIN) && *respondent.RoleId != int64(enums.ROLE_KECAMATAN) {
+		if *respondent.RoleId != int64(enums.ROLE_WALIKOTA) && *respondent.RoleId != int64(enums.ROLE_ADMIN) && *respondent.RoleId != int64(enums.ROLE_KECAMATAN) {
 			db = db.Where("1 = 0")
 			countDB = countDB.Where("1 = 0")
 		} else {

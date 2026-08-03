@@ -18,6 +18,7 @@ type UpdateProfileJastiper struct {
 }
 
 type UpdateProfileBundlePayload struct {
+	Avatar       *string `json:"avatar,omitempty"`
 	NIK          *string `json:"nik"`
 	Name         string  `json:"nama_responden" validate:"required"`
 	Alamat       *string `json:"alamat"`

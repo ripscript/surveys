@@ -11,7 +11,10 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+
+	"github.com/speps/go-hashids/v2"
 )
 
 type SurveyService interface {
@@ -347,15 +350,30 @@ func filterRespondentsByID(respondents []models.SurveyRespondents, respondentID 
 func (s *surveyService) SurveyActivitiesExport(req ExportRequest) (*ExportResult, error) {
 	var respondentIDs []uint
 
-	surveyId, err := utils.ToInt64(req.SurveyID)
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
 	if err != nil {
-		return nil, fmt.Errorf("Data Survey Tidak Valid")
+		return nil, fmt.Errorf("hashid initialization error: %w", err)
 	}
 
-	wilayahId, err := utils.ToInt64(req.WilayahID)
-	if err != nil {
+	surveyCodeStr := req.SurveyID
+
+	decodedSurveyIDs, err := h.DecodeWithError(surveyCodeStr)
+	if err != nil || len(decodedSurveyIDs) == 0 {
+		return nil, fmt.Errorf("Survey ID Tidak Valid")
+	}
+	surveyId := decodedSurveyIDs[0]
+
+	wilayahCodeStr := req.WilayahID
+
+	decodedWilayahIDs, err := h.DecodeWithError(wilayahCodeStr)
+	if err != nil || len(decodedWilayahIDs) == 0 {
 		return nil, fmt.Errorf("Wilayah ID Tidak Valid")
 	}
+	wilayahId := decodedWilayahIDs[0]
 
 	switch req.Wilayah {
 	case "kecamatan":

@@ -147,6 +147,7 @@ func SetupRoutes(e *echo.Echo) {
 	// DOCAPI SERVICE
 	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-cms-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	e.GET("/view-laporan-konten-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -248,6 +249,7 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.POST("/approval/:code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/history-approval/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/show-image/:survey_code/:code_wilayah/:path", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -255,6 +257,10 @@ func SetupRoutes(e *echo.Echo) {
 	surveyWilayahGroup.GET("/preview/:survey_code/:section_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyWilayahGroup.POST("/:survey_code/section/:section_code/submit", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyWilayahGroup.PUT("/update-status/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	surveyKewilayahanAktifitasGroup := e.Group("/survey-kewilayahan-aktifitas")
+	surveyKewilayahanAktifitasGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyKewilayahanAktifitasGroup.GET("/detail/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyKewilayahanGroup := e.Group("/survey-kewilayahan")
 	surveyKewilayahanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -284,6 +290,16 @@ func SetupRoutes(e *echo.Echo) {
 	statistikGroup.GET("/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	statistikGroup.GET("/survey/:survey_code/export-excel", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::STATISTIK ==========================
+
+	// BEGIN::LAPORAN ==========================
+	laporanGroup := monitoringDanLaporanGroup.Group("/laporan")
+	laporanGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.PATCH("/change-name/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.PUT("/update-cover/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.GET("/get-cover/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.GET("/cetak/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	// END::LAPORAN ==========================
 	// END::MONITORING & LAPORAN ==========================
 
 	// BEGIN::PENGATURAN APLIKASI ==========================

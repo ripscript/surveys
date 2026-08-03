@@ -311,10 +311,14 @@ func HandleFunc(c echo.Context, service string) error {
 			}
 		}
 
-		fmt.Println("contenType", contenType)
+		disposition := "attachment"
+		if c.QueryParam("preview") == "true" {
+			disposition = "inline"
+		}
+
 		if filename != "" {
-			// Menambahkan header Content-Disposition dengan nama file
-			c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+			c.Response().Header().Set("Content-Disposition",
+				fmt.Sprintf("%s; filename=%q", disposition, filename))
 		}
 		return c.Blob(int(resp.Code), contenType, fileBytes)
 	}

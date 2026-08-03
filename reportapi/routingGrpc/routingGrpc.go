@@ -39,6 +39,8 @@ var (
 	surveyExportRepo repository.SurveyExportRepo = repository.NewSurveyExportRepo(dbSlave, dbMaster)
 	statistikRepo    repository.StatistikRepo    = repository.NewStatistikRepo(dbSlave, dbMaster)
 	userRepo         repository.UserRepo         = repository.NewUserRepo(dbSlave, dbMaster)
+	laporanRepo      repository.LaporanRepo      = repository.NewLaporanRepo(dbSlave, dbMaster)
+	fileRepo         repository.FileRepo         = repository.NewFileRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -56,6 +58,10 @@ var (
 		statistikRepo,
 		userRepo,
 	)
+	laporanService service.LaporanService = service.NewLaporanService(
+		laporanRepo,
+		fileRepo,
+	)
 )
 
 var (
@@ -70,6 +76,9 @@ var (
 	)
 	statistikHandler handlers.StatistikHandler = handlers.NewStatistikHandler(
 		statistikService,
+	)
+	laporanHandler handlers.LaporanHandler = handlers.NewLaporanHandler(
+		laporanService,
 	)
 )
 
@@ -149,6 +158,45 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	// END:STATISTIK ==================================
+
+	// BEGIN:LAPORAN ==================================
+	"/monitoring-dan-laporan/laporan/list": {
+		"GET": {
+			Handler: laporanHandler.ListLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/create": {
+		"POST": {
+			Handler: laporanHandler.CreateLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/change-name/:laporan_id": {
+		"PATCH": {
+			Handler: laporanHandler.ChangeNameLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/update-cover/:laporan_id": {
+		"PUT": {
+			Handler: laporanHandler.UpdateCoverLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/get-cover/:laporan_id": {
+		"GET": {
+			Handler: laporanHandler.GetCoverLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/cetak/:laporan_id": {
+		"GET": {
+			Handler: laporanHandler.CetakLaporan,
+			MenuKey: "laporan",
+		},
+	},
+	// END:LAPORAN ==================================
 	// END:MONITORING & LAPORAN ==================================
 }
 

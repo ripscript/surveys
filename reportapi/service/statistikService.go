@@ -74,9 +74,7 @@ func (service *statistikService) GetStatistikIndex(ctx context.Context, req map[
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
-	// spew.Dump(respondentLogin)
-
-	permittedRoles := []int64{int64(enums.ROLE_ADMIN), int64(enums.ROLE_KECAMATAN), int64(enums.ROLE_KELURAHAN), int64(enums.ROLE_RW)}
+	permittedRoles := []int64{int64(enums.ROLE_WALIKOTA), int64(enums.ROLE_ADMIN), int64(enums.ROLE_KECAMATAN), int64(enums.ROLE_KELURAHAN), int64(enums.ROLE_RW)}
 
 	if respondentLogin.RoleId != nil && !utils.ContainsInt64(permittedRoles, *respondentLogin.RoleId) {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)

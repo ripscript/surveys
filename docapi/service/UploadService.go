@@ -32,6 +32,12 @@ type UploadService interface {
 	UploadCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteBulkCMSImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -494,4 +500,163 @@ func (service *uploadService) DeleteBulkCMSImage(ctx context.Context, req map[st
 
 	success = true
 	return utils.SendData(success, "File berhasil dihapus")
+}
+
+func (service *uploadService) UploadLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_LAPORAN_KONTEN_IMAGE
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_LAPORAN_KONTEN, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) ShowLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_LAPORAN_KONTEN_IMAGE, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
+}
+
+func (service *uploadService) DeleteBulkLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type Paths []string
+	tmp, _ := json.Marshal(req["paths"])
+	var paths Paths
+	json.Unmarshal(tmp, &paths)
+
+	for i := range paths {
+		paths[i] = enums.PATH_WEBROOT_FILES + "/" + enums.PATH_LAPORAN_KONTEN_IMAGE + "/" + paths[i]
+	}
+
+	var success bool
+	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_LAPORAN_KONTEN)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	success = true
+	return utils.SendData(success, "File berhasil dihapus")
+}
+
+func (service *uploadService) getFileBytesFromMinio(path string) ([]byte, string, error) {
+	var (
+		endpoint        = os.Getenv("MINIO_ENDPOINT")
+		accessKeyID     = os.Getenv("MINIO_ACCESS_KEY")
+		secretAccessKey = os.Getenv("MINIO_SECRET_KEY")
+		useSSL          = os.Getenv("MINIO_USE_SSL")
+		bucketName      = os.Getenv("MINIO_BUCKET")
+	)
+
+	minioClient, err := minio.New(endpoint, accessKeyID, secretAccessKey, useSSL == "true")
+	if err != nil {
+		return nil, "", fmt.Errorf("error initializing minio client: %v", err)
+	}
+
+	_, err = minioClient.StatObject(bucketName, path, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return nil, "", errors.New("NOT FOUND")
+		}
+		return nil, "", fmt.Errorf("error checking object: %v", err)
+	}
+
+	object, err := minioClient.GetObject(bucketName, path, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("error getting object: %v", err)
+	}
+	defer object.Close()
+
+	fileBytes, err := io.ReadAll(object)
+	if err != nil {
+		return nil, "", fmt.Errorf("error reading object: %v", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+	var mimeType string
+	switch ext {
+	case ".png":
+		mimeType = "image/png"
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".webp":
+		mimeType = "image/webp"
+	default:
+		mimeType = http.DetectContentType(fileBytes)
+	}
+
+	return fileBytes, mimeType, nil
+}
+
+func (service *uploadService) GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	fullPath := fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_LAPORAN_KONTEN_IMAGE, filename)
+
+	var fileBytes []byte
+	var mimeType string
+	var err error
+
+	if os.Getenv("WITH_MINIO") == "true" {
+		fileBytes, mimeType, err = service.getFileBytesFromMinio(fullPath)
+	} else {
+		if _, statErr := os.Stat(fullPath); os.IsNotExist(statErr) {
+			return utils.SendError(errors.New("NOT FOUND"), http.StatusNotFound)
+		}
+		fileBytes, err = ioutil.ReadFile(fullPath)
+		ext := strings.ToLower(filepath.Ext(fullPath))
+		switch ext {
+		case ".png":
+			mimeType = "image/png"
+		case ".jpg", ".jpeg":
+			mimeType = "image/jpeg"
+		case ".webp":
+			mimeType = "image/webp"
+		default:
+			mimeType = http.DetectContentType(fileBytes)
+		}
+	}
+
+	if err != nil {
+		if err.Error() == "NOT FOUND" {
+			return utils.SendError(errors.New("Gambar tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	// message hanya bawa info mime type, TIDAK pakai prefix "Data File,"
+	// supaya gateway tidak treat ini sebagai HTTP file response — ini murni
+	// internal service-to-service call.
+	return utils.SetResponseData(fileBytes, true, mimeType, http.StatusOK, nil, ""), nil
 }

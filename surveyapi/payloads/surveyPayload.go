@@ -136,3 +136,15 @@ type VerifySurveyAnswerItem struct {
 type RejectAllSurveyAnswersPayload struct {
 	FlaggedQuestionIDs []int `json:"flagged_question_ids" validate:"required,min=1"`
 }
+
+type SurveyOptionsPayload struct {
+	Q          string   `form:"q" query:"q"`         // Kata kunci pencarian
+	Page       int      `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit      int      `form:"limit" query:"limit"` // Jumlah data per halaman
+	IDs        []string `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	ExcludeIDs []string `json:"exclude_id[]"`
+
+	TingkatWilayah int      `form:"tingkat_wilayah" query:"tingkat_wilayah"` // 6=kota, 5=kecamatan, 4=kelurahan
+	KecamatanIDs   []string `form:"kecamatan_id[]" query:"kecamatan_id[]"`
+	KelurahanIDs   []string `form:"kelurahan_id[]" query:"kelurahan_id[]"`
+}

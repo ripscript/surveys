@@ -91,6 +91,7 @@ type SurveyRepo interface {
 	ResolveFlaggingBySection(ctx context.Context, tx *gorm.DB, respondentID int64, fieldIDs []int64) error
 
 	ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error
+	SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
 }
 
 type surveyRepo struct {
@@ -1262,7 +1263,7 @@ func (repository *surveyRepo) GetStatusKeterisianBulkKecamatan(ctx context.Conte
 		query = query.Where("respondents.kecamatan_id IN ?", kecamatanIDs)
 	}
 
-	if countWilayah > 0 && loginRoleID != int64(enums.ROLE_ADMIN) {
+	if countWilayah > 0 && loginRoleID != int64(enums.ROLE_ADMIN) && loginRoleID != int64(enums.ROLE_WALIKOTA) {
 		query = query.Where(`
 			EXISTS (
 				SELECT 1 FROM survey_wilayahs sw 
@@ -1777,4 +1778,101 @@ func (repository *surveyRepo) ResetFlaggingBySurveyID(ctx context.Context, tx *g
 		Where("is_revisied = ?", "true").
 		Where("survey_respondent_id IN (SELECT id FROM survey_respondents WHERE survey_id = ?)", surveyID).
 		Update("is_revisied", "false").Error
+}
+
+func (repository *surveyRepo) SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("surveys").
+		Select(`
+			surveys.id AS id, 
+			surveys.name AS label
+		`)
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("surveys.name ILIKE ?", searchTerm)
+	}
+
+	// Filter dinamis berdasarkan wilayah
+	db = repository.applyWilayahFilter(db, req)
+
+	if len(req.IDs) > 0 {
+		db = db.Where("surveys.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("surveys.id NOT IN ?", req.ExcludeIDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("surveys.id asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *surveyRepo) applyWilayahFilter(db *gorm.DB, req payloads.SurveyOptionsPayload) *gorm.DB {
+	// Level kota (6) dianggap mencakup semua wilayah dalam kota,
+	// jadi tidak perlu filter tambahan selain global.
+	if req.TingkatWilayah == 0 || req.TingkatWilayah == 6 {
+		return db
+	}
+
+	globalCondition := "NOT EXISTS (SELECT 1 FROM survey_wilayahs sw WHERE sw.survey_id = surveys.id)"
+
+	switch req.TingkatWilayah {
+	case 5: // kecamatan
+		if len(req.KecamatanIDs) == 0 {
+			return db
+		}
+		matchCondition := `EXISTS (
+			SELECT 1 FROM survey_wilayahs sw 
+			WHERE sw.survey_id = surveys.id 
+			AND sw.kecamatan_id IN ?
+		)`
+		db = db.Where(
+			repository.dbSlave.Where(globalCondition).Or(matchCondition, req.KecamatanIDs),
+		)
+
+	case 4: // kelurahan
+		if len(req.KelurahanIDs) == 0 {
+			return db
+		}
+		matchCondition := `EXISTS (
+			SELECT 1 FROM survey_wilayahs sw 
+			WHERE sw.survey_id = surveys.id 
+			AND sw.kelurahan_id IN ?
+		)`
+		db = db.Where(
+			repository.dbSlave.Where(globalCondition).Or(matchCondition, req.KelurahanIDs),
+		)
+	}
+
+	return db
 }

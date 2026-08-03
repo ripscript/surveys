@@ -209,7 +209,6 @@ func (repository *wilayahRepo) GetDaftarKecamatan(ctx context.Context, payload p
 
 	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/kecamatan/list", params, nil, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.KecamatanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kecamatan dari MasterAPI")
 	}
 

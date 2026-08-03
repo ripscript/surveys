@@ -178,12 +178,12 @@ func PermissionSeed(db *gorm.DB) error {
 		// BEGIN:MANAJEMEN WILAYAH ==================================================
 		viewOnlyHidden(mWilayah, public), viewOnlyHidden(mWilayah, rt), viewOnlyHidden(mWilayah, rw), full(mWilayah, lurah),
 		full(mWilayah, camat), viewOnly(mWilayah, pemkot), full(mWilayah, admin),
-		viewOnly(mWilayah, surveyor), none(mWilayah, walikota),
+		viewOnly(mWilayah, surveyor), viewOnlyHidden(mWilayah, walikota),
 
 		// BEGIN:MANAJEMEN WILAYAH ==================================================
 		viewOnly(ManajemenWilayah, public), viewOnly(ManajemenWilayah, rt), viewOnly(ManajemenWilayah, rw), full(ManajemenWilayah, lurah),
 		full(ManajemenWilayah, camat), viewOnly(ManajemenWilayah, pemkot), full(ManajemenWilayah, admin),
-		viewOnly(ManajemenWilayah, surveyor), none(ManajemenWilayah, walikota),
+		viewOnly(ManajemenWilayah, surveyor), viewOnlyHidden(ManajemenWilayah, walikota),
 
 		// BEGIN:MANAJEMEN PEJABAT ==================================================
 		none(pejabat, public), none(pejabat, rt), none(pejabat, rw), full(pejabat, lurah),
@@ -236,7 +236,7 @@ func PermissionSeed(db *gorm.DB) error {
 		none(Statistik, public), none(Statistik, rt), viewOnly(Statistik, rw), viewOnly(Statistik, lurah), full(Statistik, camat), none(Statistik, pemkot), full(Statistik, admin), none(Statistik, surveyor), viewOnly(Statistik, walikota),
 
 		// BEGIN:AKTIFITAS SURVEY ===================================================
-		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), viewOnly(AktifitasSurvey, walikota),
+		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), full(AktifitasSurvey, walikota),
 
 		// BEGIN:LAPORAN ===================================================
 		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), none(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
