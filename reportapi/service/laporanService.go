@@ -41,11 +41,11 @@ import (
 
 type LaporanService interface {
 	ListLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	ChangeNameLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	CreateLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	UpdateCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	CetakLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ChangeNameReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PrintReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type laporanService struct {
@@ -99,7 +99,7 @@ func (service *laporanService) ListLaporan(ctx context.Context, req map[string]i
 		payload.Limit = 5
 	}
 
-	data, totalData, err := service.laporanRepo.GetListLaporan(usr.RespondentID, payload)
+	data, totalData, err := service.laporanRepo.GetListReport(usr.RespondentID, payload)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -126,7 +126,7 @@ func (service *laporanService) ListLaporan(ctx context.Context, req map[string]i
 	return utils.SendData(result, "Berhasil membuat laporan")
 }
 
-func (service *laporanService) ChangeNameLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *laporanService) ChangeNameReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
 	laporanIdStr, ok := slug["laporan_id"].(string)
@@ -152,7 +152,7 @@ func (service *laporanService) ChangeNameLaporan(ctx context.Context, req map[st
 		}
 	}
 
-	laporan, err := service.laporanRepo.GetLaporanByID(laporanID)
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
 	if err != nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
@@ -169,14 +169,14 @@ func (service *laporanService) ChangeNameLaporan(ctx context.Context, req map[st
 
 	laporan.Name = payload.Name
 
-	_, err = service.laporanRepo.UpdateLaporan(*laporan)
+	_, err = service.laporanRepo.UpdateReport(*laporan)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
 	}
 	return utils.SendData(nil, "Laporan berhasil diperbarui")
 }
 
-func (service *laporanService) CreateLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *laporanService) CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
 	var _req request.CreateLaporanPayload
@@ -232,7 +232,7 @@ func (service *laporanService) CreateLaporan(ctx context.Context, req map[string
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	laporan := models.Laporan{
+	laporan := models.Report{
 		Name:           _req.NamaLaporan,
 		RespondentID:   usr.ID,
 		TingkatWilayah: strconv.Itoa(_req.TingkatWilayah),
@@ -241,21 +241,21 @@ func (service *laporanService) CreateLaporan(ctx context.Context, req map[string
 		SurveyID:       datatypes.JSON(surveyJSON),
 	}
 
-	var result *models.Laporan
+	var result *models.Report
 
 	// Bungkus create laporan + create cover dalam satu transaction
 	err = service.laporanRepo.WithTransaction(ctx, func(txRepo repository.LaporanRepo) error {
 		var txErr error
-		result, txErr = txRepo.CreateLaporan(ctx, laporan)
+		result, txErr = txRepo.CreateReport(ctx, laporan)
 		if txErr != nil {
 			return txErr
 		}
 
-		laporanCover := models.LaporanCover{
-			LaporanID: int64(result.ID),
+		laporanCover := models.ReportCover{
+			ReportID: int64(result.ID),
 		}
 
-		_, txErr = txRepo.CreateLaporanCover(ctx, laporanCover)
+		_, txErr = txRepo.CreateReportCover(ctx, laporanCover)
 		if txErr != nil {
 			return txErr
 		}
@@ -277,7 +277,7 @@ func (service *laporanService) CreateLaporan(ctx context.Context, req map[string
 	return utils.SendData(data, "Berhasil membuat laporan")
 }
 
-func (service *laporanService) GetCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *laporanService) GetCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
 	laporanIdStr, ok := slug["laporan_id"].(string)
@@ -289,7 +289,7 @@ func (service *laporanService) GetCoverLaporan(ctx context.Context, req map[stri
 		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
 	}
 
-	laporan, err := service.laporanRepo.GetLaporanByID(laporanID)
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
@@ -300,7 +300,7 @@ func (service *laporanService) GetCoverLaporan(ctx context.Context, req map[stri
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
-	getLaporanKonten, err := service.laporanRepo.GetLaporanCoverByLaporanId(laporanID)
+	getLaporanKonten, err := service.laporanRepo.GetReportCoverByReportId(laporanID)
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
@@ -343,7 +343,7 @@ func toRelativeImagePath(image string) string {
 	return after
 }
 
-func (service *laporanService) UpdateCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *laporanService) UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 	detachedCtx := context.WithoutCancel(ctx)
 
@@ -370,13 +370,13 @@ func (service *laporanService) UpdateCoverLaporan(ctx context.Context, req map[s
 		}
 	}
 
-	_, err = service.laporanRepo.GetLaporanByID(laporanID)
+	_, err = service.laporanRepo.GetReportByID(laporanID)
 	if err != nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
 	// konten lama (bisa nil kalau belum pernah ada)
-	existingKonten, err := service.laporanRepo.GetLaporanCoverByLaporanId(laporanID)
+	existingKonten, err := service.laporanRepo.GetReportCoverByReportId(laporanID)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
 	}
@@ -436,8 +436,8 @@ func (service *laporanService) UpdateCoverLaporan(ctx context.Context, req map[s
 		}
 	}
 
-	konten := models.LaporanCover{
-		LaporanID:     laporanID,
+	konten := models.ReportCover{
+		ReportID:      laporanID,
 		TextDepan:     payload.DeskripsiHalamanDepan,
 		ImgDepan:      finalImgDepan,
 		TextBelakang:  payload.DeskripsiHalamanBelakang,
@@ -446,7 +446,7 @@ func (service *laporanService) UpdateCoverLaporan(ctx context.Context, req map[s
 	}
 
 	// hapus konten lama, ganti dengan yang baru (sesuai keinginan kamu: hapus & timpa)
-	err = service.laporanRepo.ReplaceLaporanCover(laporanID, konten)
+	err = service.laporanRepo.ReplaceReportCover(laporanID, konten)
 	if err != nil {
 		rollbackUploadedFiles()
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
@@ -516,7 +516,7 @@ func isSamePath(old *string, new *string) bool {
 	return *old == *new
 }
 
-func (service *laporanService) CetakLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (service *laporanService) PrintReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
 	laporanIdStr, ok := slug["laporan_id"].(string)
@@ -528,12 +528,12 @@ func (service *laporanService) CetakLaporan(ctx context.Context, req map[string]
 		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
 	}
 
-	laporan, err := service.laporanRepo.GetLaporanByID(laporanID)
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
 	if err != nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
-	konten, err := service.laporanRepo.GetLaporanCoverByLaporanId(laporanID)
+	konten, err := service.laporanRepo.GetReportCoverByReportId(laporanID)
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
@@ -592,7 +592,7 @@ func resizeCoverToA4(imgBytes []byte, ext string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (service *laporanService) buildLaporanPDF(laporan *models.Laporan, konten *models.LaporanCover, bgDepanBytes []byte, bgDepanExt string) ([]byte, error) {
+func (service *laporanService) buildLaporanPDF(laporan *models.Report, konten *models.ReportCover, bgDepanBytes []byte, bgDepanExt string) ([]byte, error) {
 	// BEGIN: HALAMAN DEPAN ===========================================
 	var deskripsiDepanHTML string
 	if konten.TextDepan != nil {

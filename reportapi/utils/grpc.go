@@ -169,3 +169,46 @@ func HitBackend(ctx context.Context, targetHost, method, path string, slugData m
 
 	return res.Data, nil
 }
+
+func HitBackendNotSecure(ctx context.Context, targetHost, method, path string, slugData map[string]interface{}, reqBody map[string]interface{}) ([]byte, error) {
+	client, err := getClient(targetHost)
+	if err != nil {
+		return nil, errors.New("gagal terhubung ke service target: " + err.Error())
+	}
+
+	var slugBytes, bodyBytes []byte
+	if slugData != nil {
+		slugBytes, _ = json.Marshal(slugData)
+	}
+	if reqBody != nil {
+		bodyBytes, _ = json.Marshal(reqBody)
+	}
+
+	request := &pb.ProxyRequest{
+		Method:   method,
+		Path:     path,
+		Slug:     slugBytes,
+		Data:     bodyBytes,
+		IsSecure: false,
+	}
+
+	// Forward Token
+	outCtx := context.Background()
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if authTokens, exists := md["authorization"]; exists && len(authTokens) > 0 {
+			outMD := metadata.Pairs("authorization", authTokens[0])
+			outCtx = metadata.NewOutgoingContext(context.Background(), outMD)
+		}
+	}
+
+	res, err := client.SendData(outCtx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if !res.Success {
+		return nil, errors.New(res.Message)
+	}
+
+	return res.Data, nil
+}

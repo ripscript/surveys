@@ -13,20 +13,20 @@ import (
 )
 
 type LaporanRepo interface {
-	UpdateLaporan(laporan models.Laporan) (*models.Laporan, error)
-	GetLaporanByID(laporanID int64) (*models.Laporan, error)
-	GetLaporanCoverByLaporanId(laporanID int64) (*models.LaporanCover, error)
-	ReplaceLaporanCover(laporanID int64, konten models.LaporanCover) error
+	UpdateReport(laporan models.Report) (*models.Report, error)
+	GetReportByID(laporanID int64) (*models.Report, error)
+	GetReportCoverByReportId(laporanID int64) (*models.ReportCover, error)
+	ReplaceReportCover(laporanID int64, konten models.ReportCover) error
 
-	DeleteLaporanKontenByLaporanID(laporanID int64) error
-	UpdateLaporanKonten(konten models.LaporanCover) error
+	DeleteReportKontenByReportID(laporanID int64) error
+	UpdateReportKonten(konten models.ReportCover) error
 
-	GetListLaporan(respondentId int64, req request.LaporanDatatablePayload) ([]models.LaporanDatatable, int64, error)
+	GetListReport(respondentId int64, req request.LaporanDatatablePayload) ([]models.LaporanDatatable, int64, error)
 
 	WithTransaction(ctx context.Context, fn func(txRepo LaporanRepo) error) error
 	IsNameExists(ctx context.Context, name string) (bool, error)
-	CreateLaporan(ctx context.Context, laporan models.Laporan) (*models.Laporan, error)
-	CreateLaporanCover(ctx context.Context, konten models.LaporanCover) (*models.LaporanCover, error)
+	CreateReport(ctx context.Context, laporan models.Report) (*models.Report, error)
+	CreateReportCover(ctx context.Context, konten models.ReportCover) (*models.ReportCover, error)
 }
 
 type laporanRepo struct {
@@ -51,7 +51,7 @@ func (repository *laporanRepo) IsNameExists(ctx context.Context, name string) (b
 
 	var count int64
 	err := repository.dbMaster.WithContext(ctx).
-		Model(&models.Laporan{}).
+		Model(&models.Report{}).
 		Where("name = ?", name).
 		Count(&count).Error
 	if err != nil {
@@ -60,7 +60,7 @@ func (repository *laporanRepo) IsNameExists(ctx context.Context, name string) (b
 	return count > 0, nil
 }
 
-func (repository *laporanRepo) CreateLaporan(ctx context.Context, laporan models.Laporan) (*models.Laporan, error) {
+func (repository *laporanRepo) CreateReport(ctx context.Context, laporan models.Report) (*models.Report, error) {
 	defer utils.GeneralRecover()
 
 	err := repository.dbMaster.WithContext(ctx).Create(&laporan).Error
@@ -71,7 +71,7 @@ func (repository *laporanRepo) CreateLaporan(ctx context.Context, laporan models
 	return &laporan, nil
 }
 
-func (repository *laporanRepo) CreateLaporanCover(ctx context.Context, konten models.LaporanCover) (*models.LaporanCover, error) {
+func (repository *laporanRepo) CreateReportCover(ctx context.Context, konten models.ReportCover) (*models.ReportCover, error) {
 	defer utils.GeneralRecover()
 
 	err := repository.dbMaster.WithContext(ctx).Create(&konten).Error
@@ -82,7 +82,7 @@ func (repository *laporanRepo) CreateLaporanCover(ctx context.Context, konten mo
 	return &konten, nil
 }
 
-func (repository *laporanRepo) UpdateLaporan(laporan models.Laporan) (*models.Laporan, error) {
+func (repository *laporanRepo) UpdateReport(laporan models.Report) (*models.Report, error) {
 	defer utils.GeneralRecover()
 
 	err := repository.dbMaster.Save(laporan).Error
@@ -92,11 +92,11 @@ func (repository *laporanRepo) UpdateLaporan(laporan models.Laporan) (*models.La
 	return &laporan, nil
 }
 
-func (repository *laporanRepo) GetLaporanByID(laporanID int64) (*models.Laporan, error) {
+func (repository *laporanRepo) GetReportByID(laporanID int64) (*models.Report, error) {
 	defer utils.GeneralRecover()
 
-	var laporan *models.Laporan
-	err := repository.dbSlave.Table("laporans").
+	var laporan *models.Report
+	err := repository.dbSlave.Table("reports").
 		Where("id = ?", laporanID).
 		First(&laporan).Error
 	if err != nil {
@@ -106,12 +106,12 @@ func (repository *laporanRepo) GetLaporanByID(laporanID int64) (*models.Laporan,
 	return laporan, nil
 }
 
-func (repository *laporanRepo) DeleteLaporanKontenByLaporanID(laporanID int64) error {
+func (repository *laporanRepo) DeleteReportKontenByReportID(laporanID int64) error {
 	defer utils.GeneralRecover()
 
-	err := repository.dbMaster.Table("laporan_kontens").
-		Where("laporan_id = ?", laporanID).
-		Delete(&models.LaporanCover{}).Error
+	err := repository.dbMaster.Table("report_covers").
+		Where("report_id = ?", laporanID).
+		Delete(&models.ReportCover{}).Error
 	if err != nil {
 		return err
 	}
@@ -119,12 +119,12 @@ func (repository *laporanRepo) DeleteLaporanKontenByLaporanID(laporanID int64) e
 	return nil
 }
 
-func (repository *laporanRepo) GetLaporanCoverByLaporanId(laporanID int64) (*models.LaporanCover, error) {
+func (repository *laporanRepo) GetReportCoverByReportId(laporanID int64) (*models.ReportCover, error) {
 	defer utils.GeneralRecover()
 
-	var cover models.LaporanCover
-	err := repository.dbSlave.Table("laporan_covers").
-		Where("laporan_id = ?", laporanID).
+	var cover models.ReportCover
+	err := repository.dbSlave.Table("report_covers").
+		Where("report_id = ?", laporanID).
 		First(&cover).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -136,13 +136,13 @@ func (repository *laporanRepo) GetLaporanCoverByLaporanId(laporanID int64) (*mod
 	return &cover, nil
 }
 
-func (repository *laporanRepo) UpdateLaporanKonten(konten models.LaporanCover) error {
+func (repository *laporanRepo) UpdateReportKonten(konten models.ReportCover) error {
 	defer utils.GeneralRecover()
 
 	now := time.Now()
 
 	updates := map[string]interface{}{
-		"laporan_id":     konten.LaporanID,
+		"report_id":      konten.ReportID,
 		"text_depan":     konten.TextDepan,
 		"img_depan":      konten.ImgDepan,
 		"text_belakang":  konten.TextBelakang,
@@ -152,22 +152,22 @@ func (repository *laporanRepo) UpdateLaporanKonten(konten models.LaporanCover) e
 	}
 
 	if konten.ID != 0 {
-		return repository.dbMaster.Table("laporan_kontens").
+		return repository.dbMaster.Table("report_covers").
 			Where("id = ?", konten.ID).
 			Updates(updates).Error
 	}
 
 	updates["created_at"] = now
-	return repository.dbMaster.Table("laporan_kontens").Create(&updates).Error
+	return repository.dbMaster.Table("report_covers").Create(&updates).Error
 }
 
-func (repository *laporanRepo) ReplaceLaporanCover(laporanID int64, konten models.LaporanCover) error {
+func (repository *laporanRepo) ReplaceReportCover(laporanID int64, konten models.ReportCover) error {
 	defer utils.GeneralRecover()
 
 	return repository.dbMaster.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Table("laporan_covers").
-			Where("laporan_id = ?", laporanID).
-			Delete(&models.LaporanCover{}).Error; err != nil {
+		if err := tx.Table("report_covers").
+			Where("report_id = ?", laporanID).
+			Delete(&models.ReportCover{}).Error; err != nil {
 			return err
 		}
 
@@ -176,7 +176,7 @@ func (repository *laporanRepo) ReplaceLaporanCover(laporanID int64, konten model
 		konten.CreatedAt = &now
 		konten.UpdatedAt = &now
 
-		if err := tx.Table("laporan_covers").Create(&konten).Error; err != nil {
+		if err := tx.Table("report_covers").Create(&konten).Error; err != nil {
 			return err
 		}
 
@@ -184,15 +184,15 @@ func (repository *laporanRepo) ReplaceLaporanCover(laporanID int64, konten model
 	})
 }
 
-func (repository *laporanRepo) GetListLaporan(respondentId int64, req request.LaporanDatatablePayload) ([]models.LaporanDatatable, int64, error) {
+func (repository *laporanRepo) GetListReport(respondentId int64, req request.LaporanDatatablePayload) ([]models.LaporanDatatable, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.LaporanDatatable
 	var totalData int64
 
-	db := repository.dbSlave.Table("laporans")
+	db := repository.dbSlave.Table("reports")
 
 	if respondentId != 0 {
-		db = db.Where("laporans.respondent_id = ?", respondentId)
+		db = db.Where("reports.respondent_id = ?", respondentId)
 	}
 
 	if req.Search != "" {
@@ -202,19 +202,19 @@ func (repository *laporanRepo) GetListLaporan(respondentId int64, req request.La
 
 		if isDate {
 			db = db.Where(`
-				laporans.name ILIKE ? OR
-				DATE(laporans.created_at) = ? OR
-				DATE(laporans.updated_at) = ?
+				reports.name ILIKE ? OR
+				DATE(reports.created_at) = ? OR
+				DATE(reports.updated_at) = ?
 			`, searchTerm, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
 			db = db.Where(`
-				laporans.name ILIKE ? OR
-				EXTRACT(YEAR FROM laporans.created_at)::TEXT = ? OR
-				EXTRACT(YEAR FROM laporans.updated_at)::TEXT = ?
+				reports.name ILIKE ? OR
+				EXTRACT(YEAR FROM reports.created_at)::TEXT = ? OR
+				EXTRACT(YEAR FROM reports.updated_at)::TEXT = ?
 			`, searchTerm, searchStr, searchStr)
 		} else {
 			db = db.Where(`
-				laporans.name ILIKE ?
+				reports.name ILIKE ?
 			`, searchTerm)
 		}
 	}
@@ -225,21 +225,21 @@ func (repository *laporanRepo) GetListLaporan(respondentId int64, req request.La
 	}
 
 	db = db.Select(`
-		laporans.id,
-		laporans.name,
-		laporans.updated_at,
-		laporans.created_at
+		reports.id,
+		reports.name,
+		reports.updated_at,
+		reports.created_at
 	`)
 
 	if req.OrderBy != "" {
-		finalOrderBy := "laporans.id"
+		finalOrderBy := "reports.id"
 		finalOrderDir := "desc"
 
 		allowedOrderCols := map[string]string{
-			"id":         "laporans.id",
-			"name":       "laporans.name",
-			"created_at": "laporans.created_at",
-			"updated_at": "laporans.updated_at",
+			"id":         "reports.id",
+			"name":       "reports.name",
+			"created_at": "reports.created_at",
+			"updated_at": "reports.updated_at",
 		}
 
 		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
@@ -252,7 +252,7 @@ func (repository *laporanRepo) GetListLaporan(respondentId int64, req request.La
 
 		db = db.Order(finalOrderBy + " " + finalOrderDir)
 	} else {
-		db = db.Order("laporans.created_at desc")
+		db = db.Order("reports.created_at desc")
 	}
 
 	offset := (req.Page - 1) * req.Limit

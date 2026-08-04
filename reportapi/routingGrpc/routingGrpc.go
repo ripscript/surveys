@@ -168,31 +168,31 @@ var grpcMap = map[string]map[string]RouteConfig{
 	},
 	"/monitoring-dan-laporan/laporan/create": {
 		"POST": {
-			Handler: laporanHandler.CreateLaporan,
+			Handler: laporanHandler.CreateReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/change-name/:laporan_id": {
 		"PATCH": {
-			Handler: laporanHandler.ChangeNameLaporan,
+			Handler: laporanHandler.ChangeNameReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/update-cover/:laporan_id": {
 		"PUT": {
-			Handler: laporanHandler.UpdateCoverLaporan,
+			Handler: laporanHandler.UpdateCoverReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/get-cover/:laporan_id": {
 		"GET": {
-			Handler: laporanHandler.GetCoverLaporan,
+			Handler: laporanHandler.GetCoverReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/cetak/:laporan_id": {
 		"GET": {
-			Handler: laporanHandler.CetakLaporan,
+			Handler: laporanHandler.PrintReport,
 			MenuKey: "laporan",
 		},
 	},

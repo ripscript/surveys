@@ -10,11 +10,11 @@ import (
 
 type LaporanHandler interface {
 	ListLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	ChangeNameLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	CreateLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	UpdateCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	GetCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
-	CetakLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ChangeNameReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PrintReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type laporanHandler struct {
@@ -31,22 +31,22 @@ func (handler *laporanHandler) ListLaporan(ctx context.Context, req map[string]i
 	return handler.laporanService.ListLaporan(ctx, req, usr, param, slug)
 }
 
-func (handler *laporanHandler) ChangeNameLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.laporanService.ChangeNameLaporan(ctx, req, usr, param, slug)
+func (handler *laporanHandler) ChangeNameReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.laporanService.ChangeNameReport(ctx, req, usr, param, slug)
 }
 
-func (handler *laporanHandler) CreateLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.laporanService.CreateLaporan(ctx, req, usr, param, slug)
+func (handler *laporanHandler) CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.laporanService.CreateReport(ctx, req, usr, param, slug)
 }
 
-func (handler *laporanHandler) UpdateCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.laporanService.UpdateCoverLaporan(ctx, req, usr, param, slug)
+func (handler *laporanHandler) UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.laporanService.UpdateCoverReport(ctx, req, usr, param, slug)
 }
 
-func (handler *laporanHandler) GetCoverLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.laporanService.GetCoverLaporan(ctx, req, usr, param, slug)
+func (handler *laporanHandler) GetCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.laporanService.GetCoverReport(ctx, req, usr, param, slug)
 }
 
-func (handler *laporanHandler) CetakLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.laporanService.CetakLaporan(ctx, req, usr, param, slug)
+func (handler *laporanHandler) PrintReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.laporanService.PrintReport(ctx, req, usr, param, slug)
 }
