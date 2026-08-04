@@ -68,6 +68,7 @@ type RawNodeData struct {
 	FormFieldId       int
 	Template          string  // Dari form_fields.template
 	Label             string  // Dari form_fields.question
+	Description       *string // Dari form_fields.description
 	IsRequired        bool    // Dari form_fields.required
 	ImageQuantity     *string // Dari form_fields.image_quantity (varchar)
 	SectionId         *int

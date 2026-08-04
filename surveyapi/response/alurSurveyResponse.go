@@ -29,6 +29,7 @@ type PreviewAlurSurveyQuestionDetail struct {
 	QuestionId         int                           `json:"question_id"`
 	Type               string                        `json:"type"` // multiple-choices, long-answer, number, image-template, maps
 	Label              string                        `json:"label"`
+	Description        *string                       `json:"description"`
 	IsRequired         bool                          `json:"is_required"`
 	ExpectedImageCount *int                          `json:"expected_image_count"`
 	Options            []PreviewAlurSurveyOptionItem `json:"options"`

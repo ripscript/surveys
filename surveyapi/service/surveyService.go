@@ -1296,6 +1296,7 @@ func (service *surveyService) PreviewSurvey(ctx context.Context, req map[string]
 				QuestionId:         raw.FormFieldId,
 				Type:               raw.Template,
 				Label:              raw.Label,
+				Description:        raw.Description,
 				IsRequired:         raw.IsRequired,
 				ExpectedImageCount: expectedImageCount,
 				Options:            []response.PreviewAlurSurveyOptionItem{},
