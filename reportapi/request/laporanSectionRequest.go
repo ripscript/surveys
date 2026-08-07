@@ -5,7 +5,7 @@ package request // atau package payloads
 // ============================================================================
 type UpsertSectionPayload struct {
 	Title         string                    `json:"title" validate:"required,max=255"`
-	HasSubSection *bool                     `json:"has_sub_section"`
+	HasSubSection *bool                     `json:"has_sub_section" validate:"required"`
 	SubSections   []UpsertSubSectionPayload `json:"sub_sections" validate:"omitempty,dive"`
 
 	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
@@ -72,4 +72,33 @@ type NarrativeVariablePayload struct {
 	SourceFormFieldID int    `json:"source_form_field_id" validate:"required"` // Contoh: 850
 	CalculationType   string `json:"calculation_type" validate:"required,oneof=max_row_name max_row_value min_row_name min_row_value total_sum average most_frequent_option most_frequent_count"`
 	// Perhatikan: "group_by" sudah dihapus dari struct validasi ini!
+}
+
+// KEBUTUHAN UPDATE SECTION
+type UpdateSectionPayload struct {
+	Title         string                    `json:"title" validate:"required,max=255"`
+	HasSubSection *bool                     `json:"has_sub_section" validate:"required"`
+	SubSections   []UpdateSubSectionPayload `json:"sub_sections" validate:"omitempty,dive"`
+
+	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
+	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+
+	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
+	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
+	NarrativeLogic    *NarrativeLogicPayload `json:"narrative_logic" validate:"omitempty"`
+}
+
+// ID opsional: dikirim FE hanya untuk referensi/tracking di sisi FE (misal biar row tidak "loncat" di UI).
+// Service TIDAK bergantung pada ID ini untuk logic replace — cukup diabaikan saat insert ulang.
+type UpdateSubSectionPayload struct {
+	ID       *int64 `json:"id,omitempty"`
+	Title    string `json:"title" validate:"required"`
+	Sequence int    `json:"sequence" validate:"required,min=1"`
+
+	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
+	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+
+	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
+	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
+	NarrativeLogic    *NarrativeLogicPayload `json:"narrative_logic" validate:"omitempty"`
 }

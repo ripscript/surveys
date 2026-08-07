@@ -17,3 +17,14 @@ type LaporanSection struct {
 func (LaporanSection) TableName() string {
 	return "laporan_sections"
 }
+
+type LaporanSectionDatatable struct {
+	No            int64     `json:"no"`
+	ID            int       `json:"id"`
+	LaporanPageID int       `json:"laporan_page_id"`
+	Title         string    `json:"title"`
+	Sequence      int       `json:"sequence"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	TotalKonten   int64     `json:"total_konten"`
+}

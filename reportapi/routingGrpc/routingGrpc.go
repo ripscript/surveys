@@ -197,12 +197,25 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "laporan",
 		},
 	},
-	// "/monitoring-dan-laporan/laporan/cetak/:laporan_id": {
-	// 	"GET": {
-	// 		Handler: laporanHandler.PrintReport,
-	// 		MenuKey: "laporan",
-	// 	},
-	// },
+	"/monitoring-dan-laporan/laporan/:laporan_id/section/list": {
+		"GET": {
+			Handler: laporanHandler.ListSectionReport,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/:laporan_id/section/detail/:section_id": {
+		"GET": {
+			Handler: laporanHandler.SectionReportDetail,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/:laporan_id/section/update/:section_id": {
+		"PUT": {
+			Handler: laporanHandler.UpdateSectionReport,
+			MenuKey: "laporan",
+		},
+	},
+
 	"/monitoring-dan-laporan/laporan/calculation-type-options": {
 		"GET": {
 			Handler: laporanHandler.GetCalculationTypeOptions,

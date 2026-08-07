@@ -306,6 +306,9 @@ func SetupRoutes(e *echo.Echo) {
 	laporanGroup.GET("/get-cover/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.GET("/cetak/:laporan_id", func(c echo.Context) error { return HandleFunc(c, pyReportApiService) })
 
+	laporanGroup.GET("/:laporan_id/section/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.GET("/:laporan_id/section/detail/:section_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.PUT("/:laporan_id/section/update/:section_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.POST("/:laporan_id/section/create", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.GET("/calculation-type-options", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::LAPORAN ==========================

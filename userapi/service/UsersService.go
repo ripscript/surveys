@@ -641,73 +641,86 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 	}
 
 	var validate = validator.New()
-
 	validate.RegisterValidation("password_rule", utils.PasswordRuleValidation)
 
 	err = validate.Struct(payload)
 	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) {
-			customErrorMsg := utils.TranslateError(err)
+		for _, valErr := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(valErr)
 			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
 		}
 	}
 
 	user, err := service.usersRepo.GetUserRawById(int(usr.ID))
 	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server, coba lagi nanti"), http.StatusNotFound)
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, coba lagi nanti"), http.StatusInternalServerError)
 	}
-
 	if user == nil {
 		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
 	}
 
-	if payload.Avatar != nil {
-		if !strings.HasPrefix(*payload.Avatar, "data:image") {
-			rollbackUploadedFiles()
-			return nil, errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)")
+	if payload.Avatar != nil && *payload.Avatar != "" {
+		var oldAvatar string
+		if user.Respondent != nil && user.Respondent.Avatar != nil {
+			oldAvatar = *user.Respondent.Avatar
 		}
 
-		base64Data, err := utils.ExtractBase64Info(*payload.Avatar)
-		if err != nil {
-			rollbackUploadedFiles()
-			return nil, errors.New("Gagal memproses gambar")
-		}
-
-		if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
-			rollbackUploadedFiles()
-			return nil, errors.New("Format file gambar tidak didukung")
-		}
-		if base64Data.SizeInKB > maxSizeInKB {
-			rollbackUploadedFiles()
-			return nil, errors.New("Ukuran gambar tidak boleh melebihi 5MB")
-		}
-
-		path, err := service.fileRepo.UploadFotoProfil(ctx, payload.Avatar)
-		if err != nil || path == nil {
-			rollbackUploadedFiles()
-			return nil, errors.New("Gagal mengunggah gambar")
-		}
-		uploadedFiles = append(uploadedFiles, *path)
-		payload.Avatar = path
-
-		// Delete old avatar if exists
-		if user.Respondent != nil && user.Respondent.Avatar != nil && *user.Respondent.Avatar != "" {
-			_, err := service.fileRepo.DeleteFotoProfilBulk(ctx, []string{*user.Respondent.Avatar})
-			if err != nil {
+		if *payload.Avatar != oldAvatar {
+			// 1. Tolak jika bukan Data URI (misal: raw base64 string telanjang atau URL aneh)
+			if !strings.HasPrefix(*payload.Avatar, "data:") {
 				rollbackUploadedFiles()
-				return nil, errors.New("Gagal menghapus gambar lama")
+				return utils.SendError(errors.New("Format gambar baru tidak valid. Pastikan menggunakan format Data URI Base64"), http.StatusBadRequest)
+			}
+
+			// 2. Tolak jika bukan file gambar (Mencegah PDF/Virus di-bypass)
+			if !strings.HasPrefix(*payload.Avatar, "data:image") {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)"), http.StatusBadRequest)
+			}
+
+			// 3. Ekstrak Base64 dan tangani jika korup/gagal dibuka
+			base64Data, err := utils.ExtractBase64Info(*payload.Avatar)
+			if err != nil || base64Data == nil {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Gagal memproses gambar: Data Base64 tidak valid atau korup"), http.StatusBadRequest)
+			}
+
+			// 4. Validasi Ekstensi, Mime, dan Ukuran
+			if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
+			}
+			if base64Data.SizeInKB > maxSizeInKB {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Ukuran gambar tidak boleh melebihi 5MB"), http.StatusBadRequest)
+			}
+
+			path, err := service.fileRepo.UploadFotoProfil(ctx, payload.Avatar)
+			if err != nil || path == nil {
+				rollbackUploadedFiles()
+				return utils.SendError(errors.New("Gagal mengunggah gambar"), http.StatusInternalServerError)
+			}
+
+			uploadedFiles = append(uploadedFiles, *path)
+			payload.Avatar = path
+
+			// Hapus foto lama menggunakan detachedCtx agar tidak terpengaruh cancellation
+			if oldAvatar != "" {
+				_, _ = service.fileRepo.DeleteFotoProfilBulk(detachedCtx, []string{oldAvatar})
 			}
 		}
 	} else {
-		payload.Avatar = user.Respondent.Avatar
+		// Jika Payload = nil (Frontend tidak mengirimkan perubahan), pertahankan yang lama (Cegah Panic)
+		if user.Respondent != nil {
+			payload.Avatar = user.Respondent.Avatar
+		}
 	}
 
+	// Sisa Logika Update Password & Profil
 	if user.MustChangePassword != nil {
 		if *user.MustChangePassword == false {
-			if payload.NewPassword != "" {
-				if payload.CurrentPassword == "" {
-					return utils.SendError(errors.New("Password saat ini harus diisi"), http.StatusBadRequest)
-				}
+			if payload.NewPassword != "" && payload.CurrentPassword == "" {
+				return utils.SendError(errors.New("Password saat ini harus diisi"), http.StatusBadRequest)
 			}
 		}
 	}
@@ -744,7 +757,6 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 				if errCompare != nil {
 					return utils.SendError(errors.New("Password saat ini yang Anda masukkan salah"), http.StatusBadRequest)
 				}
-				// Generate Hash Baru
 				hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
 				hashedPassword = string(hashedBytes)
 			}

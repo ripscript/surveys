@@ -34,9 +34,13 @@ type LaporanService interface {
 	CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ListSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	CreateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetCalculationTypeOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	UpdateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type laporanService struct {
@@ -313,6 +317,77 @@ func (service *laporanService) GetCoverReport(ctx context.Context, req map[strin
 	}
 
 	return utils.SendData(response, "Berhasil mengambil data cover laporan")
+}
+
+func (service *laporanService) ListSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if laporan == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := request.SectionLaporanDatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
+	}
+
+	if payload.Page <= 0 {
+		payload.Page = 1
+	}
+	if payload.Limit <= 0 {
+		payload.Limit = 5
+	}
+
+	data, totalData, err := service.laporanRepo.GetListSectionReport(laporan.ID, payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	showingFrom := (payload.Page-1)*payload.Limit + 1
+	showingTo := showingFrom + len(data) - 1
+
+	if totalData == 0 {
+		showingFrom = 0
+		showingTo = 0
+	}
+
+	result := map[string]interface{}{
+		"data": data,
+		"meta": map[string]interface{}{
+			"total_entries": totalData,
+			"current_page":  payload.Page,
+			"per_page":      payload.Limit,
+			"showing_from":  showingFrom,
+			"showing_to":    showingTo,
+		},
+	}
+
+	return utils.SendData(result, "Berhasil membuat laporan")
 }
 
 func isHTTPURL(s string) bool {
@@ -935,4 +1010,324 @@ func (service *laporanService) GetCalculationTypeOptions(ctx context.Context, re
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi tipe kalkulasi")
+}
+
+func extractComponentFields(components []models.ReportComponent) (
+	string,
+	*request.TableConfigPayload,
+	*string,
+	*string,
+	*request.NarrativeLogicPayload,
+) {
+	var visual *models.ReportComponent
+	var narrative *models.ReportComponent
+
+	for i := range components {
+		c := &components[i]
+		if c.Type == "narrative" {
+			narrative = c
+		} else {
+			visual = c
+		}
+	}
+
+	var componentType string
+	var config *request.TableConfigPayload
+
+	if visual != nil {
+		componentType = visual.Type
+		if len(visual.TableConfig) > 0 {
+			var cfg request.TableConfigPayload
+			if err := json.Unmarshal(visual.TableConfig, &cfg); err == nil {
+				config = &cfg
+			}
+		}
+	}
+
+	var narrativePosition *string
+	var narrativeTemplate *string
+	var narrativeLogic *request.NarrativeLogicPayload
+
+	if narrative != nil {
+		pos := "bottom"
+		if visual != nil && narrative.Sequence < visual.Sequence {
+			pos = "top"
+		}
+		narrativePosition = &pos
+		narrativeTemplate = narrative.NarrativeTemplate
+
+		if len(narrative.NarrativeLogic) > 0 {
+			var logic request.NarrativeLogicPayload
+			if err := json.Unmarshal(narrative.NarrativeLogic, &logic); err == nil {
+				narrativeLogic = &logic
+			}
+		}
+	}
+
+	return componentType, config, narrativePosition, narrativeTemplate, narrativeLogic
+}
+
+func (service *laporanService) GetSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+	if laporan == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	sectionIdStr, ok := slug["section_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+	sectionID, err := utils.StringToInt64(sectionIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+
+	section, err := service.laporanRepo.GetSectionByID(sectionID)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Section tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+
+	resp := mapSectionToDetailResponse(section)
+	return utils.SendData(resp, "Berhasil mengambil detail section")
+}
+
+func mapSectionToDetailResponse(section *models.ReportSection) response.SectionDetailResponse {
+	resp := response.SectionDetailResponse{
+		ID:            section.ID,
+		Title:         section.Title,
+		HasSubSection: section.HasSubSection,
+		Sequence:      section.Sequence,
+	}
+
+	if section.HasSubSection != nil && *section.HasSubSection {
+		for _, sub := range section.SubSections {
+			ctype, cfg, pos, tmpl, logic := extractComponentFields(sub.Components)
+			resp.SubSections = append(resp.SubSections, response.SubSectionDetailResponse{
+				ID:                sub.ID,
+				Title:             sub.Title,
+				Sequence:          sub.Sequence,
+				ComponentType:     ctype,
+				ComponentConfig:   cfg,
+				NarrativePosition: pos,
+				NarrativeTemplate: tmpl,
+				NarrativeLogic:    logic,
+			})
+		}
+	} else {
+		ctype, cfg, pos, tmpl, logic := extractComponentFields(section.Components)
+		resp.ComponentType = ctype
+		resp.ComponentConfig = cfg
+		resp.NarrativePosition = pos
+		resp.NarrativeTemplate = tmpl
+		resp.NarrativeLogic = logic
+	}
+
+	return resp
+}
+
+func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// 1. Validasi ID Laporan & Section dari URL Slug
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	sectionIdStr, ok := slug["section_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+	sectionID, err := utils.StringToInt64(sectionIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+
+	// 2. Parsing & Unmarshal JSON ke DTO
+	var payloads request.UpdateSectionPayload
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	if err := json.Unmarshal(reqBytes, &payloads); err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	// 3. Validasi Struct Payload dasar
+	var validate = validator.New()
+	if err := validate.Struct(payloads); err != nil {
+		customErrorMsg := utils.FormatValidationError(err)
+		return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+	}
+
+	// 3.5 Validasi table_config sesuai style
+	if !*payloads.HasSubSection {
+		if err := validateTableConfig(payloads.ComponentConfig); err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+	} else {
+		for _, pSub := range payloads.SubSections {
+			if err := validateTableConfig(pSub.ComponentConfig); err != nil {
+				return utils.SendError(err, http.StatusBadRequest)
+			}
+		}
+	}
+
+	// 3.6 Validasi bisnis: konsistensi has_sub_section vs isi payload
+	if *payloads.HasSubSection {
+		if len(payloads.SubSections) == 0 {
+			return utils.SendError(errors.New("sub_sections wajib diisi jika has_sub_section bernilai true"), http.StatusBadRequest)
+		}
+	} else {
+		if len(payloads.SubSections) > 0 {
+			return utils.SendError(errors.New("sub_sections tidak boleh diisi jika has_sub_section bernilai false"), http.StatusBadRequest)
+		}
+	}
+
+	// 4. Pastikan Laporan Induk ada
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+	if laporan == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// 5. Pastikan Section yang mau di-update ada & benar-benar milik Laporan ini
+	existingSection, err := service.laporanRepo.GetSectionByID(sectionID)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Section tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+	if existingSection.ReportID != laporanID {
+		return utils.SendError(errors.New("Section tidak ditemukan pada laporan ini"), http.StatusNotFound)
+	}
+
+	// ========================================================================
+	// 6. VALIDASI UNIQUE TITLE — EXCLUDE section ini sendiri
+	// ========================================================================
+	if !strings.EqualFold(existingSection.Title, payloads.Title) {
+		isSectionExists, err := service.laporanRepo.CheckSectionTitleExistsExcludingID(laporanID, payloads.Title, sectionID)
+		if err != nil {
+			return utils.SendError(errors.New("Gagal memvalidasi nama section"), http.StatusInternalServerError)
+		}
+		if isSectionExists {
+			return utils.SendError(errors.New("Nama Section sudah digunakan di laporan ini. Silakan gunakan nama lain."), http.StatusConflict)
+		}
+	}
+
+	if *payloads.HasSubSection {
+		subMapInternal := make(map[string]bool)
+		for _, pSub := range payloads.SubSections {
+			subTitleLower := strings.ToLower(pSub.Title)
+			if subMapInternal[subTitleLower] {
+				return utils.SendError(fmt.Errorf("Terdapat duplikasi nama Sub-Section ('%s') di dalam form Anda", pSub.Title), http.StatusBadRequest)
+			}
+			subMapInternal[subTitleLower] = true
+
+			// Cek ke DB, exclude sub-section milik section ini sendiri
+			// (karena section ini akan di-replace total, semua sub-section lama section ini boleh "bentrok" dengan judul baru)
+			isSubExists, err := service.laporanRepo.CheckSubSectionTitleExistsExcludingSection(laporanID, pSub.Title, sectionID)
+			if err != nil {
+				return utils.SendError(errors.New("Gagal memvalidasi nama sub-section"), http.StatusInternalServerError)
+			}
+			if isSubExists {
+				return utils.SendError(fmt.Errorf("Nama Sub-Section '%s' sudah ada di laporan ini. Silakan gunakan nama lain.", pSub.Title), http.StatusConflict)
+			}
+		}
+	}
+
+	// ========================================================================
+	// 7. DATA MAPPING: Payload -> GORM Model (sama seperti create)
+	// ========================================================================
+	var newSubSections []models.ReportSubSection
+	var newFlatComponents []models.ReportComponent
+
+	if *payloads.HasSubSection {
+		for _, pSub := range payloads.SubSections {
+			subModel := models.ReportSubSection{
+				Title:    pSub.Title,
+				Sequence: pSub.Sequence,
+			}
+			subModel.Components = buildVisualAndNarrativeComponents(
+				pSub.ComponentType,
+				pSub.ComponentConfig,
+				pSub.NarrativePosition,
+				pSub.NarrativeTemplate,
+				pSub.NarrativeLogic,
+			)
+			newSubSections = append(newSubSections, subModel)
+		}
+	} else {
+		newFlatComponents = buildVisualAndNarrativeComponents(
+			payloads.ComponentType,
+			payloads.ComponentConfig,
+			payloads.NarrativePosition,
+			payloads.NarrativeTemplate,
+			payloads.NarrativeLogic,
+		)
+	}
+
+	// ========================================================================
+	// 8. EKSEKUSI DALAM TRANSAKSI: update meta + replace total sub_sections/components
+	// ========================================================================
+	errTx := service.laporanRepo.WithTransaction(ctx, func(txRepo repository.LaporanRepo) error {
+		if err := txRepo.UpdateSectionMetaTx(sectionID, payloads.Title, payloads.HasSubSection); err != nil {
+			return err
+		}
+
+		// Hapus SEMUA sub-section & component lama milik section ini (cascade rapi via FK)
+		if err := txRepo.DeleteSubSectionsBySectionIDTx(sectionID); err != nil {
+			return err
+		}
+		if err := txRepo.DeleteComponentsBySectionIDTx(sectionID); err != nil {
+			return err
+		}
+
+		// Insert ulang sesuai payload terbaru
+		if *payloads.HasSubSection {
+			if err := txRepo.CreateSubSectionsTxWrapped(sectionID, newSubSections); err != nil {
+				return err
+			}
+		} else {
+			if err := txRepo.CreateComponentsForSectionTxWrapped(sectionID, newFlatComponents); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if errTx != nil {
+		return utils.SendError(errors.New("Gagal memperbarui struktur laporan: "+errTx.Error()), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil memperbarui section laporan")
 }

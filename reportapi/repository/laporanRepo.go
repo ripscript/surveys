@@ -57,8 +57,8 @@ type LaporanRepo interface {
 	IsNameExists(ctx context.Context, name string) (bool, error)
 	CreateReport(ctx context.Context, laporan models.Report) (*models.Report, error)
 	CreateReportCover(ctx context.Context, konten models.ReportCover) (*models.ReportCover, error)
+	GetListSectionReport(laporanId int64, req request.SectionLaporanDatatablePayload) ([]models.LaporanSectionDatatable, int64, error)
 
-	// --- FUNGSI BARU UNTUK BUILDER & RENDER LAPORAN ---
 	CheckSectionTitleExists(reportID int64, title string) (bool, error)
 	CheckSubSectionTitleExists(reportID int64, title string) (bool, error)
 	GetMaxSectionSequence(reportID int64) (int, error)
@@ -66,6 +66,23 @@ type LaporanRepo interface {
 	GetFormFieldLabels(fieldIDs []int) (map[int]string, error)
 	CalculateNarrativeVariable(report *models.Report, v request.NarrativeVariablePayload) (string, error)
 	GetTableResponseData(report *models.Report, fieldIDs []int) ([]TableDataRow, error)
+
+	GetSectionByID(sectionID int64) (*models.ReportSection, error)
+
+	UpdateSectionMeta(tx *gorm.DB, sectionID int64, title string, hasSubSection *bool) error
+	DeleteSubSectionsBySectionID(tx *gorm.DB, sectionID int64) error
+	DeleteComponentsBySectionID(tx *gorm.DB, sectionID int64) error
+	CreateSubSectionsTx(tx *gorm.DB, sectionID int64, subSections []models.ReportSubSection) error
+	CreateComponentsForSectionTx(tx *gorm.DB, sectionID int64, components []models.ReportComponent) error
+
+	UpdateSectionMetaTx(sectionID int64, title string, hasSubSection *bool) error
+	DeleteSubSectionsBySectionIDTx(sectionID int64) error
+	DeleteComponentsBySectionIDTx(sectionID int64) error
+	CreateSubSectionsTxWrapped(sectionID int64, subSections []models.ReportSubSection) error
+	CreateComponentsForSectionTxWrapped(sectionID int64, components []models.ReportComponent) error
+
+	CheckSectionTitleExistsExcludingID(reportID int64, title string, excludeSectionID int64) (bool, error)
+	CheckSubSectionTitleExistsExcludingSection(reportID int64, title string, excludeSectionID int64) (bool, error)
 }
 
 type laporanRepo struct {
@@ -90,7 +107,6 @@ func (r *laporanRepo) UpdateReport(laporan models.Report) (*models.Report, error
 	return &laporan, nil
 }
 
-// GetReportByID menarik laporan lengkap dengan Preload Sections, SubSections, & Components terurut ASC
 func (r *laporanRepo) GetReportByID(laporanID int64) (*models.Report, error) {
 	defer utils.GeneralRecover()
 	var report models.Report
@@ -273,7 +289,105 @@ func (r *laporanRepo) CreateReportCover(ctx context.Context, konten models.Repor
 	return &konten, nil
 }
 
-// CheckSectionTitleExists mengecek ketersediaan Judul Section di laporan tertentu
+func (r *laporanRepo) GetListSectionReport(laporanId int64, req request.SectionLaporanDatatablePayload) ([]models.LaporanSectionDatatable, int64, error) {
+	defer utils.GeneralRecover()
+	var data []models.LaporanSectionDatatable
+	var totalData int64
+
+	db := r.dbSlave.Model(&models.ReportSection{}).Where("report_id = ?", laporanId)
+
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		searchStr := strings.TrimSpace(req.Search)
+		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
+
+		if isDate {
+			db = db.Where(`
+				report_sections.title ILIKE ? OR
+				DATE(report_sections.created_at) = ? OR
+				DATE(report_sections.updated_at) = ?
+			`, searchTerm, parsedDate, parsedDate)
+		} else if len(searchStr) == 4 {
+			db = db.Where(`
+				report_sections.title ILIKE ? OR
+				EXTRACT(YEAR FROM report_sections.created_at)::TEXT = ? OR
+				EXTRACT(YEAR FROM report_sections.updated_at)::TEXT = ?
+			`, searchTerm, searchStr, searchStr)
+		} else {
+			db = db.Where(`
+				report_sections.title ILIKE ?
+			`, searchTerm)
+		}
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Select(`
+		report_sections.id,
+		report_sections.report_id,
+		report_sections.sequence,
+		report_sections.title,
+		report_sections.updated_at,
+		report_sections.created_at,
+		CASE 
+			WHEN report_sections.has_sub_section = false THEN 1 
+			ELSE (
+				SELECT COUNT(id) 
+				FROM report_subsections 
+				WHERE report_subsections.report_section_id = report_sections.id
+			) 
+		END AS total_konten
+	`)
+
+	if req.OrderBy != "" {
+		finalOrderBy := "report_sections.id"
+		finalOrderDir := "desc"
+
+		allowedOrderCols := map[string]string{
+			"id":         "report_sections.id",
+			"name":       "report_sections.title",
+			"created_at": "report_sections.created_at",
+			"updated_at": "report_sections.updated_at",
+		}
+
+		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
+			finalOrderBy = mappedCol
+		}
+
+		if strings.ToLower(req.OrderDir) == "asc" {
+			finalOrderDir = "asc"
+		}
+
+		db = db.Order(fmt.Sprintf("%s %s", finalOrderBy, finalOrderDir))
+	} else {
+		db = db.Order("report_sections.id desc")
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	err = db.Limit(limit).Offset(offset).Scan(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
+	}
+
+	return data, totalData, nil
+}
+
 func (r *laporanRepo) CheckSectionTitleExists(reportID int64, title string) (bool, error) {
 	defer utils.GeneralRecover()
 	var count int64
@@ -284,7 +398,6 @@ func (r *laporanRepo) CheckSectionTitleExists(reportID int64, title string) (boo
 	return count > 0, err
 }
 
-// CheckSubSectionTitleExists mengecek ketersediaan Judul SubSection di laporan tertentu
 func (r *laporanRepo) CheckSubSectionTitleExists(reportID int64, title string) (bool, error) {
 	defer utils.GeneralRecover()
 	var count int64
@@ -296,7 +409,6 @@ func (r *laporanRepo) CheckSubSectionTitleExists(reportID int64, title string) (
 	return count > 0, err
 }
 
-// GetMaxSectionSequence mengambil urutan section tertinggi
 func (r *laporanRepo) GetMaxSectionSequence(reportID int64) (int, error) {
 	defer utils.GeneralRecover()
 	var maxSeq int
@@ -604,4 +716,104 @@ func (r *laporanRepo) GetTableResponseData(report *models.Report, fieldIDs []int
 	}
 
 	return results, nil
+}
+
+func (r *laporanRepo) GetSectionByID(sectionID int64) (*models.ReportSection, error) {
+	defer utils.GeneralRecover()
+	var section models.ReportSection
+
+	err := r.dbSlave.
+		Preload("SubSections", func(db *gorm.DB) *gorm.DB {
+			return db.Order("report_subsections.sequence ASC")
+		}).
+		Preload("SubSections.Components", func(db *gorm.DB) *gorm.DB {
+			return db.Order("report_components.sequence ASC")
+		}).
+		Preload("Components", func(db *gorm.DB) *gorm.DB {
+			return db.Order("report_components.sequence ASC")
+		}).
+		Where("id = ?", sectionID).
+		First(&section).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return &section, nil
+}
+
+func (r *laporanRepo) UpdateSectionMeta(tx *gorm.DB, sectionID int64, title string, hasSubSection *bool) error {
+	defer utils.GeneralRecover()
+	return tx.Model(&models.ReportSection{}).
+		Where("id = ?", sectionID).
+		Updates(map[string]interface{}{
+			"title":           title,
+			"has_sub_section": hasSubSection,
+		}).Error
+}
+
+func (r *laporanRepo) DeleteSubSectionsBySectionID(tx *gorm.DB, sectionID int64) error {
+	defer utils.GeneralRecover()
+	return tx.Where("report_section_id = ?", sectionID).Delete(&models.ReportSubSection{}).Error
+}
+
+func (r *laporanRepo) DeleteComponentsBySectionID(tx *gorm.DB, sectionID int64) error {
+	defer utils.GeneralRecover()
+	return tx.Where("report_section_id = ?", sectionID).Delete(&models.ReportComponent{}).Error
+}
+
+func (r *laporanRepo) CreateSubSectionsTx(tx *gorm.DB, sectionID int64, subSections []models.ReportSubSection) error {
+	defer utils.GeneralRecover()
+	for i := range subSections {
+		subSections[i].ReportSectionID = sectionID
+	}
+	if len(subSections) == 0 {
+		return nil
+	}
+	return tx.Create(&subSections).Error
+}
+
+func (r *laporanRepo) CreateComponentsForSectionTx(tx *gorm.DB, sectionID int64, components []models.ReportComponent) error {
+	defer utils.GeneralRecover()
+	for i := range components {
+		components[i].ReportSectionID = &sectionID
+	}
+	if len(components) == 0 {
+		return nil
+	}
+	return tx.Create(&components).Error
+}
+
+func (r *laporanRepo) UpdateSectionMetaTx(sectionID int64, title string, hasSubSection *bool) error {
+	return r.UpdateSectionMeta(r.dbMaster, sectionID, title, hasSubSection)
+}
+func (r *laporanRepo) DeleteSubSectionsBySectionIDTx(sectionID int64) error {
+	return r.DeleteSubSectionsBySectionID(r.dbMaster, sectionID)
+}
+func (r *laporanRepo) DeleteComponentsBySectionIDTx(sectionID int64) error {
+	return r.DeleteComponentsBySectionID(r.dbMaster, sectionID)
+}
+func (r *laporanRepo) CreateSubSectionsTxWrapped(sectionID int64, subSections []models.ReportSubSection) error {
+	return r.CreateSubSectionsTx(r.dbMaster, sectionID, subSections)
+}
+func (r *laporanRepo) CreateComponentsForSectionTxWrapped(sectionID int64, components []models.ReportComponent) error {
+	return r.CreateComponentsForSectionTx(r.dbMaster, sectionID, components)
+}
+
+func (r *laporanRepo) CheckSectionTitleExistsExcludingID(reportID int64, title string, excludeSectionID int64) (bool, error) {
+	defer utils.GeneralRecover()
+	var count int64
+	err := r.dbSlave.Model(&models.ReportSection{}).
+		Where("report_id = ? AND LOWER(title) = LOWER(?) AND id != ?", reportID, title, excludeSectionID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+func (r *laporanRepo) CheckSubSectionTitleExistsExcludingSection(reportID int64, title string, excludeSectionID int64) (bool, error) {
+	defer utils.GeneralRecover()
+	var count int64
+	err := r.dbSlave.Table("report_subsections").
+		Joins("JOIN report_sections ON report_sections.id = report_subsections.report_section_id").
+		Where("report_sections.report_id = ? AND LOWER(report_subsections.title) = LOWER(?) AND report_subsections.report_section_id != ?", reportID, title, excludeSectionID).
+		Count(&count).Error
+	return count > 0, err
 }
