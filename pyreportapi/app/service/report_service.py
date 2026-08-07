@@ -127,81 +127,79 @@ async def build_report_pdf(laporan_id: int) -> bytes:
 
 
 async def build_html_table_from_component(session, report_orm, comp_dict) -> dict:
-    """
-    Menyiapkan data tabel dalam bentuk dict yang terstruktur agar 
-    mudah di-looping oleh Jinja2 HTML Template.
-    """
     table_config = comp_dict.get('table_config')
     if not table_config:
         return {}
-    
+
     table_style = table_config.get('table_style', 'simple')
     show_territory = table_config.get('show_territory_col', False)
-    
+    territory_label = table_config.get('territory_col_label') or "Wilayah"
+
+    # Kumpulkan field_id + custom_label sesuai style
     field_ids = []
+    label_overrides = {}  # field_id -> custom_label
+
     if table_style == "grouped_header":
         for g in table_config.get('groups', []):
-            field_ids.extend(g.get('form_field_ids', []))
+            for col in g.get('columns', []):
+                f_id = col.get('form_field_id')
+                field_ids.append(f_id)
+                if col.get('custom_label'):
+                    label_overrides[f_id] = col['custom_label']
     else:
         for c in table_config.get('columns', []):
-            field_ids.append(c.get('form_field_id'))
+            f_id = c.get('form_field_id')
+            field_ids.append(f_id)
+            if c.get('custom_label'):
+                label_overrides[f_id] = c['custom_label']
 
     if not field_ids:
         return {}
 
-    # Tarik Data Riil dari Repo
     field_labels = await report_repo.get_form_field_labels(session, field_ids)
+    # override label default dengan custom_label jika ada
+    for f_id, custom in label_overrides.items():
+        field_labels[f_id] = custom
+
     table_rows = await report_repo.get_table_response_data(session, report_orm, field_ids)
 
-    # ==========================
-    # PREPARE HEADERS (List of List)
-    # ==========================
     headers = []
     header_row_1 = []
     header_row_2 = []
 
     if show_territory:
-        # Jika grouped_header, wilayah butuh rowspan=2. 
-        # Kita lemparkan info attr 'rowspan' ke dict.
         rowspan = 2 if table_style == 'grouped_header' else 1
-        header_row_1.append({"label": "Wilayah", "rowspan": rowspan, "colspan": 1})
+        header_row_1.append({"label": territory_label, "rowspan": rowspan, "colspan": 1})
 
     if table_style == "grouped_header":
         for g in table_config.get('groups', []):
-            colspan = len(g.get('form_field_ids', []))
+            cols = g.get('columns', [])
+            colspan = len(cols)
             header_row_1.append({"label": g.get('group_name'), "rowspan": 1, "colspan": colspan})
-            
-            # Isi baris kedua dengan label tiap form_field
-            for f_id in g.get('form_field_ids', []):
+
+            for col in cols:
+                f_id = col.get('form_field_id')
                 lbl = field_labels.get(f_id, f"#{f_id}")
                 header_row_2.append({"label": lbl, "rowspan": 1, "colspan": 1})
-                
+
         headers.append(header_row_1)
         headers.append(header_row_2)
     else:
-        # Simple Header (1 Baris)
         for f_id in field_ids:
             lbl = field_labels.get(f_id, f"#{f_id}")
             header_row_1.append({"label": lbl, "rowspan": 1, "colspan": 1})
         headers.append(header_row_1)
 
-
-    # ==========================
-    # PREPARE DATA ROWS
-    # ==========================
     rows = []
     for r in table_rows:
         row_data = []
         if show_territory:
             row_data.append({"value": r.get('territory_name', '-'), "align": "left"})
-            
         for f_id in field_ids:
             val = r.get("values", {}).get(f_id, 0)
             row_data.append({"value": val, "align": "center"})
-            
         rows.append(row_data)
 
-    # Return struktur rapi ke Jinja
     return {
         "is_valid": True,
         "headers": headers,

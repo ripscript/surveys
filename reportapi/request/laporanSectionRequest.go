@@ -5,8 +5,15 @@ package request // atau package payloads
 // ============================================================================
 type UpsertSectionPayload struct {
 	Title         string                    `json:"title" validate:"required,max=255"`
-	HasSubSection bool                      `json:"has_sub_section"`
+	HasSubSection *bool                     `json:"has_sub_section"`
 	SubSections   []UpsertSubSectionPayload `json:"sub_sections" validate:"omitempty,dive"`
+
+	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
+	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+
+	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
+	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
+	NarrativeLogic    *NarrativeLogicPayload `json:"narrative_logic" validate:"omitempty"`
 }
 
 // ============================================================================
@@ -16,11 +23,9 @@ type UpsertSubSectionPayload struct {
 	Title    string `json:"title" validate:"required"`
 	Sequence int    `json:"sequence" validate:"required,min=1"`
 
-	// --- Visual (Tabel / Grafik) ---
 	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
-	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"` // Dibuat pointer agar fleksibel jika tipe-nya 'chart'
+	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
 
-	// --- Narasi (Opsional) ---
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
 	NarrativeLogic    *NarrativeLogicPayload `json:"narrative_logic" validate:"omitempty"`
@@ -33,18 +38,26 @@ type TableConfigPayload struct {
 	TableStyle       string `json:"table_style" validate:"required,oneof=grouped_header simple"`
 	ShowTerritoryCol bool   `json:"show_territory_col"`
 
-	// Gunakan omitempty agar validasi tidak bentrok
+	// Label kustom untuk kolom "Wilayah" (opsional, fallback ke "Wilayah" jika kosong)
+	TerritoryColLabel *string `json:"territory_col_label" validate:"omitempty"`
+
 	Groups  []TableGroupPayload   `json:"groups" validate:"omitempty,dive"`  // Hanya diisi jika style = grouped_header
 	Columns []SimpleColumnPayload `json:"columns" validate:"omitempty,dive"` // Hanya diisi jika style = simple
 }
 
 type TableGroupPayload struct {
-	GroupName    string `json:"group_name" validate:"required"`
-	FormFieldIDs []int  `json:"form_field_ids" validate:"required,min=1,dive,min=1"`
+	GroupName string               `json:"group_name" validate:"required"` // Label header baris pertama (group)
+	Columns   []GroupColumnPayload `json:"columns" validate:"required,min=1,dive"`
+}
+
+type GroupColumnPayload struct {
+	FormFieldID int     `json:"form_field_id" validate:"required,min=1"`
+	CustomLabel *string `json:"custom_label" validate:"omitempty,max=255"` // fallback ke question form_field jika kosong
 }
 
 type SimpleColumnPayload struct {
-	FormFieldID int `json:"form_field_id" validate:"required,min=1"`
+	FormFieldID int     `json:"form_field_id" validate:"required,min=1"`
+	CustomLabel *string `json:"custom_label" validate:"omitempty,max=255"` // fallback ke question form_field jika kosong
 }
 
 // ============================================================================

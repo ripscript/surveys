@@ -92,6 +92,47 @@
 </head>
 <body>
 
+{# ============================================================
+   MACRO: render_component_list
+   Dipakai untuk dua konteks: komponen milik sub-section,
+   ATAU komponen yang nempel langsung ke section (flat, tanpa sub-section).
+   comp.type bisa 'table' atau 'narrative'.
+   render_table & render_narrative adalah async callable yang dilempar
+   dari build_report_pdf(); Jinja async environment otomatis await ini.
+============================================================ #}
+{% macro render_component_list(components) %}
+    {% for comp in components %}
+        {% if comp.type == 'table' %}
+            {% set table_data = render_table(comp) %}
+            {% if table_data.is_valid %}
+                <table>
+                    <thead>
+                        {% for h_row in table_data.headers %}
+                        <tr>
+                            {% for th in h_row %}
+                            <th rowspan="{{ th.rowspan }}" colspan="{{ th.colspan }}">{{ th.label }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </thead>
+                    <tbody>
+                        {% for r_row in table_data.rows %}
+                        <tr>
+                            {% for td in r_row %}
+                            <td class="text-{{ td.align }}">{{ td.value }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        {% elif comp.type == 'narrative' %}
+            {% set narrative_text = render_narrative(comp) %}
+            <p style="text-align: justify;">{{ narrative_text }}</p>
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
     {% if cover %}
     <div class="cover">
         {% if cover.img_depan %}
@@ -126,76 +167,17 @@
             <h3>{{ section.title }}</h3>
     
             <div style="padding-left: 20px;">
-                {% if not section.has_sub_section and section.components %}
-                    {% for comp in section.components %}
-                            {% if comp.type == 'table' %}
-                                {% set table_data = render_table(comp) %}
-                                {% if table_data.is_valid %}
-                                    <table>
-                                        <thead>
-                                            {% for h_row in table_data.headers %}
-                                            <tr>
-                                                {% for th in h_row %}
-                                                <th rowspan="{{ th.rowspan }}" colspan="{{ th.colspan }}">{{ th.label }}</th>
-                                                {% endfor %}
-                                            </tr>
-                                            {% endfor %}
-                                        </thead>
-                                        <tbody>
-                                            {% for r_row in table_data.rows %}
-                                            <tr>
-                                                {% for td in r_row %}
-                                                <td class="text-{{ td.align }}">{{ td.value }}</td>
-                                                {% endfor %}
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                {% endif %}
-                            {% elif comp.type == 'narrative' %}
-                                {% set narrative_text = render_narrative(comp) %}
-                                <p style="text-align: justify;">{{ narrative_text }}</p>
-                            {% endif %}
-                        {% endfor %}
-                {% endif %}
-
                 {% if section.has_sub_section and section.sub_sections %}
                     {% for sub_section in section.sub_sections %}
                         <p style="margin-bottom: 10px; margin-top: 20px;">
                             {{ section_index }}.{{ loop.index }} {{ sub_section.title }}
                         </p>
 
-                        {% for comp in sub_section.components %}
-                            {% if comp.type == 'table' %}
-                                {% set table_data = render_table(comp) %}
-                                {% if table_data.is_valid %}
-                                    <table>
-                                        <thead>
-                                            {% for h_row in table_data.headers %}
-                                            <tr>
-                                                {% for th in h_row %}
-                                                <th rowspan="{{ th.rowspan }}" colspan="{{ th.colspan }}">{{ th.label }}</th>
-                                                {% endfor %}
-                                            </tr>
-                                            {% endfor %}
-                                        </thead>
-                                        <tbody>
-                                            {% for r_row in table_data.rows %}
-                                            <tr>
-                                                {% for td in r_row %}
-                                                <td class="text-{{ td.align }}">{{ td.value }}</td>
-                                                {% endfor %}
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                {% endif %}
-                            {% elif comp.type == 'narrative' %}
-                                {% set narrative_text = render_narrative(comp) %}
-                                <p style="text-align: justify;">{{ narrative_text }}</p>
-                            {% endif %}
-                        {% endfor %}
+                        {{ render_component_list(sub_section.components) }}
                     {% endfor %}
+
+                {% elif not section.has_sub_section and section.components %}
+                    {{ render_component_list(section.components) }}
                 {% endif %}
             </div>
 

@@ -312,7 +312,6 @@ func (r *laporanRepo) GetMaxSectionSequence(reportID int64) (int, error) {
 	return maxSeq, nil
 }
 
-// CreateSectionTx menyimpan section berserta nested anak-anaknya ke DB
 func (r *laporanRepo) CreateSectionTx(section *models.ReportSection) error {
 	defer utils.GeneralRecover()
 	return r.dbMaster.Create(section).Error
