@@ -150,7 +150,9 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 
 	user.Respondent.RwCode = RwCodeStr
 
-	user.Respondent.Avatar = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-foto-profil/" + *user.Respondent.Avatar)
+	if user.Respondent != nil && user.Respondent.Avatar != nil {
+		user.Respondent.Avatar = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-foto-profil/" + *user.Respondent.Avatar)
+	}
 
 	var RtCodeStr *string
 	if user.Respondent != nil && user.Respondent.RtID != nil {
