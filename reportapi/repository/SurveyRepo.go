@@ -19,6 +19,7 @@ import (
 )
 
 type SurveyRepo interface {
+	GetFormFieldTemplateByID(formFieldID int64) (string, error)
 	LogSurveys(offset int, limit int, param url.Values) ([]models.LogSurveys, int64, error)
 	CheckRespondent(respondentId int) (models.Respondents, error)
 	InsertLogSurvey(data models.Log_Surveys) error
@@ -55,6 +56,18 @@ func NewSurveyRepo(dbSlave, dbMaster *gorm.DB) *surveyRepo {
 type surveyRepo struct {
 	dbSlave  *gorm.DB
 	dbMaster *gorm.DB
+}
+
+func (repository *surveyRepo) GetFormFieldTemplateByID(formFieldID int64) (string, error) {
+	defer utils.GeneralRecover()
+
+	var template string
+	err := repository.dbSlave.Table("form_fields").
+		Select("template").
+		Where("id = ?", formFieldID).
+		Take(&template).Error
+
+	return template, err
 }
 
 func (r *surveyRepo) LogSurveys(offset int, limit int, param url.Values) ([]models.LogSurveys, int64, error) {

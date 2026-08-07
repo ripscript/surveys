@@ -61,7 +61,7 @@ func main() {
 		grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
 		pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
 
-		log.Println("gRPC server is running...")
+		log.Println("gRPC server is running on port " + port)
 		if err := s.Serve(listener); err != nil {
 			log.Fatalf("Failed to serve: %v", err)
 		}

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,18 +43,21 @@ type usersService struct {
 	usersRepo      repository.UsersRepo
 	respondentRepo repository.RespondentRepo
 	txManager      transaction.TxManager
+	fileRepo       repository.FileRepo
 }
 
 func NewUsersService(
 	usersRepo repository.UsersRepo,
 	respondentRepo repository.RespondentRepo,
 	txManager transaction.TxManager,
+	fileRepo repository.FileRepo,
 
 ) UsersService {
 	return &usersService{
 		usersRepo,
 		respondentRepo,
 		txManager,
+		fileRepo,
 	}
 }
 
@@ -145,6 +149,8 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	}
 
 	user.Respondent.RwCode = RwCodeStr
+
+	user.Respondent.Avatar = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-foto-profil/" + *user.Respondent.Avatar)
 
 	var RtCodeStr *string
 	if user.Respondent != nil && user.Respondent.RtID != nil {
@@ -606,6 +612,25 @@ func (service *usersService) CreateUsers(req map[string]interface{}, usr models.
 func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	detachedCtx := context.WithoutCancel(ctx)
+
+	availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp"}
+	availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif"}
+	maxSizeInKB := float64(5120)
+
+	var uploadedFiles []string
+	rollbackUploadedFiles := func() {
+		if len(uploadedFiles) > 0 {
+			service.fileRepo.DeleteFotoProfilBulk(detachedCtx, uploadedFiles)
+		}
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			rollbackUploadedFiles()
+			panic(r)
+		}
+	}()
+
 	var payload payloads.UpdateProfileBundlePayload
 
 	err := utils.DynamicBind(req, &payload)
@@ -632,6 +657,47 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 
 	if user == nil {
 		return utils.SendError(errors.New("Pengguna tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if payload.Avatar != nil {
+		if !strings.HasPrefix(*payload.Avatar, "data:image") {
+			rollbackUploadedFiles()
+			return nil, errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)")
+		}
+
+		base64Data, err := utils.ExtractBase64Info(*payload.Avatar)
+		if err != nil {
+			rollbackUploadedFiles()
+			return nil, errors.New("Gagal memproses gambar")
+		}
+
+		if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+			rollbackUploadedFiles()
+			return nil, errors.New("Format file gambar tidak didukung")
+		}
+		if base64Data.SizeInKB > maxSizeInKB {
+			rollbackUploadedFiles()
+			return nil, errors.New("Ukuran gambar tidak boleh melebihi 5MB")
+		}
+
+		path, err := service.fileRepo.UploadFotoProfil(ctx, payload.Avatar)
+		if err != nil || path == nil {
+			rollbackUploadedFiles()
+			return nil, errors.New("Gagal mengunggah gambar")
+		}
+		uploadedFiles = append(uploadedFiles, *path)
+		payload.Avatar = path
+
+		// Delete old avatar if exists
+		if user.Respondent != nil && user.Respondent.Avatar != nil && *user.Respondent.Avatar != "" {
+			_, err := service.fileRepo.DeleteFotoProfilBulk(ctx, []string{*user.Respondent.Avatar})
+			if err != nil {
+				rollbackUploadedFiles()
+				return nil, errors.New("Gagal menghapus gambar lama")
+			}
+		}
+	} else {
+		payload.Avatar = user.Respondent.Avatar
 	}
 
 	if user.MustChangePassword != nil {

@@ -11,5 +11,8 @@ func Migrate(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+
+	db.Migrator().DropColumn(&models.ReportSection{}, "description")
+	db.Migrator().DropColumn(&models.ReportSubSection{}, "description")
 	return nil
 }

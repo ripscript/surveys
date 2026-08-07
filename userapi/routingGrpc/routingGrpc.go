@@ -42,6 +42,7 @@ var (
 	usersBlokirRepo  repository.UsersBlokirRepo        = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
 	loginAttemptRepo repository.LoginAttemptRepository = repository.NewloginAttemptRepository(dbSlave, dbMaster)
 	permissionRepo   repository.PermissionRepository   = repository.NewPermissionRepository(dbSlave, dbMaster)
+	fileRepo         repository.FileRepo               = repository.NewFileRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -64,6 +65,7 @@ var (
 		usersRepo,
 		respondentRepo,
 		txManager,
+		fileRepo,
 	)
 	usersBlokirService service.UsersBlokirService = service.NewUsersBlokirService(
 		usersBlokirRepo,

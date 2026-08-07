@@ -16,6 +16,7 @@ import (
 
 	pb "backend/siccore/pb"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/labstack/echo/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -229,6 +230,8 @@ func HandleFunc(c echo.Context, service string) error {
 		code = 503
 		mess = "Gagal terhubung database"
 	}
+
+	spew.Dump(res.Token)
 
 	resp := struct {
 		Data    interface{} `json:"data"`

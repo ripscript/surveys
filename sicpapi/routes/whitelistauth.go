@@ -18,6 +18,7 @@ var Whitelist = map[string]map[string]bool{
 	"/view-public-survey-image/:path":  {"GET": true},
 	"/view-cms-image/:path":            {"GET": true},
 	"/view-laporan-konten-image/:path": {"GET": true},
+	"/view-foto-profil/:path":          {"GET": true},
 
 	// MASTERAPI SERVICE
 	"/masterapi/healthy":       {"GET": true},
@@ -27,6 +28,9 @@ var Whitelist = map[string]map[string]bool{
 	"/surveyapi/healthy": {"GET": true},
 	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": true},
 	// Tambahkan URL dan metode lainnya sesuai kebutuhan Anda
+
+	// PYREPORTAPI SERVICE
+	"/py-reportapi/healthy": {"GET": true},
 }
 
 // IsInWhitelist adalah fungsi untuk memeriksa apakah sebuah permintaan ada di dalam whitelist.

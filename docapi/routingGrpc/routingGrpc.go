@@ -55,6 +55,10 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 	"/banner/upload":   {"POST": trxHandler.UploadBanner},
 	"/event/upload":    {"POST": trxHandler.UploadBanner},
 
+	"/upload-foto-profil":      {"POST": uploadHandler.UploadFotoProfile},
+	"/delete-bulk-foto-profil": {"POST": uploadHandler.DeleteBulkFotoProfil},
+	"/view-foto-profil/:path":  {"GET": uploadHandler.ShowFotoProfil},
+
 	"/upload-survey-image":            {"POST": uploadHandler.UploadSurveyImage},
 	"/view-survey-image/:id":          {"GET": uploadHandler.ShowSurveyImage},
 	"/view-public-survey-image/:path": {"POST": uploadHandler.ShowPublicSurveyImage},

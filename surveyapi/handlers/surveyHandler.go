@@ -39,6 +39,7 @@ type SurveyHandler interface {
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
@@ -46,6 +47,8 @@ type SurveyHandler interface {
 
 	GetAllRejectedQuestions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	ActionRequiredCount(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyHandler struct {
@@ -164,6 +167,10 @@ func (handler *surveyHandler) SurveyOptions(ctx context.Context, req map[string]
 	return handler.surveyService.SurveyOptions(ctx, req, usr, param, slug)
 }
 
+func (handler *surveyHandler) SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.SurveyQuestionOptions(ctx, req, usr, param, slug)
+}
+
 func (handler *surveyHandler) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.ExportExcelSurveyResultsPerRT(ctx, req, usr, param, slug)
 }
@@ -182,4 +189,8 @@ func (handler *surveyHandler) GetAllRejectedQuestions(ctx context.Context, req m
 
 func (handler *surveyHandler) GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.surveyService.GetRejectedQuestionsBySurveyCode(ctx, req, usr, param, slug)
+}
+
+func (handler *surveyHandler) ActionRequiredCount(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.surveyService.ActionRequiredCount(ctx, req, usr, param, slug)
 }

@@ -57,6 +57,7 @@ type RespondentProfile struct {
 	CreatedAt     *time.Time     `gorm:"column:created_at;autoCreateTime"                  json:"created_at"`
 	UpdatedAt     *time.Time     `gorm:"column:updated_at;autoUpdateTime"                  json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"column:deleted_at;index"                           json:"deleted_at,omitempty"`
+	Avatar        *string        `gorm:"column:avatar;type:varchar(255)" json:"avatar"`
 }
 
 func (RespondentProfile) TableName() string {

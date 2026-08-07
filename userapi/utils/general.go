@@ -623,3 +623,7 @@ func GeneralRecoverWithTrx(tx *gorm.DB) {
 		LogErrors(message)
 	}
 }
+
+func StringToPointer(s string) *string {
+	return &s
+}

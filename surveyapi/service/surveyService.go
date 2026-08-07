@@ -64,6 +64,7 @@ type SurveyService interface {
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
@@ -73,6 +74,8 @@ type SurveyService interface {
 	GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	SyncExpiredSurveysStatus(ctx context.Context)
+
+	ActionRequiredCount(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -854,21 +857,46 @@ func (service *surveyService) AvailableSurveyWilayah(ctx context.Context, req ma
 		surveyBerakhir := utils.ParseToWIB(data[i].SurveyBerakhir)
 		data[i].CodeWilayah = &kodeWilayah
 
-		if surveyDimulai.After(now) {
-			data[i].Status = string(enums.STATUS_SURVEY_UPCOMING)
+		// if surveyDimulai.After(now) {
+		// 	data[i].Status = string(enums.STATUS_SURVEY_UPCOMING)
 
+		// 	data[i].PosibleProcess = false
+		// 	data[i].PosibleDetail = false
+		// 	data[i].PosibleHistory = false
+		// } else if surveyDimulai.Before(now) && surveyBerakhir.After(now) {
+		// 	data[i].Status = string(enums.STATUS_SURVEY_ONGOING)
+
+		// 	data[i].PosibleProcess = true
+		// 	data[i].PosibleDetail = true
+		// 	data[i].PosibleHistory = true
+		// } else if surveyBerakhir.Before(now) {
+		// 	data[i].Status = string(enums.STATUS_SURVEY_FINISHED)
+
+		// 	data[i].PosibleProcess = false
+		// 	data[i].PosibleDetail = true
+		// 	data[i].PosibleHistory = true
+		// }
+
+		if data[i].Status == string(enums.STATUS_SURVEY_FINISHED) {
+			data[i].Status = string(enums.STATUS_SURVEY_FINISHED)
+			data[i].PosibleProcess = false
+			data[i].PosibleDetail = true
+			data[i].PosibleHistory = true
+		} else if surveyDimulai.After(now) {
+			// 2. Jika belum dimulai
+			data[i].Status = string(enums.STATUS_SURVEY_UPCOMING)
 			data[i].PosibleProcess = false
 			data[i].PosibleDetail = false
 			data[i].PosibleHistory = false
 		} else if surveyDimulai.Before(now) && surveyBerakhir.After(now) {
+			// 3. Jika sedang masa aktif
 			data[i].Status = string(enums.STATUS_SURVEY_ONGOING)
-
 			data[i].PosibleProcess = true
 			data[i].PosibleDetail = true
 			data[i].PosibleHistory = true
 		} else if surveyBerakhir.Before(now) {
+			// 4. Jika masa berlakunya habis
 			data[i].Status = string(enums.STATUS_SURVEY_FINISHED)
-
 			data[i].PosibleProcess = false
 			data[i].PosibleDetail = true
 			data[i].PosibleHistory = true
@@ -4197,6 +4225,93 @@ func (service *surveyService) SurveyOptions(ctx context.Context, req map[string]
 	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
 }
 
+func (service *surveyService) SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	surveyIdStr, ok := slug["survey_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Survey tidak valid"), http.StatusBadRequest)
+	}
+
+	surveyId, err := utils.StringToInt64(surveyIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Survey tidak valid"), http.StatusBadRequest)
+	}
+
+	survey, err := service.surveyRepo.GetSurveyById(surveyId)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if survey == nil {
+		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
+	}
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var alurIds []string
+	if len(param["id[]"]) > 0 {
+		alurIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		alurIds = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, alurId := range alurIds {
+		parsedIDs = append(parsedIDs, alurId)
+	}
+
+	var excludeAlurIds []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludeAlurIds = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludeAlurIds = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludeAlurIds {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	_req := payloads.SurveyQuestionOptionsPayload{
+		Q:          param.Get("q"),
+		Page:       page,
+		Limit:      limit,
+		IDs:        parsedIDs,
+		ExcludeIDs: parsedExcludeIDs,
+	}
+
+	data, totalData, err := service.surveyRepo.SurveyQuestionOptions(surveyId, _req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
+}
+
 func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -4993,4 +5108,28 @@ func (service *surveyService) SyncExpiredSurveysStatus(ctx context.Context) {
 	if err != nil {
 		log.Printf("[SyncSurvey] Error saat bulk update status: %v", err)
 	}
+}
+
+func (service *surveyService) ActionRequiredCount(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin.RoleId != nil && *respondentLogin.RoleId != int64(enums.ROLE_RT) {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	total, err := service.surveyRepo.ActionRequiredCount(usr, respondentLogin)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	result := map[string]interface{}{
+		"total_pending_action": total,
+	}
+
+	return utils.SendData(result, "Total survey yang perlu ditindak berhasil diambil")
 }

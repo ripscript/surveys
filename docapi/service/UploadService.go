@@ -25,6 +25,11 @@ import (
 type UploadService interface {
 	UploadFile(usr models.JwtCustomClaims, req map[string]interface{}, param url.Values, path string, module string) (*pb.ProxyResponse, error)
 	Show(slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadFotoProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkFotoProfil(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowFotoProfil(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
 	UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -91,6 +96,69 @@ func (service *uploadService) UploadFile(usr models.JwtCustomClaims, req map[str
 	}
 
 	return utils.SendData(res, "Berhasil")
+}
+
+func (service *uploadService) UploadFotoProfile(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_FOTO_PROFIL
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_FOTO_PROFIL, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) DeleteBulkFotoProfil(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type Paths []string
+	tmp, _ := json.Marshal(req["paths"])
+	var paths Paths
+	json.Unmarshal(tmp, &paths)
+
+	for i := range paths {
+		paths[i] = enums.PATH_WEBROOT_FILES + "/" + enums.PATH_FOTO_PROFIL + "/" + paths[i]
+	}
+
+	var success bool
+	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_FOTO_PROFIL)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	success = true
+	return utils.SendData(success, "File berhasil dihapus")
+}
+
+func (service *uploadService) ShowFotoProfil(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_FOTO_PROFIL, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
 }
 
 func (service *uploadService) UploadSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

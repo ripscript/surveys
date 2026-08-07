@@ -148,3 +148,11 @@ type SurveyOptionsPayload struct {
 	KecamatanIDs   []string `form:"kecamatan_id[]" query:"kecamatan_id[]"`
 	KelurahanIDs   []string `form:"kelurahan_id[]" query:"kelurahan_id[]"`
 }
+
+type SurveyQuestionOptionsPayload struct {
+	Q          string   `form:"q" query:"q"`         // Kata kunci pencarian
+	Page       int      `form:"page" query:"page"`   // Halaman saat ini (untuk lazy load)
+	Limit      int      `form:"limit" query:"limit"` // Jumlah data per halaman
+	IDs        []string `form:"id[]" query:"id[]"`   // Bypass untuk mengambil ID spesifik (misal saat edit data)
+	ExcludeIDs []string `json:"exclude_id[]"`
+}

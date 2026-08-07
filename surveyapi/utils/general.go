@@ -607,3 +607,14 @@ func GenerateUniqueFilename(prefix string, extension string, useTime bool) strin
 
 	return strings.Join(parts, "_") + extension
 }
+
+func StringToInt64(str string) (int64, error) {
+	if str == "" {
+		return 0, fmt.Errorf("string kosong tidak dapat dikonversi ke int64")
+	}
+	i, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("gagal mengkonversi string ke int64: %v", err)
+	}
+	return i, nil
+}

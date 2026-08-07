@@ -267,6 +267,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.SurveyOptions,
 		MenuKey: "pengelola-survey",
 	}},
+	"/survey/question-options/:survey_id": {"GET": {
+		Handler: surveyHandler.SurveyQuestionOptions,
+		MenuKey: "pengelola-survey",
+	}},
 
 	// SURVEY WILAYAH ===========================================
 	"/survey-wilayah/preview-index/:code": {"GET": {
@@ -289,6 +293,10 @@ var grpcMap = map[string]map[string]RouteConfig{
 
 	"/survey-wilayah/update-status/:survey_code": {"PUT": {
 		Handler: surveyHandler.UpdateSurveyRespondentStatus,
+		MenuKey: "survey-kewilayahan",
+	}},
+	"/survey-wilayah/action-required/count": {"GET": {
+		Handler: surveyHandler.ActionRequiredCount,
 		MenuKey: "survey-kewilayahan",
 	}},
 

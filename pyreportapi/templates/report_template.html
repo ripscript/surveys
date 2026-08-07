@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ report.name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 12mm;
+            background-color: #ffffff;
+        }
+        body {
+            font-family: 'Times New Roman', serif;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        h1, h2, h3 {
+            text-align: center;
+        }
+        h3 {
+            text-align: left;
+        }
+        /* Cover Styling */
+        .cover {
+            position: relative;
+            text-align: center;
+        }
+        .cover-img {
+            width: 100%;
+            height: auto;
+        }
+        .kata-pengantar {
+            text-align: justify;
+        }
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            page-break-inside: auto;
+        }
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        th, td {
+            border: 1px solid #aaa;
+            padding: 6px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 10pt;
+        }
+        th {
+            background-color: #0070C0;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #DEEBFA;
+        }
+
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .center-page-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .section-cover {
+            display: flex;
+            align-items: center;    /* Center vertikal */
+            justify-content: center; /* Center horizontal */
+            height: 100vh;          /* Tinggi layar/halaman penuh */
+            page-break-after: always;
+            page-break-before: always;
+        }
+
+        .section-cover h2 {
+            margin: 0;              /* Hapus default margin h2 agar benar-benar di tengah */
+            font-size: 24pt;        /* Bebas Anda atur besarnya */
+        }
+    </style>
+</head>
+<body>
+
+    {% if cover %}
+    <div class="cover">
+        {% if cover.img_depan %}
+            <img class="cover-img" src="{{ bg_depan }}" alt="Cover Depan">
+        {% endif %}
+        
+        {% if cover.text_depan %}
+            <div style="position:absolute; top: 0;">{{ cover.text_depan }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if cover and cover.kata_pengantar %}
+        <div class="page-break kata-pengantar">
+            <h2 style="margin-bottom: 15px;">KATA PENGANTAR</h2>
+            <span>{{ cover.kata_pengantar }}</span>
+            <br><br><br><br>
+            <p style="text-align: right;">Kota Bandung, 07 November 2026<br><br><br><br>Walikota Bandung</p>
+        </div>
+    {% endif %}
+
+    <div style="padding-left: 10px;">
+        {% for section in report.sections %}
+            
+            {% set section_index = loop.index %}
+            
+            <div class="section-cover">
+                <h2>{{ section.title }}</h2>
+            </div>
+    
+            <div class="page-break"></div>
+            <h3>{{ section.title }}</h3>
+    
+            <div style="padding-left: 20px;">
+                {% if not section.has_sub_section and section.components %}
+                    {% for comp in section.components %}
+                            {% if comp.type == 'table' %}
+                                {% set table_data = render_table(comp) %}
+                                {% if table_data.is_valid %}
+                                    <table>
+                                        <thead>
+                                            {% for h_row in table_data.headers %}
+                                            <tr>
+                                                {% for th in h_row %}
+                                                <th rowspan="{{ th.rowspan }}" colspan="{{ th.colspan }}">{{ th.label }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </thead>
+                                        <tbody>
+                                            {% for r_row in table_data.rows %}
+                                            <tr>
+                                                {% for td in r_row %}
+                                                <td class="text-{{ td.align }}">{{ td.value }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                {% endif %}
+                            {% elif comp.type == 'narrative' %}
+                                {% set narrative_text = render_narrative(comp) %}
+                                <p style="text-align: justify;">{{ narrative_text }}</p>
+                            {% endif %}
+                        {% endfor %}
+                {% endif %}
+
+                {% if section.has_sub_section and section.sub_sections %}
+                    {% for sub_section in section.sub_sections %}
+                        <p style="margin-bottom: 10px; margin-top: 20px;">
+                            {{ section_index }}.{{ loop.index }} {{ sub_section.title }}
+                        </p>
+
+                        {% for comp in sub_section.components %}
+                            {% if comp.type == 'table' %}
+                                {% set table_data = render_table(comp) %}
+                                {% if table_data.is_valid %}
+                                    <table>
+                                        <thead>
+                                            {% for h_row in table_data.headers %}
+                                            <tr>
+                                                {% for th in h_row %}
+                                                <th rowspan="{{ th.rowspan }}" colspan="{{ th.colspan }}">{{ th.label }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </thead>
+                                        <tbody>
+                                            {% for r_row in table_data.rows %}
+                                            <tr>
+                                                {% for td in r_row %}
+                                                <td class="text-{{ td.align }}">{{ td.value }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                {% endif %}
+                            {% elif comp.type == 'narrative' %}
+                                {% set narrative_text = render_narrative(comp) %}
+                                <p style="text-align: justify;">{{ narrative_text }}</p>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+        {% endfor %}
+    </div>
+
+    {% if cover and (cover.img_belakang or cover.text_belakang) %}
+    <div class="page-break cover">
+        {% if cover.img_belakang %}
+        <img class="cover-img" src="{{ cover.img_belakang }}" alt="Cover Belakang">
+        {% endif %}
+        
+        {% if cover.text_belakang %}
+        <p>{{ cover.text_belakang }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</body>
+</html>

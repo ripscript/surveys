@@ -92,6 +92,9 @@ type SurveyRepo interface {
 
 	ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error
 	SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
+	SurveyQuestionOptions(surveyId int64, req payloads.SurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error)
+
+	ActionRequiredCount(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent) (int64, error)
 }
 
 type surveyRepo struct {
@@ -365,11 +368,14 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		Where("surveys.approval_survey = 'approved' OR surveys.approval_survey = 'non_approval'")
 
 	if req.StatusSurvey == string(enums.STATUS_SURVEY_UPCOMING) {
-		db = db.Where("surveys.start_date > NOW()")
+		// Jika belum waktunya, dan statusnya belum dipaksa selesai
+		db = db.Where("surveys.start_date > NOW() AND surveys.status = 'ongoing'")
 	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_ONGOING) {
-		db = db.Where("surveys.start_date <= NOW() AND surveys.end_date >= NOW()")
+		// Jika sedang berjalan, dan statusnya belum dipaksa selesai
+		db = db.Where("surveys.start_date <= NOW() AND surveys.end_date >= NOW() AND surveys.status = 'ongoing'")
 	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_FINISHED) {
-		db = db.Where("surveys.end_date < NOW()")
+		// Jika statusnya SUDAH finished (ditutup manual) ATAU waktunya sudah lewat (expired)
+		db = db.Where("surveys.status = 'finished' OR surveys.end_date < NOW()")
 	}
 
 	if respondentLogin.RoleId != nil {
@@ -1837,6 +1843,75 @@ func (repository *surveyRepo) SurveyOptions(req payloads.SurveyOptionsPayload) (
 	return data, totalData, nil
 }
 
+func (repository *surveyRepo) SurveyQuestionOptions(surveyId int64, req payloads.SurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	baseQuery := func() *gorm.DB {
+		return repository.dbSlave.Table("flow_fields").
+			Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id").
+			Joins("JOIN surveys ON surveys.flow_detail_id = flow_fields.flow_detail_id").
+			Where("surveys.id = ?", surveyId).
+			Group("form_fields.id, form_fields.question, form_fields.deskripsi")
+	}
+
+	db := baseQuery().
+		Select(`
+			form_fields.id AS id,
+			COALESCE(NULLIF(form_fields.question, ''), form_fields.deskripsi) AS label
+		`)
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("form_fields.question ILIKE ? OR form_fields.deskripsi ILIKE ?", searchTerm, searchTerm)
+	}
+
+	if len(req.IDs) > 0 {
+		db = db.Where("form_fields.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("form_fields.id NOT IN ?", req.ExcludeIDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	// Hitung total grup (jumlah pertanyaan unik)
+	countQuery := baseQuery().Select("form_fields.id")
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		countQuery = countQuery.Where("form_fields.question ILIKE ? OR form_fields.deskripsi ILIKE ?", searchTerm, searchTerm)
+	}
+	var groupedIDs []int64
+	if err := countQuery.Find(&groupedIDs).Error; err != nil {
+		return nil, 0, err
+	}
+	totalData = int64(len(groupedIDs))
+
+	db = db.Order("MIN(flow_fields.sequence) asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err := db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
 func (repository *surveyRepo) applyWilayahFilter(db *gorm.DB, req payloads.SurveyOptionsPayload) *gorm.DB {
 	// Level kota (6) dianggap mencakup semua wilayah dalam kota,
 	// jadi tidak perlu filter tambahan selain global.
@@ -1875,4 +1950,70 @@ func (repository *surveyRepo) applyWilayahFilter(db *gorm.DB, req payloads.Surve
 	}
 
 	return db
+}
+
+func (repository *surveyRepo) ActionRequiredCount(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent) (int64, error) {
+	defer utils.GeneralRecover()
+	var totalPendingAction int64
+
+	var respID int64 = 0
+	if respondentLogin != nil {
+		respID = respondentLogin.ID
+	}
+
+	db := repository.dbSlave.Table("surveys").
+		Joins("LEFT JOIN users ON users.id = surveys.created_by").
+		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id").
+		Where("surveys.approval_survey = 'approved' OR surveys.approval_survey = 'non_approval'")
+
+	if respondentLogin.RoleId != nil {
+		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+
+			var kecId, kelId, rwId int64
+			if respondentLogin.KecamatanId != nil {
+				kecId = *respondentLogin.KecamatanId
+			}
+			if respondentLogin.KelurahanId != nil {
+				kelId = *respondentLogin.KelurahanId
+			}
+			if respondentLogin.RWId != nil {
+				rwId = *respondentLogin.RWId
+			}
+
+			db = db.Where(`
+			EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id 
+				AND survey_wilayahs.kecamatan_id = ?
+				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+			) 
+			OR NOT EXISTS (
+				SELECT 1 FROM survey_wilayahs 
+				WHERE survey_wilayahs.survey_id = surveys.id
+			)`, kecId, kelId, rwId)
+		}
+	}
+
+	// [UPDATE 1] Menyamakan kondisi 'ONGOING' dengan GetListSurveyWilayah (Mencegah survei ditutup manual terhitung)
+	db = db.Where("surveys.start_date <= NOW() AND surveys.end_date >= NOW() AND surveys.status = 'ongoing'")
+
+	// [UPDATE 2] Identik dengan logika kebalikan (NOT) dari survey_is_done.
+	// Ini otomatis meng-cover survei yang: Belum dibuka (NULL), Sedang Berlangsung (0), Draft (1), atau Revisi (2 + revisi_rt)
+	db = db.Where(`
+		NOT EXISTS (
+			SELECT 1 FROM survey_respondents sr
+			WHERE sr.survey_id = surveys.id
+			AND sr.respondent_id = ?
+			AND sr.status = 2
+			AND (sr.status_approval IS NULL OR sr.status_approval != 'revisi_rt')
+		)
+	`, respID)
+
+	err := db.Distinct("surveys.id").Count(&totalPendingAction).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return totalPendingAction, nil
 }

@@ -61,6 +61,7 @@ var (
 	laporanService service.LaporanService = service.NewLaporanService(
 		laporanRepo,
 		fileRepo,
+		surveyRepo,
 	)
 )
 
@@ -190,9 +191,21 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "laporan",
 		},
 	},
-	"/monitoring-dan-laporan/laporan/cetak/:laporan_id": {
+	"/monitoring-dan-laporan/laporan/:laporan_id/section/create": {
+		"POST": {
+			Handler: laporanHandler.CreateSectionReport,
+			MenuKey: "laporan",
+		},
+	},
+	// "/monitoring-dan-laporan/laporan/cetak/:laporan_id": {
+	// 	"GET": {
+	// 		Handler: laporanHandler.PrintReport,
+	// 		MenuKey: "laporan",
+	// 	},
+	// },
+	"/monitoring-dan-laporan/laporan/calculation-type-options": {
 		"GET": {
-			Handler: laporanHandler.PrintReport,
+			Handler: laporanHandler.GetCalculationTypeOptions,
 			MenuKey: "laporan",
 		},
 	},

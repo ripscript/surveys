@@ -422,6 +422,7 @@ func (r *usersRepo) UpdateProfileBundleTx(userID int, respondentID int, isPejaba
 		"tempat_lahir":  payload.TempatLahir,
 		"tanggal_lahir": payload.TanggalLahir,
 		"phone_number":  payload.PhoneNumber,
+		"avatar":        payload.Avatar,
 	}
 	if err := tx.Table("respondents").Where("id = ?", respondentID).Updates(updateRespondentData).Error; err != nil {
 		tx.Rollback()
