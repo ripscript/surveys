@@ -64,6 +64,7 @@ type LaporanRepo interface {
 	GetMaxSectionSequence(reportID int64) (int, error)
 	CreateSectionTx(section *models.ReportSection) error
 	GetFormFieldLabels(fieldIDs []int) (map[int]string, error)
+	GetFormFieldTypes(fieldIDs []int) (map[int]string, error)
 	CalculateNarrativeVariable(report *models.Report, v request.NarrativeVariablePayload) (string, error)
 	GetTableResponseData(report *models.Report, fieldIDs []int) ([]TableDataRow, error)
 
@@ -83,6 +84,10 @@ type LaporanRepo interface {
 
 	CheckSectionTitleExistsExcludingID(reportID int64, title string, excludeSectionID int64) (bool, error)
 	CheckSubSectionTitleExistsExcludingSection(reportID int64, title string, excludeSectionID int64) (bool, error)
+
+	RunInTransaction(fn func(txRepo LaporanRepo) error) error
+	DeleteReportByID(reportID int64) error
+	DeleteSectionReportBySectionID(sectionID int64) error
 }
 
 type laporanRepo struct {
@@ -429,7 +434,6 @@ func (r *laporanRepo) CreateSectionTx(section *models.ReportSection) error {
 	return r.dbMaster.Create(section).Error
 }
 
-// GetFormFieldLabels mengambil nama soal dari form_fields
 func (r *laporanRepo) GetFormFieldLabels(fieldIDs []int) (map[int]string, error) {
 	defer utils.GeneralRecover()
 	result := make(map[int]string)
@@ -453,6 +457,34 @@ func (r *laporanRepo) GetFormFieldLabels(fieldIDs []int) (map[int]string, error)
 
 	for _, f := range fields {
 		result[f.ID] = f.Question
+	}
+
+	return result, nil
+}
+
+func (r *laporanRepo) GetFormFieldTypes(fieldIDs []int) (map[int]string, error) {
+	defer utils.GeneralRecover()
+	result := make(map[int]string)
+	if len(fieldIDs) == 0 {
+		return result, nil
+	}
+
+	type FieldType struct {
+		ID       int    `gorm:"column:id"`
+		Template string `gorm:"column:template"`
+	}
+	var fields []FieldType
+	err := r.dbSlave.Table("form_fields").
+		Select("id, template").
+		Where("id IN ?", fieldIDs).
+		Scan(&fields).Error
+
+	if err != nil {
+		return result, err
+	}
+
+	for _, f := range fields {
+		result[f.ID] = f.Template
 	}
 
 	return result, nil
@@ -816,4 +848,91 @@ func (r *laporanRepo) CheckSubSectionTitleExistsExcludingSection(reportID int64,
 		Where("report_sections.report_id = ? AND LOWER(report_subsections.title) = LOWER(?) AND report_subsections.report_section_id != ?", reportID, title, excludeSectionID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (repository *laporanRepo) RunInTransaction(fn func(txRepo LaporanRepo) error) error {
+	tx := repository.dbMaster.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	txRepo := &laporanRepo{
+		dbSlave:  tx,
+		dbMaster: tx,
+	}
+
+	err := fn(txRepo)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (repository *laporanRepo) DeleteReportByID(reportID int64) error {
+	defer utils.GeneralRecover()
+	tx := repository.dbMaster.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Hapus komponen terkait
+	if err := tx.Where("report_section_id IN (?)", tx.Model(&models.ReportSection{}).Select("id").Where("report_id = ?", reportID)).Delete(&models.ReportComponent{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Hapus sub-sections terkait
+	if err := tx.Where("report_section_id IN (?)", tx.Model(&models.ReportSection{}).Select("id").Where("report_id = ?", reportID)).Delete(&models.ReportSubSection{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Hapus sections terkait
+	if err := tx.Where("report_id = ?", reportID).Delete(&models.ReportSection{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Hapus cover terkait
+	if err := tx.Where("report_id = ?", reportID).Delete(&models.ReportCover{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Where("id = ?", reportID).Delete(&models.Report{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (repository *laporanRepo) DeleteSectionReportBySectionID(sectionID int64) error {
+	defer utils.GeneralRecover()
+	tx := repository.dbMaster.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Hapus komponen terkait
+	if err := tx.Where("report_section_id = ?", sectionID).Delete(&models.ReportComponent{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Hapus sub-sections terkait
+	if err := tx.Where("report_section_id = ?", sectionID).Delete(&models.ReportSubSection{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Hapus section terkait
+	if err := tx.Where("id = ?", sectionID).Delete(&models.ReportSection{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }

@@ -41,6 +41,11 @@ type LaporanService interface {
 
 	GetSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	DeleteReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetDetailReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type laporanService struct {
@@ -319,6 +324,42 @@ func (service *laporanService) GetCoverReport(ctx context.Context, req map[strin
 	return utils.SendData(response, "Berhasil mengambil data cover laporan")
 }
 
+func (service *laporanService) GetDetailReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if laporan == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan.Cover != nil {
+		if laporan.Cover.ImgDepan != nil {
+			laporan.Cover.LinkImgDepan = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-laporan-konten-image/" + *laporan.Cover.ImgDepan)
+		}
+
+		if laporan.Cover.ImgBelakang != nil {
+			laporan.Cover.LinkImgBelakang = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-laporan-konten-image/" + *laporan.Cover.ImgBelakang)
+		}
+	}
+
+	return utils.SendData(laporan, "Berhasil mengambil data laporan")
+}
+
 func (service *laporanService) ListSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -572,7 +613,7 @@ func (service *laporanService) resolveBackgroundImage(
 	path, err := service.fileRepo.UploadLaporanKontenImage(ctx, &val)
 	if err != nil || path == nil {
 		rollbackUploadedFiles()
-		return nil, errors.New("Gagal mengunggah gambar")
+		return nil, errors.New("Gagal mengunggah gambar: " + err.Error())
 	}
 	*uploadedFiles = append(*uploadedFiles, *path)
 	return path, nil
@@ -663,6 +704,158 @@ func validateTableConfig(cfg *request.TableConfigPayload) error {
 	return nil
 }
 
+func validateChartConfig(cfg *request.ChartConfigPayload) error {
+	if cfg == nil {
+		return errors.New("chart_config wajib diisi jika component_type = chart")
+	}
+
+	switch cfg.ChartType {
+	case "pie":
+		if cfg.ChartDirection != nil {
+			return errors.New("chart_direction tidak boleh diisi untuk chart_type = pie")
+		}
+		if !cfg.IsMultipleData {
+			return errors.New("is_multiple_data wajib bernilai true untuk chart_type = pie")
+		}
+		if len(cfg.FormFieldIDs) < 1 {
+			return errors.New("form_field_ids wajib diisi untuk chart_type = pie")
+		}
+		// Aturan jumlah field yang detail (min 2 untuk number, tepat 1 untuk
+		// multiple-choices) dicek belakangan di validateFieldTypesForComponent,
+		// karena butuh tahu tipe field dulu dari database.
+	case "bar", "line":
+		if cfg.ChartDirection == nil {
+			return errors.New("chart_direction wajib diisi untuk chart_type = bar/line")
+		}
+		if cfg.IsMultipleData {
+			if len(cfg.FormFieldIDs) < 2 {
+				return errors.New("form_field_ids minimal 2 jika is_multiple_data bernilai true")
+			}
+		} else {
+			if len(cfg.FormFieldIDs) != 1 {
+				return errors.New("form_field_ids harus tepat 1 jika is_multiple_data bernilai false")
+			}
+		}
+	}
+	return nil
+}
+
+func extractFieldIDsFromConfig(componentType string, tableCfg *request.TableConfigPayload, chartCfg *request.ChartConfigPayload) []int {
+	var ids []int
+
+	switch componentType {
+	case "table":
+		if tableCfg == nil {
+			return ids
+		}
+		switch tableCfg.TableStyle {
+		case "grouped_header":
+			for _, g := range tableCfg.Groups {
+				for _, col := range g.Columns {
+					ids = append(ids, col.FormFieldID)
+				}
+			}
+		case "simple":
+			for _, col := range tableCfg.Columns {
+				ids = append(ids, col.FormFieldID)
+			}
+		}
+	case "chart":
+		if chartCfg == nil {
+			return ids
+		}
+		ids = append(ids, chartCfg.FormFieldIDs...)
+	}
+
+	return ids
+}
+
+func allowedFieldTypesForComponent(componentType string, chartCfg *request.ChartConfigPayload) map[string]bool {
+	switch componentType {
+	case "table":
+		return map[string]bool{"number": true}
+	case "chart":
+		if chartCfg != nil && chartCfg.ChartType == "pie" {
+			return map[string]bool{"number": true, "multiple-choices": true}
+		}
+		return map[string]bool{"number": true}
+	default:
+		return map[string]bool{}
+	}
+}
+
+func (service *laporanService) validateFieldTypesForComponent(componentType string, tableCfg *request.TableConfigPayload, chartCfg *request.ChartConfigPayload) error {
+	fieldIDs := extractFieldIDsFromConfig(componentType, tableCfg, chartCfg)
+	if len(fieldIDs) == 0 {
+		return nil
+	}
+
+	fieldTypes, err := service.laporanRepo.GetFormFieldTypes(fieldIDs)
+	if err != nil {
+		return err
+	}
+
+	allowed := allowedFieldTypesForComponent(componentType, chartCfg)
+
+	for _, id := range fieldIDs {
+		fieldType, exists := fieldTypes[id]
+		if !exists {
+			return fmt.Errorf("form_field_id %d tidak ditemukan", id)
+		}
+		if !allowed[fieldType] {
+			if componentType == "table" {
+				return fmt.Errorf("form_field_id %d bertipe '%s' tidak bisa dipakai di table, hanya tipe 'number' yang diizinkan", id, fieldType)
+			}
+			return fmt.Errorf("form_field_id %d bertipe '%s' tidak bisa dipakai di chart_type '%s'", id, fieldType, chartCfg.ChartType)
+		}
+	}
+
+	// Aturan khusus pie: tidak boleh campur number + multiple-choices,
+	// dan jumlah field harus sesuai mode-nya.
+	if componentType == "chart" && chartCfg != nil && chartCfg.ChartType == "pie" {
+		hasMultipleChoice := false
+		hasNumber := false
+		for _, id := range fieldIDs {
+			switch fieldTypes[id] {
+			case "multiple-choices":
+				hasMultipleChoice = true
+			case "number":
+				hasNumber = true
+			}
+		}
+
+		if hasMultipleChoice && hasNumber {
+			return errors.New("chart pie tidak boleh mencampur form_field bertipe 'number' dan 'multiple-choices' dalam satu chart")
+		}
+		if hasMultipleChoice {
+			if len(fieldIDs) != 1 {
+				return errors.New("chart pie dengan tipe multiple-choices hanya boleh menggunakan 1 form_field_id (slice diambil otomatis dari opsi jawaban field tersebut)")
+			}
+		} else {
+			if len(fieldIDs) < 2 {
+				return errors.New("chart pie dengan tipe number minimal harus 2 form_field_ids")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (service *laporanService) validateComponentConfig(componentType string, tableCfg *request.TableConfigPayload, chartCfg *request.ChartConfigPayload) error {
+	switch componentType {
+	case "table":
+		if err := validateTableConfig(tableCfg); err != nil {
+			return err
+		}
+	case "chart":
+		if err := validateChartConfig(chartCfg); err != nil {
+			return err
+		}
+	}
+
+	return service.validateFieldTypesForComponent(componentType, tableCfg, chartCfg)
+}
+
 func (service *laporanService) CreateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -694,12 +887,12 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 	}
 
 	if !*payloads.HasSubSection {
-		if err := validateTableConfig(payloads.ComponentConfig); err != nil {
+		if err := service.validateComponentConfig(payloads.ComponentType, payloads.ComponentConfig, payloads.ChartConfig); err != nil {
 			return utils.SendError(err, http.StatusBadRequest)
 		}
 	} else {
 		for _, pSub := range payloads.SubSections {
-			if err := validateTableConfig(pSub.ComponentConfig); err != nil {
+			if err := service.validateComponentConfig(pSub.ComponentType, pSub.ComponentConfig, pSub.ChartConfig); err != nil {
 				return utils.SendError(err, http.StatusBadRequest)
 			}
 		}
@@ -792,6 +985,7 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 			subModel.Components = buildVisualAndNarrativeComponents(
 				pSub.ComponentType,
 				pSub.ComponentConfig,
+				pSub.ChartConfig,
 				pSub.NarrativePosition,
 				pSub.NarrativeTemplate,
 				pSub.NarrativeLogic,
@@ -806,6 +1000,7 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 		sectionModel.Components = buildVisualAndNarrativeComponents(
 			payloads.ComponentType,
 			payloads.ComponentConfig,
+			payloads.ChartConfig,
 			payloads.NarrativePosition,
 			payloads.NarrativeTemplate,
 			payloads.NarrativeLogic,
@@ -833,6 +1028,7 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 func buildVisualAndNarrativeComponents(
 	componentType string,
 	componentConfig *request.TableConfigPayload,
+	chartConfig *request.ChartConfigPayload,
 	narrativePosition *string,
 	narrativeTemplate *string,
 	narrativeLogic *request.NarrativeLogicPayload,
@@ -841,10 +1037,24 @@ func buildVisualAndNarrativeComponents(
 	visualComp := models.ReportComponent{
 		Type: componentType,
 	}
-	if componentConfig != nil {
-		visualComp.TableStyle = &componentConfig.TableStyle
-		configBytes, _ := json.Marshal(componentConfig)
-		visualComp.TableConfig = datatypes.JSON(configBytes)
+
+	switch componentType {
+	case "table":
+		if componentConfig != nil {
+			visualComp.TableStyle = &componentConfig.TableStyle
+			configBytes, _ := json.Marshal(componentConfig)
+			visualComp.TableConfig = datatypes.JSON(configBytes)
+		}
+	case "chart":
+		if chartConfig != nil {
+			chartType := chartConfig.ChartType
+			visualComp.ChartType = &chartType
+			visualComp.ChartDirection = chartConfig.ChartDirection
+			visualComp.IsMultipleData = chartConfig.IsMultipleData
+
+			fieldIDsBytes, _ := json.Marshal(chartConfig.FormFieldIDs)
+			visualComp.FormFieldIDs = datatypes.JSON(fieldIDsBytes)
+		}
 	}
 
 	var narrativeComp *models.ReportComponent
@@ -1015,6 +1225,7 @@ func (service *laporanService) GetCalculationTypeOptions(ctx context.Context, re
 func extractComponentFields(components []models.ReportComponent) (
 	string,
 	*request.TableConfigPayload,
+	*request.ChartConfigPayload,
 	*string,
 	*string,
 	*request.NarrativeLogicPayload,
@@ -1032,15 +1243,35 @@ func extractComponentFields(components []models.ReportComponent) (
 	}
 
 	var componentType string
-	var config *request.TableConfigPayload
+	var tableConfig *request.TableConfigPayload
+	var chartConfig *request.ChartConfigPayload
 
 	if visual != nil {
 		componentType = visual.Type
-		if len(visual.TableConfig) > 0 {
-			var cfg request.TableConfigPayload
-			if err := json.Unmarshal(visual.TableConfig, &cfg); err == nil {
-				config = &cfg
+
+		switch visual.Type {
+		case "table":
+			if len(visual.TableConfig) > 0 {
+				var cfg request.TableConfigPayload
+				if err := json.Unmarshal(visual.TableConfig, &cfg); err == nil {
+					tableConfig = &cfg
+				}
 			}
+		case "chart":
+			cfg := request.ChartConfigPayload{
+				IsMultipleData: visual.IsMultipleData,
+				ChartDirection: visual.ChartDirection,
+			}
+			if visual.ChartType != nil {
+				cfg.ChartType = *visual.ChartType
+			}
+			if len(visual.FormFieldIDs) > 0 {
+				var ids []int
+				if err := json.Unmarshal(visual.FormFieldIDs, &ids); err == nil {
+					cfg.FormFieldIDs = ids
+				}
+			}
+			chartConfig = &cfg
 		}
 	}
 
@@ -1064,7 +1295,7 @@ func extractComponentFields(components []models.ReportComponent) (
 		}
 	}
 
-	return componentType, config, narrativePosition, narrativeTemplate, narrativeLogic
+	return componentType, tableConfig, chartConfig, narrativePosition, narrativeTemplate, narrativeLogic
 }
 
 func (service *laporanService) GetSectionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
@@ -1120,22 +1351,24 @@ func mapSectionToDetailResponse(section *models.ReportSection) response.SectionD
 
 	if section.HasSubSection != nil && *section.HasSubSection {
 		for _, sub := range section.SubSections {
-			ctype, cfg, pos, tmpl, logic := extractComponentFields(sub.Components)
+			ctype, tcfg, ccfg, pos, tmpl, logic := extractComponentFields(sub.Components)
 			resp.SubSections = append(resp.SubSections, response.SubSectionDetailResponse{
 				ID:                sub.ID,
 				Title:             sub.Title,
 				Sequence:          sub.Sequence,
 				ComponentType:     ctype,
-				ComponentConfig:   cfg,
+				ComponentConfig:   tcfg,
+				ChartConfig:       ccfg,
 				NarrativePosition: pos,
 				NarrativeTemplate: tmpl,
 				NarrativeLogic:    logic,
 			})
 		}
 	} else {
-		ctype, cfg, pos, tmpl, logic := extractComponentFields(section.Components)
+		ctype, tcfg, ccfg, pos, tmpl, logic := extractComponentFields(section.Components)
 		resp.ComponentType = ctype
-		resp.ComponentConfig = cfg
+		resp.ComponentConfig = tcfg
+		resp.ChartConfig = ccfg
 		resp.NarrativePosition = pos
 		resp.NarrativeTemplate = tmpl
 		resp.NarrativeLogic = logic
@@ -1185,12 +1418,12 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 
 	// 3.5 Validasi table_config sesuai style
 	if !*payloads.HasSubSection {
-		if err := validateTableConfig(payloads.ComponentConfig); err != nil {
+		if err := service.validateComponentConfig(payloads.ComponentType, payloads.ComponentConfig, payloads.ChartConfig); err != nil {
 			return utils.SendError(err, http.StatusBadRequest)
 		}
 	} else {
 		for _, pSub := range payloads.SubSections {
-			if err := validateTableConfig(pSub.ComponentConfig); err != nil {
+			if err := service.validateComponentConfig(pSub.ComponentType, pSub.ComponentConfig, pSub.ChartConfig); err != nil {
 				return utils.SendError(err, http.StatusBadRequest)
 			}
 		}
@@ -1279,6 +1512,7 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 			subModel.Components = buildVisualAndNarrativeComponents(
 				pSub.ComponentType,
 				pSub.ComponentConfig,
+				pSub.ChartConfig,
 				pSub.NarrativePosition,
 				pSub.NarrativeTemplate,
 				pSub.NarrativeLogic,
@@ -1289,6 +1523,7 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 		newFlatComponents = buildVisualAndNarrativeComponents(
 			payloads.ComponentType,
 			payloads.ComponentConfig,
+			payloads.ChartConfig,
 			payloads.NarrativePosition,
 			payloads.NarrativeTemplate,
 			payloads.NarrativeLogic,
@@ -1330,4 +1565,104 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 	}
 
 	return utils.SendData(nil, "Berhasil memperbarui section laporan")
+}
+
+func (service *laporanService) DeleteReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	detachedCtx := context.WithoutCancel(ctx)
+
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	report, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if report == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	var kontenImage []string
+
+	if report.Cover != nil {
+		if report.Cover.ImgDepan != nil {
+			kontenImage = append(kontenImage, *report.Cover.ImgDepan)
+		}
+		if report.Cover.ImgBelakang != nil {
+			kontenImage = append(kontenImage, *report.Cover.ImgBelakang)
+		}
+	}
+
+	_, err = service.fileRepo.DeleteLaporanKontenImageBulk(detachedCtx, kontenImage)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan saat menghapus section laporan: "+err.Error()), http.StatusInternalServerError)
+	}
+
+	err = service.laporanRepo.DeleteReportByID(laporanID)
+
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan saat menghapus laporan: "+err.Error()), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus laporan")
+}
+
+func (service *laporanService) DeleteSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	laporanIdStr, ok := slug["laporan_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+	laporanID, err := utils.StringToInt64(laporanIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Laporan tidak valid"), http.StatusBadRequest)
+	}
+
+	report, err := service.laporanRepo.GetReportByID(laporanID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if report == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	sectionIdStr, ok := slug["section_id"].(string)
+	if !ok {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+	sectionID, err := utils.StringToInt64(sectionIdStr)
+	if err != nil {
+		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
+	}
+
+	section, err := service.laporanRepo.GetSectionByID(sectionID)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	if section == nil {
+		return utils.SendError(errors.New("Section tidak ditemukan"), http.StatusNotFound)
+	}
+
+	err = service.laporanRepo.DeleteSectionReportBySectionID(sectionID)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan saat menghapus section laporan: "+err.Error()), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(nil, "Berhasil menghapus section laporan")
 }

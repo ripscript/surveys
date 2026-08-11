@@ -10,6 +10,7 @@ type UpsertSectionPayload struct {
 
 	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
 	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -25,6 +26,7 @@ type UpsertSubSectionPayload struct {
 
 	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
 	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -74,6 +76,16 @@ type NarrativeVariablePayload struct {
 	// Perhatikan: "group_by" sudah dihapus dari struct validasi ini!
 }
 
+// ============================================================================
+// LEVEL 3: CONFIG GRAFIK (Kolom flat di report_components, BUKAN JSONB)
+// ============================================================================
+type ChartConfigPayload struct {
+	ChartType      string  `json:"chart_type" validate:"required,oneof=bar line pie"`
+	ChartDirection *string `json:"chart_direction" validate:"omitempty,oneof=vertical horizontal"`
+	IsMultipleData bool    `json:"is_multiple_data"`
+	FormFieldIDs   []int   `json:"form_field_ids" validate:"required,min=1,dive,min=1"`
+}
+
 // KEBUTUHAN UPDATE SECTION
 type UpdateSectionPayload struct {
 	Title         string                    `json:"title" validate:"required,max=255"`
@@ -82,6 +94,7 @@ type UpdateSectionPayload struct {
 
 	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
 	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -97,6 +110,7 @@ type UpdateSubSectionPayload struct {
 
 	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
 	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
+	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`

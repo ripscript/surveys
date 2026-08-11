@@ -304,6 +304,7 @@ func SetupRoutes(e *echo.Echo) {
 	laporanGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.PUT("/update-cover/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.GET("/get-cover/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.GET("/detail/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.GET("/cetak/:laporan_id", func(c echo.Context) error { return HandleFunc(c, pyReportApiService) })
 
 	laporanGroup.GET("/:laporan_id/section/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
@@ -311,6 +312,8 @@ func SetupRoutes(e *echo.Echo) {
 	laporanGroup.PUT("/:laporan_id/section/update/:section_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.POST("/:laporan_id/section/create", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	laporanGroup.GET("/calculation-type-options", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.DELETE("/delete/:laporan_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	laporanGroup.DELETE("/:laporan_id/section/delete/:section_id", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::LAPORAN ==========================
 	// END::MONITORING & LAPORAN ==========================
 

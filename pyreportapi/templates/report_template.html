@@ -36,6 +36,8 @@
         }
         .kata-pengantar {
             text-align: justify;
+            margin-left: 50px;
+            margin-right: 50px;
         }
         /* Table Styling */
         table {
@@ -88,6 +90,16 @@
             margin: 0;              /* Hapus default margin h2 agar benar-benar di tengah */
             font-size: 24pt;        /* Bebas Anda atur besarnya */
         }
+
+        .chart-wrapper {
+            text-align: center;
+            margin: 15px 0 20px;
+            page-break-inside: avoid;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -126,9 +138,16 @@
                     </tbody>
                 </table>
             {% endif %}
+        {% elif comp.type == 'chart' %}
+            {% set chart_data = render_chart(comp) %}
+            {% if chart_data.is_valid %}
+                <div class="chart-wrapper">
+                    <img class="chart-img" src="{{ chart_data.image_data_uri }}" alt="Grafik">
+                </div>
+            {% endif %}
         {% elif comp.type == 'narrative' %}
             {% set narrative_text = render_narrative(comp) %}
-            <p style="text-align: justify;">{{ narrative_text }}</p>
+            <p style="text-align: justify; font-size: 14px;">{{ narrative_text }}</p>
         {% endif %}
     {% endfor %}
 {% endmacro %}
@@ -147,8 +166,8 @@
 
     {% if cover and cover.kata_pengantar %}
         <div class="page-break kata-pengantar">
-            <h2 style="margin-bottom: 15px;">KATA PENGANTAR</h2>
-            <span>{{ cover.kata_pengantar }}</span>
+            <h3 style="margin-bottom: 15px; text-align: center;">KATA PENGANTAR</h3>
+            <span style="font-size: 14px!important;">{{ cover.kata_pengantar }}</span>
             <br><br><br><br>
             <p style="text-align: right;">Kota Bandung, 07 November 2026<br><br><br><br>Walikota Bandung</p>
         </div>
@@ -163,13 +182,12 @@
                 <h2>{{ section.title }}</h2>
             </div>
     
-            <div class="page-break"></div>
-            <h3>{{ section.title }}</h3>
-    
             <div style="padding-left: 20px;">
                 {% if section.has_sub_section and section.sub_sections %}
                     {% for sub_section in section.sub_sections %}
-                        <p style="margin-bottom: 10px; margin-top: 20px;">
+                        <div class="page-break"></div>
+                        <h3>{{ section.title }}</h3>
+                        <p style="margin-bottom: 10px; margin-top: 20px; font-size: 14px;">
                             {{ section_index }}.{{ loop.index }} {{ sub_section.title }}
                         </p>
 
@@ -185,13 +203,13 @@
     </div>
 
     {% if cover and (cover.img_belakang or cover.text_belakang) %}
-    <div class="page-break cover">
+    <div class="cover">
         {% if cover.img_belakang %}
-        <img class="cover-img" src="{{ cover.img_belakang }}" alt="Cover Belakang">
+            <img class="cover-img" src="{{ bg_belakang }}" alt="Cover Belakang">
         {% endif %}
         
         {% if cover.text_belakang %}
-        <p>{{ cover.text_belakang }}</p>
+            <div style="position:absolute; top: 0;">{{ cover.text_belakang }}</div>
         {% endif %}
     </div>
     {% endif %}

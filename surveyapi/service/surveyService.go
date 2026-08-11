@@ -4283,12 +4283,15 @@ func (service *surveyService) SurveyQuestionOptions(ctx context.Context, req map
 		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
 	}
 
+	typeQuestion := param.Get("type_question")
+
 	_req := payloads.SurveyQuestionOptionsPayload{
-		Q:          param.Get("q"),
-		Page:       page,
-		Limit:      limit,
-		IDs:        parsedIDs,
-		ExcludeIDs: parsedExcludeIDs,
+		Q:            param.Get("q"),
+		Page:         page,
+		Limit:        limit,
+		IDs:          parsedIDs,
+		ExcludeIDs:   parsedExcludeIDs,
+		TypeQuestion: typeQuestion,
 	}
 
 	data, totalData, err := service.surveyRepo.SurveyQuestionOptions(surveyId, _req)

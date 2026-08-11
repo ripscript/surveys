@@ -1,8 +1,13 @@
+import io
 import base64
 import os
 import jinja2
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
+
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend, wajib untuk server tanpa display
+import matplotlib.pyplot as plt
 
 from app.repository import file_repo
 
@@ -18,6 +23,10 @@ def serialize_component(comp) -> dict:
         "id": comp.id,
         "type": comp.type,
         "table_config": comp.table_config if hasattr(comp, 'table_config') else None,
+        "chart_type": comp.chart_type if hasattr(comp, 'chart_type') else None,
+        "chart_direction": comp.chart_direction if hasattr(comp, 'chart_direction') else None,
+        "is_multiple_data": comp.is_multiple_data if hasattr(comp, 'is_multiple_data') else False,
+        "form_field_ids": comp.form_field_ids if hasattr(comp, 'form_field_ids') else None,
         "narrative_text": comp.narrative_template if hasattr(comp, 'narrative_template') else "",
         "narrative_logic": comp.narrative_logic if hasattr(comp, 'narrative_logic') else None,
     }
@@ -88,6 +97,7 @@ async def build_report_pdf(laporan_id: int) -> bytes:
         cover_data = report_data.cover # Akses cover dari relasi langsung
 
         bg_depan_data_uri = None
+        bg_belakang_data_uri = None
         if cover_data and cover_data.img_depan:
             try:
                 img_bytes, mime_type = await file_repo.get_laporan_konten_image_bytes(
@@ -100,12 +110,27 @@ async def build_report_pdf(laporan_id: int) -> bytes:
             except Exception as e:
                 print(f"Gagal load cover depan: {e}")
 
+        if cover_data and cover_data.img_belakang:
+            try:
+                img_bytes, mime_type = await file_repo.get_laporan_konten_image_bytes(
+                    context=None, 
+                    path=cover_data.img_belakang
+                )
+                if img_bytes:
+                    base64_str = base64.b64encode(img_bytes).decode('utf-8')
+                    bg_belakang_data_uri = f"data:{mime_type};base64,{base64_str}"
+            except Exception as e:
+                print(f"Gagal load cover belakang: {e}")
+
         # Helper untuk build HTML Component Table (Sama dengan sebelumnya)
         async def render_table_helper(component_dict):
             return await build_html_table_from_component(session, report_data, component_dict)
 
         async def render_narrative_helper(component_dict):
             return await build_narrative_text(session, report_data, component_dict)
+
+        async def render_chart_helper(component_dict):
+            return await build_chart_image_from_component(session, report_data, component_dict)
 
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir), enable_async=True)
         template = env.get_template('report_template.html')
@@ -115,8 +140,10 @@ async def build_report_pdf(laporan_id: int) -> bytes:
             report=report_dict,      
             cover=cover_data,
             bg_depan=bg_depan_data_uri,
+            bg_belakang=bg_belakang_data_uri,
             render_table=render_table_helper,
             render_narrative=render_narrative_helper,
+            render_chart=render_chart_helper,
         )
 
     # Convert to PDF
@@ -205,3 +232,202 @@ async def build_html_table_from_component(session, report_orm, comp_dict) -> dic
         "headers": headers,
         "rows": rows
     }
+
+CHART_COLOR_PALETTE = [
+    "#0070C0", "#ED7D31", "#A5A5A5", "#FFC000", "#5B9BD5",
+    "#70AD47", "#264478", "#9E480E", "#636363", "#997300",
+]
+
+
+def _fig_to_data_uri(fig) -> str:
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode("utf-8")
+    return f"data:image/png;base64,{b64}"
+
+
+def _normalize_field_ids(raw) -> list[int]:
+    import json as _json
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except Exception:
+            return []
+    return [int(f) for f in raw]
+
+def _make_pie_autopct(sizes):
+    """
+    autopct default matplotlib cuma dikasih persentase, bukan angka asli.
+    Fungsi ini bikin closure yang balikin persentase + jumlah asli sekaligus,
+    dihitung balik dari persentase karena itu satu-satunya yang dikirim matplotlib.
+    """
+    total = sum(sizes)
+
+    def autopct_format(pct):
+        val = int(round(pct * total / 100.0))
+        return f"{pct:.1f}%\n({val})"
+
+    return autopct_format
+
+async def build_chart_image_from_component(session, report_orm, comp_dict) -> dict:
+    chart_type = comp_dict.get("chart_type")
+    field_ids = _normalize_field_ids(comp_dict.get("form_field_ids"))
+    chart_direction = comp_dict.get("chart_direction") or "vertical"
+
+    if not chart_type or not field_ids:
+        return {"is_valid": False}
+
+    plt.rcParams["font.family"] = "serif"
+
+    # =========================================================
+    # MODE PIE - MULTIPLE CHOICE (1 field, slice = opsi jawaban)
+    # =========================================================
+    if chart_type == "pie" and len(field_ids) == 1:
+        field_types = await report_repo.get_form_field_types(session, field_ids)
+        if field_types.get(field_ids[0]) == "multiple-choices":
+            option_data = await report_repo.get_multiple_choice_totals(session, report_orm, field_ids[0])
+
+            if not option_data:
+                return {"is_valid": False}
+
+            sizes = [o["count"] for o in option_data]
+            labels = [o["option"] for o in option_data]
+
+            fig, ax = plt.subplots(figsize=(6, 6))
+            ax.pie(
+                sizes,
+                labels=labels,
+                autopct=_make_pie_autopct(sizes),
+                colors=CHART_COLOR_PALETTE[: len(sizes)],
+                startangle=90,
+            )
+            ax.axis("equal")
+            return {"is_valid": True, "image_data_uri": _fig_to_data_uri(fig)}
+
+    # =========================================================
+    # MODE NUMBER (existing) - bar, line, dan pie multi-field
+    # =========================================================
+    field_labels = await report_repo.get_form_field_labels(session, field_ids)
+    table_rows = await report_repo.get_table_response_data(session, report_orm, field_ids)
+
+    if not table_rows:
+        return {"is_valid": False}
+
+    if chart_type == "pie":
+        sizes = [sum(r["values"].get(f_id, 0) for r in table_rows) for f_id in field_ids]
+        labels = [field_labels.get(f_id, f"#{f_id}") for f_id in field_ids]
+
+        if sum(sizes) <= 0:
+            return {"is_valid": False}
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.pie(
+            sizes,
+            labels=labels,
+            autopct=_make_pie_autopct(sizes),
+            colors=CHART_COLOR_PALETTE[: len(sizes)],
+            startangle=90,
+        )
+        ax.axis("equal")
+
+    else:
+        # bar / line -> sumbu kategori = wilayah, tiap form_field_id jadi 1 series
+        territories = [r["territory_name"] for r in table_rows]
+        fig, ax = plt.subplots(figsize=(max(7.5, len(territories) * 1.0), 5.5))
+
+        n_series = len(field_ids)
+        all_values = []
+
+        for idx, f_id in enumerate(field_ids):
+            values = [r["values"].get(f_id, 0) for r in table_rows]
+            all_values.extend(values)
+            label = field_labels.get(f_id, f"#{f_id}")
+            color = CHART_COLOR_PALETTE[idx % len(CHART_COLOR_PALETTE)]
+
+            if chart_type == "bar":
+                width = 0.8 / n_series
+                positions = [i + (idx - (n_series - 1) / 2) * width for i in range(len(territories))]
+
+                if chart_direction == "horizontal":
+                    bars = ax.barh(positions, values, height=width, label=label, color=color)
+                    for bar, val in zip(bars, values):
+                        ax.annotate(
+                            str(val),
+                            xy=(bar.get_width(), bar.get_y() + bar.get_height() / 2),
+                            xytext=(4, 0),
+                            textcoords="offset points",
+                            fontsize=8,
+                            color="black",
+                            va="center",
+                        )
+                else:
+                    bars = ax.bar(positions, values, width=width, label=label, color=color)
+                    for bar, val in zip(bars, values):
+                        ax.annotate(
+                            str(val),
+                            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4),
+                            textcoords="offset points",
+                            fontsize=8,
+                            color="black",
+                            ha="center",
+                        )
+
+            elif chart_type == "line":
+                if chart_direction == "horizontal":
+                    ax.plot(values, range(len(territories)), marker="o", label=label, color=color)
+                    for y_pos, val in zip(range(len(territories)), values):
+                        ax.annotate(
+                            str(val),
+                            xy=(val, y_pos),
+                            xytext=(6, 0),
+                            textcoords="offset points",
+                            fontsize=8,
+                            color="black",
+                            va="center",
+                        )
+                else:
+                    ax.plot(range(len(territories)), values, marker="o", label=label, color=color)
+                    for x_pos, val in zip(range(len(territories)), values):
+                        ax.annotate(
+                            str(val),
+                            xy=(x_pos, val),
+                            xytext=(0, 8),
+                            textcoords="offset points",
+                            fontsize=8,
+                            color="black",
+                            ha="center",
+                        )
+
+        # Beri ruang ekstra di ujung sumbu nilai supaya label angka & legend
+        # tidak pernah kepotong atau menimpa bar/garis paling tinggi.
+        max_val = max(all_values) if all_values else 0
+        headroom = max(max_val * 0.12, 1)
+
+        tick_positions = list(range(len(territories)))
+        if chart_direction == "horizontal":
+            ax.set_xlim(0, max_val + headroom)
+            ax.set_yticks(tick_positions)
+            ax.set_yticklabels(territories, fontsize=9)
+            ax.invert_yaxis()
+            ax.grid(axis="x", linestyle="--", alpha=0.4)
+        else:
+            ax.set_ylim(0, max_val + headroom)
+            ax.set_xticks(tick_positions)
+            ax.set_xticklabels(territories, rotation=30, ha="right", fontsize=9)
+            ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+        if chart_type == "line" or n_series > 1:
+            ax.legend(
+                fontsize=8,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 1.02),
+                ncol=min(n_series, 2),
+                frameon=False,
+            )
+
+    return {"is_valid": True, "image_data_uri": _fig_to_data_uri(fig)}

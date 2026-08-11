@@ -191,6 +191,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "laporan",
 		},
 	},
+	"/monitoring-dan-laporan/laporan/detail/:laporan_id": {
+		"GET": {
+			Handler: laporanHandler.GetDetailReport,
+			MenuKey: "laporan",
+		},
+	},
 	"/monitoring-dan-laporan/laporan/:laporan_id/section/create": {
 		"POST": {
 			Handler: laporanHandler.CreateSectionReport,
@@ -219,6 +225,19 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/monitoring-dan-laporan/laporan/calculation-type-options": {
 		"GET": {
 			Handler: laporanHandler.GetCalculationTypeOptions,
+			MenuKey: "laporan",
+		},
+	},
+
+	"/monitoring-dan-laporan/laporan/delete/:laporan_id": {
+		"DELETE": {
+			Handler: laporanHandler.DeleteReport,
+			MenuKey: "laporan",
+		},
+	},
+	"/monitoring-dan-laporan/laporan/:laporan_id/section/delete/:section_id": {
+		"DELETE": {
+			Handler: laporanHandler.DeleteSectionReport,
 			MenuKey: "laporan",
 		},
 	},

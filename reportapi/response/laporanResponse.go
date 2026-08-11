@@ -34,6 +34,7 @@ type SectionDetailResponse struct {
 	// Dipakai HANYA jika HasSubSection == false
 	ComponentType   string                      `json:"component_type,omitempty"`
 	ComponentConfig *request.TableConfigPayload `json:"component_config,omitempty"`
+	ChartConfig     *request.ChartConfigPayload `json:"chart_config,omitempty"`
 
 	NarrativePosition *string                        `json:"narrative_position,omitempty"`
 	NarrativeTemplate *string                        `json:"narrative_template,omitempty"`
@@ -47,6 +48,7 @@ type SubSectionDetailResponse struct {
 
 	ComponentType   string                      `json:"component_type"`
 	ComponentConfig *request.TableConfigPayload `json:"component_config,omitempty"`
+	ChartConfig     *request.ChartConfigPayload `json:"chart_config,omitempty"`
 
 	NarrativePosition *string                        `json:"narrative_position,omitempty"`
 	NarrativeTemplate *string                        `json:"narrative_template,omitempty"`

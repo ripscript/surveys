@@ -1879,6 +1879,10 @@ func (repository *surveyRepo) SurveyQuestionOptions(surveyId int64, req payloads
 		return data, int64(len(data)), err
 	}
 
+	if req.TypeQuestion != "" {
+		db = db.Where("form_fields.template = ?", req.TypeQuestion)
+	}
+
 	// Hitung total grup (jumlah pertanyaan unik)
 	countQuery := baseQuery().Select("form_fields.id")
 	if req.Q != "" {

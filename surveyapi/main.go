@@ -2,6 +2,8 @@ package main
 
 import (
 	pb "backend/siccore/pb"
+	"backend/surveyapi/configs"
+	"backend/surveyapi/databases/migrations"
 	"backend/surveyapi/routingGrpc"
 	"backend/surveyapi/utils"
 	"context"
@@ -45,27 +47,36 @@ func main() {
 	}
 	defer errorFile.Close()
 
+	migrateFlag := flag.Bool("migrate", false, "Jalankan migrasi database")
 	flag.Parse()
+	if *migrateFlag {
+		fmt.Println("Masuk Create Database")
+		db := configs.SetupDatabaseMasterConnection()
+		if err := migrations.Migrate(db); err != nil {
+			log.Fatal("Gagal melakukan migrasi:", err)
+		}
+		log.Println("Migrasi berhasil")
+	} else {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8081"
+		}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
+		listener, err := net.Listen("tcp", ":"+port)
+		if err != nil {
+			log.Fatalf("Failed to listen: %v", err)
+		}
 
-	listener, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
+		s := grpc.NewServer()
 
-	s := grpc.NewServer()
+		// LIST GRPC HANDLER
+		grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
+		pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
 
-	// LIST GRPC HANDLER
-	grpc_health_v1.RegisterHealthServer(s, &HealthServer{})
-	pb.RegisterProxyServer(s, &routingGrpc.GRPCServer{})
-
-	log.Println("gRPC server is running on port " + port)
-	if err := s.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		log.Println("gRPC server is running on port " + port)
+		if err := s.Serve(listener); err != nil {
+			log.Fatalf("Failed to serve: %v", err)
+		}
 	}
 }
 
