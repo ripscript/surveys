@@ -44,4 +44,12 @@
 !/docapi/logs/.gitkeep
 /docapi/Dockerfile.dev
 
+/wsapi/.env
+/wsapi/tmp/
+/wsapi/webroot/files/*
+!/wsapi/webroot/files/.gitkeep
+/wsapi/logs/*
+!/wsapi/logs/.gitkeep
+/wsapi/Dockerfile.dev
+
 tmp/*
