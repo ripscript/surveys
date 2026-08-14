@@ -12,7 +12,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -48,7 +47,6 @@ func (repository *wilayahRepo) GetKecamatanById(ctx context.Context, id int64) (
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kecamatan/detail/:kecamatan_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return nil, errors.New("Gagal mendapatkan data kecamatan dari MasterAPI")
 	}
 
@@ -71,7 +69,6 @@ func (repository *wilayahRepo) GetKelurahanById(ctx context.Context, id int64) (
 
 	var data models.Kelurahan
 	if err := json.Unmarshal(dataBytes, &data); err != nil {
-		spew.Dump(err)
 		return nil, errors.New("Gagal memparsing data kelurahan dari MasterAPI")
 	}
 	return &data, nil
@@ -84,7 +81,6 @@ func (repository *wilayahRepo) GetRWById(ctx context.Context, id int64) (*models
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rw/detail/:rw_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return nil, errors.New("Gagal mendapatkan data RW dari MasterAPI")
 	}
 
@@ -102,7 +98,6 @@ func (repository *wilayahRepo) GetRTById(ctx context.Context, id int64) (*models
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rt/detail/:rt_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return nil, errors.New("Gagal mendapatkan data RT dari MasterAPI")
 	}
 
@@ -129,7 +124,6 @@ func (repository *wilayahRepo) GetDaftarRT(ctx context.Context, rw_id int64, pay
 
 	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/rt/list/:rw_id", params, newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.RTDatatableResponse{}, errors.New("Gagal mendapatkan daftar RT dari MasterAPI")
 	}
 
@@ -157,7 +151,6 @@ func (repository *wilayahRepo) GetDaftarRW(ctx context.Context, kelurahan_id int
 
 	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/rw/list/:kelurahan_id", params, newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.RWDatatableResponse{}, errors.New("Gagal mendapatkan daftar RW dari MasterAPI")
 	}
 
@@ -185,7 +178,6 @@ func (repository *wilayahRepo) GetDaftarKelurahan(ctx context.Context, kecamatan
 
 	dataBytes, err := utils.HitBackendGRPC(ctx, host, "GET", "/manajemen-wilayah/kelurahan/list/:kecamatan_id", params, newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.KelurahanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kelurahan dari MasterAPI")
 	}
 

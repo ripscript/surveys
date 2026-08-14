@@ -31,6 +31,8 @@ var Whitelist = map[string]map[string]bool{
 
 	// PYREPORTAPI SERVICE
 	"/py-reportapi/healthy": {"GET": true},
+	// WEBSOCKET SERVICE
+	"/wsapi/healthy": {"GET": true},
 }
 
 // IsInWhitelist adalah fungsi untuk memeriksa apakah sebuah permintaan ada di dalam whitelist.

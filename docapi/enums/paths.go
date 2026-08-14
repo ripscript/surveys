@@ -6,4 +6,5 @@ const (
 	PATH_CMS_IMAGE               = "cms-image"
 	PATH_LAPORAN_KONTEN_IMAGE    = "laporan-konten-image"
 	PATH_FOTO_PROFIL             = "foto-profil"
+	PATH_TEMP_LAPORAN            = "temp-laporan"
 )

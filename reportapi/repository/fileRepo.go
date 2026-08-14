@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -75,7 +74,6 @@ func (repository *fileRepo) GetLaporanKontenImageBytes(ctx context.Context, path
 	// HitBackend
 	dataBytes, err := utils.HitBackendNotSecure(ctx, host, "GET", "/internal/get-laporan-konten-image-bytes/:path", map[string]interface{}{"path": path}, nil)
 	if err != nil {
-		spew.Dump(err)
 		return nil, "", errors.New("Gagal mengambil gambar dari DOCAPI: " + err.Error())
 	}
 

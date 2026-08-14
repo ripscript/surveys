@@ -3,15 +3,20 @@ import json
 import logging
 from urllib.parse import parse_qs
 
+from app.shutdown import shutdown_event
+import signal
+
 import grpc
 
 from core import sic_pb2, sic_pb2_grpc
-from app.config import PORT
+from app.config import PORT, GRPC_STOP_GRACE_SECONDS
 from app.response import send_data, send_error, send_file
 from app.jwt_auth import validate_token
 from app.router import get_handler
+from app.worker.report_worker import run_worker_loop
 
-logging.basicConfig(level=logging.INFO)
+from app.logging_config import setup_logging
+setup_logging()
 logger = logging.getLogger("py-reportapi")
 
 
@@ -69,8 +74,14 @@ class ProxyServicer(sic_pb2_grpc.ProxyServicer):
             logger.exception("Terjadi kesalahan saat memproses request")
             return send_error(f"Terjadi kendala pada service yang sedang anda akses: {e}", 500)
 
+def handle_shutdown(*args):
+    logger.info("Menerima sinyal shutdown...")
+    shutdown_event.set()
 
-async def serve():
+signal.signal(signal.SIGTERM, handle_shutdown)
+signal.signal(signal.SIGINT, handle_shutdown)
+
+async def serve_grpc():
     server = grpc.aio.server(
         options=[
             ("grpc.max_send_message_length", 100 * 1024 * 1024),
@@ -81,8 +92,24 @@ async def serve():
     server.add_insecure_port(f"[::]:{PORT}")
     await server.start()
     logger.info(f"gRPC async server (py-reportapi) is running on port {PORT}")
-    await server.wait_for_termination()
+
+    await shutdown_event.wait()
+
+    logger.info(f"Menghentikan gRPC server (grace={GRPC_STOP_GRACE_SECONDS}s)...")
+    await server.stop(grace=GRPC_STOP_GRACE_SECONDS)
+    logger.info("gRPC server berhenti")
+
+
+async def main():
+    """
+    Jalankan gRPC server dan report worker secara bersamaan
+    di satu event loop yang sama (1 proses).
+    """
+    await asyncio.gather(
+        serve_grpc(),
+        run_worker_loop(),
+    )
 
 
 if __name__ == "__main__":
-    asyncio.run(serve())
+    asyncio.run(main())

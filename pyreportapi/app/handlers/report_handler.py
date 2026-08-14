@@ -19,9 +19,11 @@ async def get_report_detail(req: dict, claims: dict, param: dict, slug: dict):
 
     return result, "Berhasil mengambil detail report", 200
 
+from app.service import report_service
+
+
 async def cetak_laporan(req: dict, claims: dict, param: dict, slug: dict):
     laporan_id = slug.get("laporan_id")
-
     if not laporan_id:
         return None, "Parameter laporan_id wajib diisi", 400
 
@@ -30,12 +32,18 @@ async def cetak_laporan(req: dict, claims: dict, param: dict, slug: dict):
     except ValueError:
         return None, "Parameter laporan_id tidak valid", 400
 
-    pdf_bytes = await report_service.build_report_pdf(laporan_id)
+    user_id = claims.get("id")
+    if not user_id:
+        return None, "User tidak teridentifikasi", 401
 
-    # tandai sebagai file response, bukan JSON biasa
-    return {
-        "__is_file__": True,
-        "bytes": pdf_bytes,
-        "content_type": "application/pdf",
-        "filename": "Laporan.pdf",
-    }, "OK", 200
+    result = await report_service.enqueue_cetak_laporan(user_id, laporan_id)
+
+    return result, "Laporan sedang diproses, kamu akan diberi notifikasi saat selesai", 202
+
+async def test_ws(req: dict, claims: dict, param: dict, slug: dict):
+    result = await report_service.test_ws(req, claims, param, slug)
+
+    if not result:
+        return None, "Report tidak ditemukan", 404
+
+    return result, "Berhasil mengambil detail report", 200

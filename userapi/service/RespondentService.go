@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -182,8 +181,6 @@ func (service *respondentService) CreateRespondent(req map[string]interface{}, u
 			tx.Rollback()
 			return utils.SendError(err, http.StatusInternalServerError)
 		}
-
-		spew.Dump(checkNikRespondent, checkNikUsers)
 
 		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
 			tx.Rollback()

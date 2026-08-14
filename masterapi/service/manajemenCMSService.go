@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
@@ -235,6 +234,10 @@ func (service *manajemenCMSService) DeleteSection(ctx context.Context, req map[s
 
 	if getSectionById.IsSystem {
 		return utils.SendError(errors.New("Section ini tidak dapat dihapus"), http.StatusBadRequest)
+	}
+
+	if getSectionById.Type == models.SectionTypePicture {
+
 	}
 
 	err = service.manajemenCMSRepo.DeleteSection(getSectionById)
@@ -571,7 +574,6 @@ func (service *manajemenCMSService) updateItemsSection(ctx context.Context, req 
 	}
 
 	if len(oldPathsToDelete) > 0 {
-		spew.Dump(oldPathsToDelete)
 		service.fileRepo.DeleteCMSImageBulk(detachedCtx, oldPathsToDelete)
 	}
 

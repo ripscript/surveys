@@ -561,3 +561,5 @@ func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSM
 
 	return removedImagePaths, err
 }
+
+// func (repository *manajemen)

@@ -3,8 +3,11 @@ package service
 import (
 	"backend/docapi/enums"
 	"backend/docapi/models"
+	"backend/docapi/request"
 	"backend/docapi/utils"
 	"backend/siccore/pb"
+	"backend/surveyapi/customValidator"
+	"backend/surveyapi/payloads"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/go-playground/validator/v10"
 	"github.com/minio/minio-go"
 )
 
@@ -43,6 +46,9 @@ type UploadService interface {
 	DeleteBulkLaporanKontenImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DownloadAndDeleteTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -189,7 +195,6 @@ func (service *uploadService) ShowSurveyImage(ctx context.Context, req map[strin
 	defer utils.GeneralRecover()
 
 	filename, ok := slug["id"].(string)
-	spew.Dump(filename)
 	if !ok || filename == "" {
 		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
 	}
@@ -206,9 +211,7 @@ func (service *uploadService) ShowSurveyImage(ctx context.Context, req map[strin
 func (service *uploadService) ShowPublicSurveyImage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	spew.Dump(slug)
 	filename, ok := slug["path"].(string)
-	spew.Dump(filename)
 	if !ok || filename == "" {
 		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
 	}
@@ -727,4 +730,72 @@ func (service *uploadService) GetLaporanKontenImageBytes(ctx context.Context, re
 	// supaya gateway tidak treat ini sebagai HTTP file response — ini murni
 	// internal service-to-service call.
 	return utils.SetResponseData(fileBytes, true, mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *uploadService) UploadTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_TEMP_LAPORAN
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_TEMP_LAPORAN, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) DownloadAndDeleteTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload request.DownloadTempLaporanRequest
+
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	err = json.Unmarshal(jsonBytes, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+	validate.RegisterStructValidation(customValidator.ManajemenAlurPayloadValidator, payloads.ManajemenAlurPayload{})
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	path := fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_TEMP_LAPORAN, payload.Path)
+
+	fileBytes, mimeType, err := service.getFileBytesFromMinio(path)
+	if err != nil {
+		if err.Error() == "NOT FOUND" {
+			return utils.SendError(errors.New("Dokumen tidak ditemukan"), http.StatusNotFound)
+		}
+		return utils.SendError(err, 500)
+	}
+
+	// Bytes sudah aman didapat, baru hapus dari Minio
+	if delErr := utils.DeleteBulkServiceMinio([]string{path}, enums.MODULE_TEMP_LAPORAN); delErr != nil {
+		utils.LogErrors(fmt.Sprintf("Gagal hapus temp laporan %s: %v", path, delErr))
+		// tetap lanjut kirim file ke user meski delete gagal (cleanup best-effort)
+	}
+
+	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }

@@ -80,6 +80,7 @@ func SetupRoutes(e *echo.Echo) {
 	masterapiService := "MASTERAPI"
 	surveyapiService := "SURVEYAPI"
 	pyReportApiService := "PYREPORTAPI"
+	wsApiService := "WSAPI"
 
 	// Healthy Route API
 
@@ -93,6 +94,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/reportapi/healthy", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// PYREPORTAPI
 	e.GET("/py-reportapi/healthy", func(c echo.Context) error { return HandleFunc(c, pyReportApiService) })
+	e.GET("/wsapi/healthy", func(c echo.Context) error { return HandleFunc(c, wsApiService) })
 
 	// Core Route API
 	// USERAPI AUTH
@@ -331,5 +333,12 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenCMSGroup.PATCH("/update-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenCMSGroup.PATCH("/reorder-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::MANAJEMEN CMS ==========================
+
 	// END::PENGATURAN APLIKASI ==========================
+
+	// BEGIN::SISTEM ANTRIAN CETAK LAPORAN =============================
+	wsGroup := e.Group("/wsapi")
+	wsGroup.GET("/get-ticket", func(c echo.Context) error { return HandleFunc(c, wsApiService) })
+	e.POST("/download-temp-laporan", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	// END::SISTEM ANTRIAN CETAK LAPORAN =============================
 }

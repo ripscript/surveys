@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -793,7 +792,6 @@ func (r *respondentRepo) IsJabatanActive(respondentID int) (bool, error) {
 }
 
 func (r *respondentRepo) Block(respondentID int) error {
-	spew.Dump("================")
 	return r.dbMaster.Model(&models.Respondent{}).
 		Where("id = ?", respondentID).
 		Update("is_blocked", "true").Error

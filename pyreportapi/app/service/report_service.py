@@ -12,7 +12,11 @@ import matplotlib.pyplot as plt
 from app.repository import file_repo
 
 from app.database import SlaveSession
-from app.repository import report_repo
+from app.repository import report_repo, report_queue_repo
+from app.database import MasterSession
+
+from app.utils.grpc_client import hit_backend_grpc
+from app import config
 
 # Inisiasi Jinja2
 template_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'templates')
@@ -431,3 +435,39 @@ async def build_chart_image_from_component(session, report_orm, comp_dict) -> di
             )
 
     return {"is_valid": True, "image_data_uri": _fig_to_data_uri(fig)}
+
+async def test_ws(req: dict, claims: dict, param: dict, slug: dict):
+
+    payload = {
+        "user_id": 1,  # samakan dengan "id" di token JWT yang kamu pakai konek WS
+        "type": "report_completed",
+        "data": {
+            "message": "Tes notifikasi dari pythonreport",
+            "laporan_id": 123,
+            "file_url": "https://example.com/laporan-123.pdf",
+        },
+    }
+
+    bytesData, status_code, message = await hit_backend_grpc(
+        context=None,
+        target_host=config.WSAPI_URL,
+        method="POST",
+        path="/push-notification",
+        slug_data=None,
+        is_secure=False,
+        req_body=payload
+    )
+
+    if status_code != 200:
+        raise Exception(f"Gagal mengirim notifikasi: {message}")
+
+    return bytesData, message, 200
+
+async def enqueue_cetak_laporan(user_id: int, laporan_id: int) -> dict:
+    async with MasterSession() as session:
+        job_id = await report_queue_repo.enqueue(session, user_id, laporan_id)
+
+    return {
+        "job_id": job_id,
+        "status": "processing",
+    }

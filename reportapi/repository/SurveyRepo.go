@@ -14,7 +14,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -164,7 +163,6 @@ func (repository *surveyRepo) GetDaftarKelurahan(ctx context.Context, kecamatan_
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/kelurahan/list/:kecamatan_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.KelurahanDatatableResponse{}, errors.New("Gagal mendapatkan daftar Kelurahan dari MasterAPI")
 	}
 
@@ -259,7 +257,6 @@ func (repository *surveyRepo) GetDaftarRW(ctx context.Context, kelurahan_id int6
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rw/list/:kelurahan_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.RWDatatableResponse{}, errors.New("Gagal mendapatkan daftar RW dari MasterAPI")
 	}
 
@@ -352,7 +349,6 @@ func (repository *surveyRepo) GetDaftarRT(ctx context.Context, rw_id int64, payl
 
 	dataBytes, err := utils.HitBackend(ctx, host, "GET", "/manajemen-wilayah/rt/list/:rw_id", newSlug, nil)
 	if err != nil {
-		spew.Dump(err)
 		return response.RTDatatableResponse{}, errors.New("Gagal mendapatkan daftar RT dari MasterAPI")
 	}
 

@@ -63,20 +63,3 @@ func (repository *fileRepo) DeleteFotoProfilBulk(ctx context.Context, paths []st
 
 	return data, nil
 }
-
-// func (repository *fileRepo) GetLaporanKontenImageBytes(ctx context.Context, path string) ([]byte, string, error) {
-// 	defer utils.GeneralRecover()
-
-// 	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
-
-// 	// HitBackend
-// 	dataBytes, err := utils.HitBackendNotSecure(ctx, host, "GET", "/internal/get-laporan-konten-image-bytes/:path", map[string]interface{}{"path": path}, nil)
-// 	if err != nil {
-// 		spew.Dump(err)
-// 		return nil, "", errors.New("Gagal mengambil gambar dari DOCAPI: " + err.Error())
-// 	}
-
-// 	mimeType := http.DetectContentType(dataBytes)
-
-// 	return dataBytes, mimeType, nil
-// }

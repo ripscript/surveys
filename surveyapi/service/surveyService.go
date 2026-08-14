@@ -26,7 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	"github.com/xuri/excelize/v2"
@@ -2290,7 +2289,6 @@ func (service *surveyService) GetHistoryDetailPerWilayah(ctx context.Context, re
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			fmt.Println("==1===============================")
-			spew.Dump(err)
 			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
 		}
 	}
@@ -2299,7 +2297,6 @@ func (service *surveyService) GetHistoryDetailPerWilayah(ctx context.Context, re
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			fmt.Println("==2===============================")
-			spew.Dump(err)
 			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
 		}
 	}
@@ -2308,7 +2305,6 @@ func (service *surveyService) GetHistoryDetailPerWilayah(ctx context.Context, re
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			fmt.Println("==3===============================")
-			spew.Dump(err)
 			return utils.SendError(errors.New("Gagal mengambil riwayat penyelesaian survey"), http.StatusInternalServerError)
 		}
 	}
@@ -4130,7 +4126,6 @@ func (service *surveyService) GetPublicImageSurvey(ctx context.Context, req map[
 
 	fileBytes, err := service.fileRepo.GetPublicImageSurvey(ctx, &filePathStr)
 	if err != nil {
-		spew.Dump(err)
 		return utils.SendError(errors.New("Gagal mengambil gambar survey"), http.StatusInternalServerError)
 	}
 
