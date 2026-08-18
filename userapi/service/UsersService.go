@@ -666,38 +666,28 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 		}
 
 		if *payload.Avatar != oldAvatar {
-			// --- TAMBAHAN BARU: Cek apakah yang dikirim frontend adalah URL ---
 			parsedURL, errParse := url.ParseRequestURI(*payload.Avatar)
 			isURL := errParse == nil && parsedURL.Scheme != "" && parsedURL.Host != ""
 
 			if isURL {
-				// Jika itu URL (misal http://localhost:8080/.../foto.png),
-				// artinya tidak ada file Base64 baru yang diunggah.
-				// Timpa payload.Avatar dengan oldAvatar agar database tetap aman (tidak menyimpan full URL).
 				payload.Avatar = &oldAvatar
 			} else {
-				// --- JIKA BUKAN URL, PROSES SEBAGAI FILE BASE64 BARU ---
-
-				// 1. Tolak jika bukan Data URI (misal: raw base64 string telanjang atau URL aneh)
 				if !strings.HasPrefix(*payload.Avatar, "data:") {
 					rollbackUploadedFiles()
 					return utils.SendError(errors.New("Format gambar baru tidak valid. Pastikan menggunakan format Data URI Base64"), http.StatusBadRequest)
 				}
 
-				// 2. Tolak jika bukan file gambar (Mencegah PDF/Virus di-bypass)
 				if !strings.HasPrefix(*payload.Avatar, "data:image") {
 					rollbackUploadedFiles()
 					return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP)"), http.StatusBadRequest)
 				}
 
-				// 3. Ekstrak Base64 dan tangani jika korup/gagal dibuka
 				base64Data, err := utils.ExtractBase64Info(*payload.Avatar)
 				if err != nil || base64Data == nil {
 					rollbackUploadedFiles()
 					return utils.SendError(errors.New("Gagal memproses gambar: Data Base64 tidak valid atau korup"), http.StatusBadRequest)
 				}
 
-				// 4. Validasi Ekstensi, Mime, dan Ukuran
 				if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
 					rollbackUploadedFiles()
 					return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
@@ -716,20 +706,17 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 				uploadedFiles = append(uploadedFiles, *path)
 				payload.Avatar = path
 
-				// Hapus foto lama menggunakan detachedCtx agar tidak terpengaruh cancellation
 				if oldAvatar != "" {
 					_, _ = service.fileRepo.DeleteFotoProfilBulk(detachedCtx, []string{oldAvatar})
 				}
 			}
 		}
 	} else {
-		// Jika Payload = nil (Frontend tidak mengirimkan perubahan), pertahankan yang lama (Cegah Panic)
 		if user.Respondent != nil {
 			payload.Avatar = user.Respondent.Avatar
 		}
 	}
 
-	// Sisa Logika Update Password & Profil
 	if user.MustChangePassword != nil {
 		if *user.MustChangePassword == false {
 			if payload.NewPassword != "" && payload.CurrentPassword == "" {
