@@ -1,12 +1,15 @@
 package service
 
 import (
+	"backend/masterapi/assets"
 	"backend/masterapi/models"
 	"backend/masterapi/payloads"
 	"backend/masterapi/repository"
 	"backend/masterapi/utils"
 	"backend/siccore/pb"
 	"context"
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -30,6 +33,8 @@ type ManajemenCMSService interface {
 	GetSectionBySlug(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateSectionContent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateOrderSection(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetLandingPage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GeoJsonKotaBandungLevelKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenCMSService struct {
@@ -741,4 +746,98 @@ func (service *manajemenCMSService) UpdateOrderSection(ctx context.Context, req 
 	}
 
 	return utils.SendData(nil, "Urutan section berhasil diperbarui")
+}
+
+func (service *manajemenCMSService) GetLandingPage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// 1. Ambil data mentah dari repository
+	sections, err := service.manajemenCMSRepo.GetLandingPageSections()
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan saat mengambil data landing page"), http.StatusInternalServerError)
+	}
+
+	apiGatewayURL := os.Getenv("API_GATEWAY_URL")
+	baseImageURL := apiGatewayURL + "/view-cms-image/"
+
+	// 2. Buat array baru untuk menampung data yang sudah diformat secara dinamis
+	var responseData []map[string]interface{}
+
+	for i := range sections {
+		// Buat base object untuk setiap section (hanya ambil field yang relevan untuk Frontend)
+		secData := map[string]interface{}{
+			"id":            sections[i].ID,
+			"slug":          sections[i].Slug,
+			"name":          sections[i].Name,
+			"description":   sections[i].Description,
+			"type":          sections[i].Type,
+			"section_order": sections[i].SectionOrder,
+		}
+
+		// Sisipkan data relasi sesuai dengan Tipenya (Grouped)
+		switch sections[i].Type {
+
+		case models.SectionTypeContent, models.SectionTypeText:
+			// Ubah array of database rows menjadi satu Object Key-Value mentah
+			contentMap := make(map[string]interface{})
+
+			for _, c := range sections[i].Contents {
+				// Jika tipe datanya gambar, gabungkan dengan base URL
+				if c.ValueImage != nil && *c.ValueImage != "" {
+					contentMap[c.Key] = baseImageURL + *c.ValueImage
+				} else if c.ValueText != nil {
+					contentMap[c.Key] = *c.ValueText
+				} else {
+					contentMap[c.Key] = ""
+				}
+			}
+			secData["content"] = contentMap
+
+		case models.SectionTypeItems:
+			// Perbaiki path gambar pada array Items
+			for j := range sections[i].Items {
+				if sections[i].Items[j].Image != nil && *sections[i].Items[j].Image != "" {
+					fullPath := baseImageURL + *sections[i].Items[j].Image
+					sections[i].Items[j].Image = &fullPath
+				}
+				if sections[i].Items[j].Icon != nil && *sections[i].Items[j].Icon != "" {
+					fullPath := baseImageURL + *sections[i].Items[j].Icon
+					sections[i].Items[j].Icon = &fullPath
+				}
+			}
+			secData["items"] = sections[i].Items
+
+		case models.SectionTypePicture:
+			// Perbaiki path gambar pada array Media
+			for k := range sections[i].Media {
+				if sections[i].Media[k].ImageURL != "" {
+					fullPath := baseImageURL + sections[i].Media[k].ImageURL
+					sections[i].Media[k].ImageURL = fullPath
+				}
+			}
+			secData["media"] = sections[i].Media
+
+		case models.SectionTypeMap, models.SectionTypeTable:
+			// Tipe statis: Jangan mengirimkan key items, media, atau content
+			// Frontend cukup mengecek tipe atau slug-nya saja
+		}
+
+		responseData = append(responseData, secData)
+	}
+
+	return utils.SendData(responseData, "Berhasil mendapatkan data landing page")
+}
+
+func (service *manajemenCMSService) GeoJsonKotaBandungLevelKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var geoData map[string]interface{}
+
+	// Panggil data byte-nya dari package assets yang tadi kita buat
+	err := json.Unmarshal(assets.GeoJsonKotaBandungLevelKecamatan, &geoData)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memproses data peta wilayah"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(geoData, "Berhasil mendapatkan GeoJSON Kota Bandung Level Kecamatan")
 }

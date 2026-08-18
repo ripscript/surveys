@@ -791,6 +791,7 @@ func (service *respondentService) UpdatePasswordRespondent(ctx context.Context, 
 	hashedPassword = string(hashedBytes)
 
 	oldUser.Password = &hashedPassword
+	oldUser.MustChangePassword = utils.BoolToPointer(true)
 
 	_, err = service.usersRepo.UpdateUser(oldUser)
 	if err != nil {

@@ -219,8 +219,9 @@ func (r *usersRepo) ResetPasswordUsers(id int) error {
 	}
 
 	updates := map[string]interface{}{
-		"password":   hashedPassword,
-		"updated_at": time.Now(),
+		"password":             hashedPassword,
+		"updated_at":           time.Now(),
+		"must_change_password": true,
 	}
 
 	err = r.dbMaster.Model(&models.Users{}).

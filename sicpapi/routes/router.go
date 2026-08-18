@@ -256,7 +256,10 @@ func SetupRoutes(e *echo.Echo) {
 	surveyGroup.GET("/history-approval/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/show-image/:survey_code/:code_wilayah/:path", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/public-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyGroup.GET("/question-options/:survey_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.GET("/public-question-options", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	surveyGroup.POST("/heat-point-wilayah-kota-bandung", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 
 	surveyWilayahGroup := e.Group("/survey-wilayah")
 	surveyWilayahGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
@@ -321,6 +324,7 @@ func SetupRoutes(e *echo.Echo) {
 
 	// BEGIN::PENGATURAN APLIKASI ==========================
 	pengaturanAplikasi := e.Group("/pengaturan-aplikasi")
+	pengaturanAplikasi.GET("/geojson-kota-bandung-level-kecamatan", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// BEGIN::MANAJEMEN CMS ==========================
 	manajemenCMSGroup := pengaturanAplikasi.Group("/manajemen-cms")
 	manajemenCMSGroup.GET("/list-section", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -332,6 +336,7 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenCMSGroup.GET("/section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenCMSGroup.PATCH("/update-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	manajemenCMSGroup.PATCH("/reorder-section/:slug", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	manajemenCMSGroup.GET("/landing-page", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::MANAJEMEN CMS ==========================
 
 	// END::PENGATURAN APLIKASI ==========================

@@ -157,3 +157,18 @@ type SurveyQuestionOptionsPayload struct {
 	ExcludeIDs   []string `json:"exclude_id[]"`
 	TypeQuestion string   `form:"type_question" query:"type_question"` // Jenis pertanyaan (long-answer, number, multiple-choices, image-template, maps)
 }
+
+type PublicSurveyQuestionOptionsPayload struct {
+	Q            string
+	Page         int
+	Limit        int
+	IDs          []string
+	ExcludeIDs   []string
+	TypeQuestion string
+	SurveyIDs    []int64
+}
+
+type HeatPointWilayahKotaBandungPayload struct {
+	SurveyId    []int64 `json:"survey_id" validate:"required,min=1"`
+	FormFieldId []int64 `json:"form_field_id" validate:"required,min=1"`
+}

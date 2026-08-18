@@ -17,6 +17,8 @@ type ManajemenCMSHandler interface {
 	GetSectionBySlug(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateSectionBySlug(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateOrderSection(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetLandingPage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GeoJsonKotaBandungLevelKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type manajemenCMSHandler struct {
@@ -61,4 +63,12 @@ func (handler *manajemenCMSHandler) UpdateSectionBySlug(ctx context.Context, req
 
 func (handler *manajemenCMSHandler) UpdateOrderSection(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.manajemenCMSService.UpdateOrderSection(ctx, req, usr, param, slug)
+}
+
+func (handler *manajemenCMSHandler) GetLandingPage(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.manajemenCMSService.GetLandingPage(ctx, req, usr, param, slug)
+}
+
+func (handler *manajemenCMSHandler) GeoJsonKotaBandungLevelKecamatan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.manajemenCMSService.GeoJsonKotaBandungLevelKecamatan(ctx, req, usr, param, slug)
 }

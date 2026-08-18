@@ -249,6 +249,20 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "manajemen-cms",
 		},
 	},
+
+	"/pengaturan-aplikasi/manajemen-cms/landing-page": {
+		"GET": {
+			Handler: manajemenCMSHandler.GetLandingPage,
+			MenuKey: "",
+		},
+	},
+
+	"/pengaturan-aplikasi/geojson-kota-bandung-level-kecamatan": {
+		"GET": {
+			Handler: manajemenCMSHandler.GeoJsonKotaBandungLevelKecamatan,
+			MenuKey: "",
+		},
+	},
 	// END::MANAJEMEN CMS ===============================
 	// END::PENGATURAN APLIKASI ===============================
 }

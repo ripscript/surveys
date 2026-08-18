@@ -92,9 +92,13 @@ type SurveyRepo interface {
 
 	ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error
 	SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
+	PublicSurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
 	SurveyQuestionOptions(surveyId int64, req payloads.SurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error)
+	PublicSurveyQuestionOptions(req payloads.PublicSurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error)
 
 	ActionRequiredCount(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent) (int64, error)
+
+	GetFieldResponsesForHeatpoint(surveyIDs []int64, formFieldIDs []int64) ([]models.FieldResponse, error)
 }
 
 type surveyRepo struct {
@@ -404,6 +408,25 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				SELECT 1 FROM survey_wilayahs 
 				WHERE survey_wilayahs.survey_id = surveys.id
 			)`, kecId, kelId, rwId)
+
+			if *respondentLogin.RoleId == int64(enums.ROLE_RT) {
+				db = db.Where(`
+                    NOT EXISTS (
+                        SELECT 1 FROM survey_respondents 
+                        WHERE survey_respondents.survey_id = surveys.id
+                        AND survey_respondents.respondent_id = ?
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM survey_respondents 
+                        WHERE survey_respondents.survey_id = surveys.id
+                        AND survey_respondents.respondent_id = ?
+                        AND (
+                            survey_respondents.status != 2 
+                            OR (survey_respondents.status = 2 AND survey_respondents.status_approval = 'validated_lurah')
+                        )
+                    )
+                `, respondentLogin.ID, respondentLogin.ID)
+			}
 		}
 	}
 
@@ -1843,6 +1866,64 @@ func (repository *surveyRepo) SurveyOptions(req payloads.SurveyOptionsPayload) (
 	return data, totalData, nil
 }
 
+func (repository *surveyRepo) PublicSurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	db := repository.dbSlave.Table("surveys").
+		Select(`
+			surveys.id AS id, 
+			surveys.name AS label
+		`).
+		Where("surveys.status = 'finished'")
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("surveys.name ILIKE ?", searchTerm)
+	}
+
+	// Filter dinamis berdasarkan wilayah
+	db = repository.applyWilayahFilter(db, req)
+
+	if len(req.IDs) > 0 {
+		db = db.Where("surveys.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("surveys.id NOT IN ?", req.ExcludeIDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Order("surveys.id asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err = db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
 func (repository *surveyRepo) SurveyQuestionOptions(surveyId int64, req payloads.SurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error) {
 	defer utils.GeneralRecover()
 	var data []response.OptionItem
@@ -1889,6 +1970,97 @@ func (repository *surveyRepo) SurveyQuestionOptions(surveyId int64, req payloads
 		searchTerm := "%" + req.Q + "%"
 		countQuery = countQuery.Where("form_fields.question ILIKE ? OR form_fields.deskripsi ILIKE ?", searchTerm, searchTerm)
 	}
+	var groupedIDs []int64
+	if err := countQuery.Find(&groupedIDs).Error; err != nil {
+		return nil, 0, err
+	}
+	totalData = int64(len(groupedIDs))
+
+	db = db.Order("MIN(flow_fields.sequence) asc")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+	err := db.Limit(limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *surveyRepo) PublicSurveyQuestionOptions(req payloads.PublicSurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error) {
+	defer utils.GeneralRecover()
+	var data []response.OptionItem
+	var totalData int64
+
+	// Deteksi apakah user mencari lebih dari satu survei
+	isMultipleSurvey := len(req.SurveyIDs) > 1
+
+	baseQuery := func() *gorm.DB {
+		q := repository.dbSlave.Table("flow_fields").
+			Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id").
+			Joins("JOIN surveys ON surveys.flow_detail_id = flow_fields.flow_detail_id").
+			Where("surveys.id IN ?", req.SurveyIDs)
+
+		if isMultipleSurvey {
+			// Jika multiple, tambahkan surveys.name ke Group By agar bisa dipanggil di SELECT
+			return q.Group("form_fields.id, form_fields.question, form_fields.deskripsi, surveys.name")
+		}
+		return q.Group("form_fields.id, form_fields.question, form_fields.deskripsi")
+	}
+
+	db := baseQuery()
+
+	// Jika lebih dari 1 survei, tambahkan nama survei di dalam kurung menggunakan CONCAT PostgreSQL
+	if isMultipleSurvey {
+		db = db.Select(`
+            form_fields.id AS id,
+            COALESCE(NULLIF(form_fields.question, ''), form_fields.deskripsi) || ' (' || surveys.name || ')' AS label
+        `)
+	} else {
+		db = db.Select(`
+            form_fields.id AS id,
+            COALESCE(NULLIF(form_fields.question, ''), form_fields.deskripsi) AS label
+        `)
+	}
+
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		db = db.Where("form_fields.question ILIKE ? OR form_fields.deskripsi ILIKE ?", searchTerm, searchTerm)
+	}
+
+	if len(req.IDs) > 0 {
+		db = db.Where("form_fields.id IN ?", req.IDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if len(req.ExcludeIDs) > 0 {
+		db = db.Where("form_fields.id NOT IN ?", req.ExcludeIDs)
+		err := db.Find(&data).Error
+		return data, int64(len(data)), err
+	}
+
+	if req.TypeQuestion != "" {
+		db = db.Where("form_fields.template = ?", req.TypeQuestion)
+	}
+
+	// Hitung total grup (jumlah pertanyaan unik)
+	countQuery := baseQuery().Select("form_fields.id")
+	if req.Q != "" {
+		searchTerm := "%" + req.Q + "%"
+		countQuery = countQuery.Where("form_fields.question ILIKE ? OR form_fields.deskripsi ILIKE ?", searchTerm, searchTerm)
+	}
+
 	var groupedIDs []int64
 	if err := countQuery.Find(&groupedIDs).Error; err != nil {
 		return nil, 0, err
@@ -2020,4 +2192,23 @@ func (repository *surveyRepo) ActionRequiredCount(userLogin models.JwtCustomClai
 	}
 
 	return totalPendingAction, nil
+}
+
+func (repository *surveyRepo) GetFieldResponsesForHeatpoint(surveyIDs []int64, formFieldIDs []int64) ([]models.FieldResponse, error) {
+	var data []models.FieldResponse
+
+	err := repository.dbSlave.Table("field_responses").
+		Select("field_responses.id, field_responses.answer").
+		Joins("INNER JOIN survey_respondents sr ON sr.id = field_responses.form_response_id").
+		Joins("INNER JOIN form_fields ff ON ff.id = field_responses.form_field_id").
+		Where("sr.survey_id IN ? AND ff.id IN ?", surveyIDs, formFieldIDs).
+		Where("ff.template = ? AND sr.status_approval = ?", "maps", "validated_lurah").
+		Where("field_responses.answer IS NOT NULL AND field_responses.answer != ''").
+		Find(&data).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

@@ -271,6 +271,18 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.SurveyQuestionOptions,
 		MenuKey: "pengelola-survey",
 	}},
+	"/survey/public-options": {"GET": {
+		Handler: surveyHandler.PublicSurveyOptions,
+		MenuKey: "",
+	}},
+	"/survey/public-question-options": {"GET": {
+		Handler: surveyHandler.PublicSurveyQuestionOptions,
+		MenuKey: "",
+	}},
+	"/survey/heat-point-wilayah-kota-bandung": {"POST": {
+		Handler: surveyHandler.HeatPointWilayahKotaBandung,
+		MenuKey: "",
+	}},
 
 	// SURVEY WILAYAH ===========================================
 	"/survey-wilayah/preview-index/:code": {"GET": {

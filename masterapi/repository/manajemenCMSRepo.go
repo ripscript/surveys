@@ -30,6 +30,7 @@ type ManajemenCMSRepo interface {
 	GetAdjacentSectionForReorder(currentOrder int, direction string) (*models.CMSSection, error)
 	SwapSectionOrder(sectionA, sectionB *models.CMSSection) error
 	SyncMedia(sectionID int, media []models.CMSMedia) (removedImagePaths []string, err error)
+	GetLandingPageSections() ([]models.CMSSection, error)
 }
 
 type manajemenCMSRepo struct {
@@ -562,4 +563,26 @@ func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSM
 	return removedImagePaths, err
 }
 
-// func (repository *manajemen)
+func (repo *manajemenCMSRepo) GetLandingPageSections() ([]models.CMSSection, error) {
+	defer utils.GeneralRecover()
+
+	var sections []models.CMSSection
+
+	err := repo.dbSlave.
+		Preload("Contents", "status = ?", true).
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", true).Order("item_order ASC")
+		}).
+		Preload("Media", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", true).Order("item_order ASC")
+		}).
+		Where("status = ?", true).
+		Order("section_order ASC").
+		Find(&sections).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sections, nil
+}

@@ -63,6 +63,7 @@ type SurveyService interface {
 
 	GetPublicImageSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PublicSurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsPerRT(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	ExportExcelSurveyResultsMassal(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
@@ -75,6 +76,8 @@ type SurveyService interface {
 	SyncExpiredSurveysStatus(ctx context.Context)
 
 	ActionRequiredCount(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	HeatPointWilayahKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PublicSurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type surveyService struct {
@@ -4220,6 +4223,92 @@ func (service *surveyService) SurveyOptions(ctx context.Context, req map[string]
 	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
 }
 
+func (service *surveyService) PublicSurveyOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var alurIds []string
+	if len(param["id[]"]) > 0 {
+		alurIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		alurIds = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, alurId := range alurIds {
+		parsedIDs = append(parsedIDs, alurId)
+	}
+
+	var excludeAlurIds []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludeAlurIds = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludeAlurIds = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludeAlurIds {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	// Parsing filter wilayah
+	tingkatWilayah, _ := strconv.Atoi(param.Get("tingkat_wilayah"))
+
+	var kecamatanIDs []string
+	if len(param["kecamatan_id[]"]) > 0 {
+		kecamatanIDs = param["kecamatan_id[]"]
+	} else if len(param["kecamatan_id"]) > 0 {
+		kecamatanIDs = param["kecamatan_id"]
+	}
+
+	var kelurahanIDs []string
+	if len(param["kelurahan_id[]"]) > 0 {
+		kelurahanIDs = param["kelurahan_id[]"]
+	} else if len(param["kelurahan_id"]) > 0 {
+		kelurahanIDs = param["kelurahan_id"]
+	}
+
+	_req := payloads.SurveyOptionsPayload{
+		Q:              param.Get("q"),
+		Page:           page,
+		Limit:          limit,
+		IDs:            parsedIDs,
+		ExcludeIDs:     parsedExcludeIDs,
+		TingkatWilayah: tingkatWilayah,
+		KecamatanIDs:   kecamatanIDs,
+		KelurahanIDs:   kelurahanIDs,
+	}
+
+	data, totalData, err := service.surveyRepo.PublicSurveyOptions(_req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
+}
+
 func (service *surveyService) SurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -4290,6 +4379,95 @@ func (service *surveyService) SurveyQuestionOptions(ctx context.Context, req map
 	}
 
 	data, totalData, err := service.surveyRepo.SurveyQuestionOptions(surveyId, _req)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	currentTotalLoaded := (page-1)*limit + len(data)
+	hasMore := int64(currentTotalLoaded) < totalData
+
+	responseData := response.OptionsResponse{
+		Options: data,
+		Meta: response.PaginationMeta{
+			CurrentPage: page,
+			PerPage:     limit,
+			Total:       totalData,
+			HasMore:     hasMore,
+		},
+	}
+
+	return utils.SendData(responseData, "Berhasil mengambil opsi alur survey")
+}
+
+func (service *surveyService) PublicSurveyQuestionOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var surveyIdsStr []string
+	if len(param["survey_id[]"]) > 0 {
+		surveyIdsStr = param["survey_id[]"]
+	} else if len(param["survey_id"]) > 0 {
+		surveyIdsStr = param["survey_id"]
+	}
+
+	var surveyIDs []int64
+	for _, idStr := range surveyIdsStr {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err == nil {
+			surveyIDs = append(surveyIDs, id)
+		}
+	}
+
+	if len(surveyIDs) == 0 {
+		return utils.SendError(errors.New("Survey ID tidak valid atau kosong"), http.StatusBadRequest)
+	}
+
+	page, err := strconv.Atoi(param.Get("page"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(param.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 1000
+	}
+
+	var alurIds []string
+	if len(param["id[]"]) > 0 {
+		alurIds = param["id[]"]
+	} else if len(param["id"]) > 0 {
+		alurIds = param["id"]
+	}
+
+	var parsedIDs []string
+	for _, alurId := range alurIds {
+		parsedIDs = append(parsedIDs, alurId)
+	}
+
+	var excludeAlurIds []string
+	if len(param["exclude_id[]"]) > 0 {
+		excludeAlurIds = param["exclude_id[]"]
+	} else if len(param["exclude_id"]) > 0 {
+		excludeAlurIds = param["exclude_id"]
+	}
+
+	var parsedExcludeIDs []string
+	for _, excludeID := range excludeAlurIds {
+		parsedExcludeIDs = append(parsedExcludeIDs, excludeID)
+	}
+
+	typeQuestion := param.Get("type_question")
+
+	_req := payloads.PublicSurveyQuestionOptionsPayload{
+		Q:            param.Get("q"),
+		Page:         page,
+		Limit:        limit,
+		IDs:          parsedIDs,
+		ExcludeIDs:   parsedExcludeIDs,
+		TypeQuestion: typeQuestion,
+		SurveyIDs:    surveyIDs,
+	}
+
+	data, totalData, err := service.surveyRepo.PublicSurveyQuestionOptions(_req)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -5130,4 +5308,59 @@ func (service *surveyService) ActionRequiredCount(ctx context.Context, req map[s
 	}
 
 	return utils.SendData(result, "Total survey yang perlu ditindak berhasil diambil")
+}
+
+func (service *surveyService) HeatPointWilayahKotaBandung(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var payload payloads.HeatPointWilayahKotaBandungPayload
+
+	err := utils.DynamicBind(req, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			customErrorMsg := utils.TranslateError(err)
+			return utils.SendError(errors.New(customErrorMsg), http.StatusBadRequest)
+		}
+	}
+
+	fieldResponses, err := service.surveyRepo.GetFieldResponsesForHeatpoint(payload.SurveyId, payload.FormFieldId)
+	if err != nil {
+		return utils.SendError(errors.New("gagal mengambil data titik lokasi survey"), http.StatusInternalServerError)
+	}
+
+	var result = make([]response.HeatpointResponse, 0)
+
+	for _, fr := range fieldResponses {
+		if fr.Answer != nil && *fr.Answer != "" {
+			var coords []response.Coordinate
+
+			errUnmarshal := json.Unmarshal([]byte(*fr.Answer), &coords)
+
+			if errUnmarshal == nil && len(coords) > 0 {
+				result = append(result, response.HeatpointResponse{
+					ID:     fr.ID,
+					Answer: coords,
+				})
+			} else {
+				var singleCoord response.Coordinate
+				errSingle := json.Unmarshal([]byte(*fr.Answer), &singleCoord)
+
+				if errSingle == nil && singleCoord.Lat != 0 && singleCoord.Lng != 0 {
+					result = append(result, response.HeatpointResponse{
+						ID:     fr.ID,
+						Answer: []response.Coordinate{singleCoord},
+					})
+				}
+			}
+		}
+	}
+
+	return utils.SendData(result, "Berhasil mendapatkan data heatpoint")
 }

@@ -21,12 +21,17 @@ var Whitelist = map[string]map[string]bool{
 	"/view-foto-profil/:path":          {"GET": true},
 
 	// MASTERAPI SERVICE
-	"/masterapi/healthy":       {"GET": true},
-	"/tabel-data-kota-bandung": {"GET": true},
+	"/masterapi/healthy":                                        {"GET": true},
+	"/tabel-data-kota-bandung":                                  {"GET": true},
+	"/pengaturan-aplikasi/manajemen-cms/landing-page":           {"GET": true},
+	"/pengaturan-aplikasi/geojson-kota-bandung-level-kecamatan": {"GET": true},
 
 	// SURVEYAPI SERVICE
 	"/surveyapi/healthy": {"GET": true},
 	"/survey/show-image/:survey_code/:code_wilayah/:path": {"GET": true},
+	"/survey/public-options":                              {"GET": true},
+	"/survey/public-question-options":                     {"GET": true},
+	"/survey/heat-point-wilayah-kota-bandung":             {"POST": true},
 	// Tambahkan URL dan metode lainnya sesuai kebutuhan Anda
 
 	// PYREPORTAPI SERVICE
