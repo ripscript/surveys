@@ -174,9 +174,12 @@ func HandleFunc(c echo.Context, service string) error {
 	// Mendapatkan nilai header "Authorization" dari permintaan Echo
 	authorizationHeader := c.Request().Header.Get("Authorization")
 
+	clientIP := c.RealIP()
+
 	// Menambahkan header "Authorization" ke dalam metadata gRPC
 	md := metadata.New(map[string]string{
 		"Authorization": authorizationHeader,
+		"x-real-ip":     clientIP,
 	})
 
 	//

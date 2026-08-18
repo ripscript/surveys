@@ -268,6 +268,17 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			{
+				MenuName:  "Rating",
+				Key:       "rating",
+				ParentID:  &pengaturanAplikasiID,
+				Icon:      "-",
+				SortOrder: 1,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 			// END: PENGATURAN APLIKASI =======================================
 
 			// BEGIN: DASHBOARD =======================================

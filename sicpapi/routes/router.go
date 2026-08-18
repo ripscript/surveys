@@ -339,6 +339,12 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenCMSGroup.GET("/landing-page", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::MANAJEMEN CMS ==========================
 
+	// BEGIN::RATING ==========================
+	e.POST("/rating/save", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/rating/overview", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/rating/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	// END::RATING ==========================
+
 	// END::PENGATURAN APLIKASI ==========================
 
 	// BEGIN::SISTEM ANTRIAN CETAK LAPORAN =============================

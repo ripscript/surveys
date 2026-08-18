@@ -14,7 +14,7 @@ func PermissionSeed(db *gorm.DB) error {
 	var menuKeys = []string{
 		"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
 		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
-		"manajemen-cms", "management-artikel", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
+		"manajemen-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -91,6 +91,7 @@ func PermissionSeed(db *gorm.DB) error {
 		ListSurvey        = menuIDs.ListSurvey
 		promote           = menuIDs.Promote
 		manajemenArtkel   = menuIDs.ManajemenArtikel
+		rating            = menuIDs.Rating
 		artikel           = menuIDs.Artikel
 		pejabat           = menuIDs.ManajemenPejabat
 		mUser             = menuIDs.ManajemenUser
@@ -271,6 +272,11 @@ func PermissionSeed(db *gorm.DB) error {
 		none(category, camat), none(category, pemkot), full(category, admin),
 		none(category, surveyor), none(category, walikota),
 		// END:MANAJEMEN ARTIKEL ===================================================
+
+		// BEGIN:RATING ===================================================
+		none(rating, public), none(rating, rt), none(rating, rw), none(rating, lurah), none(rating, camat), none(rating, pemkot), full(rating, admin), none(rating, surveyor), full(rating, walikota),
+		// END:RATING ===================================================
+
 		// END:PENGATURAN APLIKASI ===================================================
 	}
 
@@ -356,6 +362,7 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		ManajemenWilayah:      m["manage-wilayah"],
 		ManajemenCMS:          m["manajemen-cms"],
 		ManajemenArtikel:      m["management-artikel"],
+		Rating:                m["rating"],
 		AktifitasSurvey:       m["aktifitas-survey"],
 		ManajemenResponden:    m["management-responden"],
 		ManajemenUser:         m["management-user"],

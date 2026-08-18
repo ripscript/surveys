@@ -41,6 +41,7 @@ var (
 	userRepo         repository.UserRepo         = repository.NewUserRepo(dbSlave, dbMaster)
 	laporanRepo      repository.LaporanRepo      = repository.NewLaporanRepo(dbSlave, dbMaster)
 	fileRepo         repository.FileRepo         = repository.NewFileRepo(dbSlave, dbMaster)
+	ratingRepo       repository.RatingRepo       = repository.NewRatingRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -63,6 +64,9 @@ var (
 		fileRepo,
 		surveyRepo,
 	)
+	ratingService service.RatingService = service.NewRatingService(
+		ratingRepo,
+	)
 )
 
 var (
@@ -80,6 +84,9 @@ var (
 	)
 	laporanHandler handlers.LaporanHandler = handlers.NewLaporanHandler(
 		laporanService,
+	)
+	ratingHandler handlers.RatingHandler = handlers.NewRatingHandler(
+		ratingService,
 	)
 )
 
@@ -243,6 +250,29 @@ var grpcMap = map[string]map[string]RouteConfig{
 	},
 	// END:LAPORAN ==================================
 	// END:MONITORING & LAPORAN ==================================
+
+	// BEGIN:PENGATURAN APLIKASI ==================================
+	// BEGIN:RATING ==================================
+	"/rating/save": {
+		"POST": {
+			Handler: ratingHandler.SaveRating,
+			MenuKey: "",
+		},
+	},
+	"/rating/overview": {
+		"GET": {
+			Handler: ratingHandler.RatingOverview,
+			MenuKey: "rating",
+		},
+	},
+	"/rating/list": {
+		"GET": {
+			Handler: ratingHandler.RatingList,
+			MenuKey: "rating",
+		},
+	},
+	// END:RATING ==================================
+	// END:PENGATURAN APLIKASI ==================================
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
@@ -306,6 +336,14 @@ func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.Pr
 		message := "Terjadi kesalahan saat parsing query param : " + err.Error()
 		return utils.SetResponseData([]byte{}, false, message, http.StatusInternalServerError, nil, ""), nil
 	}
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		if ips := md.Get("x-real-ip"); len(ips) > 0 {
+			queryValues.Add("ip_address", ips[0])
+		}
+	}
+
 	response, err := handler(ctx, reqs, userLogin, queryValues, slug)
 	if err != nil {
 		return nil, err
