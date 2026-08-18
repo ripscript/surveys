@@ -1,5 +1,7 @@
 package request // atau package payloads
 
+import "encoding/json"
+
 // ============================================================================
 // LEVEL 1: SECTION (Bab Utama)
 // ============================================================================
@@ -8,9 +10,8 @@ type UpsertSectionPayload struct {
 	HasSubSection *bool                     `json:"has_sub_section" validate:"required"`
 	SubSections   []UpsertSubSectionPayload `json:"sub_sections" validate:"omitempty,dive"`
 
-	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
-	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
-	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
+	ComponentType   string          `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
+	ComponentConfig json.RawMessage `json:"component_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -24,9 +25,8 @@ type UpsertSubSectionPayload struct {
 	Title    string `json:"title" validate:"required"`
 	Sequence int    `json:"sequence" validate:"required,min=1"`
 
-	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
-	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
-	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
+	ComponentType   string          `json:"component_type" validate:"required,oneof=table chart"`
+	ComponentConfig json.RawMessage `json:"component_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -92,9 +92,8 @@ type UpdateSectionPayload struct {
 	HasSubSection *bool                     `json:"has_sub_section" validate:"required"`
 	SubSections   []UpdateSubSectionPayload `json:"sub_sections" validate:"omitempty,dive"`
 
-	ComponentType   string              `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
-	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
-	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
+	ComponentType   string          `json:"component_type" validate:"required_if=HasSubSection false,omitempty,oneof=table chart"`
+	ComponentConfig json.RawMessage `json:"component_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`
@@ -108,9 +107,8 @@ type UpdateSubSectionPayload struct {
 	Title    string `json:"title" validate:"required"`
 	Sequence int    `json:"sequence" validate:"required,min=1"`
 
-	ComponentType   string              `json:"component_type" validate:"required,oneof=table chart"`
-	ComponentConfig *TableConfigPayload `json:"component_config" validate:"omitempty"`
-	ChartConfig     *ChartConfigPayload `json:"chart_config" validate:"omitempty"`
+	ComponentType   string          `json:"component_type" validate:"required,oneof=table chart"`
+	ComponentConfig json.RawMessage `json:"component_config" validate:"omitempty"`
 
 	NarrativePosition *string                `json:"narrative_position" validate:"omitempty,oneof=top bottom"`
 	NarrativeTemplate *string                `json:"narrative_template" validate:"omitempty"`

@@ -856,6 +856,37 @@ func (service *laporanService) validateComponentConfig(componentType string, tab
 	return service.validateFieldTypesForComponent(componentType, tableCfg, chartCfg)
 }
 
+func parseComponentConfig(componentType string, raw json.RawMessage) (
+	tableCfg *request.TableConfigPayload,
+	chartCfg *request.ChartConfigPayload,
+	err error,
+) {
+	if len(raw) == 0 {
+		return nil, nil, nil
+	}
+
+	switch componentType {
+	case "table":
+		var cfg request.TableConfigPayload
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			return nil, nil, fmt.Errorf("component_config tidak valid untuk component_type = table: %w", err)
+		}
+		return &cfg, nil, nil
+
+	case "chart":
+		var cfg request.ChartConfigPayload
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			return nil, nil, fmt.Errorf("component_config tidak valid untuk component_type = chart: %w", err)
+		}
+		return nil, &cfg, nil
+
+	default:
+		// component_type tak dikenal sudah ditolak oleh validator (oneof=table chart)
+		// sebelum fungsi ini dipanggil, jadi baris ini hanya jaring pengaman.
+		return nil, nil, fmt.Errorf("component_type tidak dikenal: %s", componentType)
+	}
+}
+
 func (service *laporanService) CreateSectionReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
@@ -887,12 +918,20 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 	}
 
 	if !*payloads.HasSubSection {
-		if err := service.validateComponentConfig(payloads.ComponentType, payloads.ComponentConfig, payloads.ChartConfig); err != nil {
+		tableCfg, chartCfg, err := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+		if err := service.validateComponentConfig(payloads.ComponentType, tableCfg, chartCfg); err != nil {
 			return utils.SendError(err, http.StatusBadRequest)
 		}
 	} else {
 		for _, pSub := range payloads.SubSections {
-			if err := service.validateComponentConfig(pSub.ComponentType, pSub.ComponentConfig, pSub.ChartConfig); err != nil {
+			tableCfg, chartCfg, err := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
+			if err != nil {
+				return utils.SendError(err, http.StatusBadRequest)
+			}
+			if err := service.validateComponentConfig(pSub.ComponentType, tableCfg, chartCfg); err != nil {
 				return utils.SendError(err, http.StatusBadRequest)
 			}
 		}
@@ -982,10 +1021,13 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 				Sequence: pSub.Sequence,
 			}
 
+			// error diabaikan aman: payload ini sudah lolos parseComponentConfig
+			// + validateComponentConfig di langkah validasi sebelumnya.
+			subTableCfg, subChartCfg, _ := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
 			subModel.Components = buildVisualAndNarrativeComponents(
 				pSub.ComponentType,
-				pSub.ComponentConfig,
-				pSub.ChartConfig,
+				subTableCfg,
+				subChartCfg,
 				pSub.NarrativePosition,
 				pSub.NarrativeTemplate,
 				pSub.NarrativeLogic,
@@ -997,10 +1039,11 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 
 	} else {
 		// --- Pola baru: section flat, component nempel langsung ke section ---
+		tableCfg, chartCfg, _ := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
 		sectionModel.Components = buildVisualAndNarrativeComponents(
 			payloads.ComponentType,
-			payloads.ComponentConfig,
-			payloads.ChartConfig,
+			tableCfg,
+			chartCfg,
 			payloads.NarrativePosition,
 			payloads.NarrativeTemplate,
 			payloads.NarrativeLogic,
@@ -1418,12 +1461,20 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 
 	// 3.5 Validasi table_config sesuai style
 	if !*payloads.HasSubSection {
-		if err := service.validateComponentConfig(payloads.ComponentType, payloads.ComponentConfig, payloads.ChartConfig); err != nil {
+		tableCfg, chartCfg, err := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+		if err := service.validateComponentConfig(payloads.ComponentType, tableCfg, chartCfg); err != nil {
 			return utils.SendError(err, http.StatusBadRequest)
 		}
 	} else {
 		for _, pSub := range payloads.SubSections {
-			if err := service.validateComponentConfig(pSub.ComponentType, pSub.ComponentConfig, pSub.ChartConfig); err != nil {
+			tableCfg, chartCfg, err := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
+			if err != nil {
+				return utils.SendError(err, http.StatusBadRequest)
+			}
+			if err := service.validateComponentConfig(pSub.ComponentType, tableCfg, chartCfg); err != nil {
 				return utils.SendError(err, http.StatusBadRequest)
 			}
 		}
@@ -1509,10 +1560,11 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 				Title:    pSub.Title,
 				Sequence: pSub.Sequence,
 			}
+			subTableCfg, subChartCfg, _ := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
 			subModel.Components = buildVisualAndNarrativeComponents(
 				pSub.ComponentType,
-				pSub.ComponentConfig,
-				pSub.ChartConfig,
+				subTableCfg,
+				subChartCfg,
 				pSub.NarrativePosition,
 				pSub.NarrativeTemplate,
 				pSub.NarrativeLogic,
@@ -1520,10 +1572,11 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 			newSubSections = append(newSubSections, subModel)
 		}
 	} else {
+		tableCfg, chartCfg, _ := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
 		newFlatComponents = buildVisualAndNarrativeComponents(
 			payloads.ComponentType,
-			payloads.ComponentConfig,
-			payloads.ChartConfig,
+			tableCfg,
+			chartCfg,
 			payloads.NarrativePosition,
 			payloads.NarrativeTemplate,
 			payloads.NarrativeLogic,
