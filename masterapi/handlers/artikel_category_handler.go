@@ -14,6 +14,8 @@ type ArtikelCategoryHandler interface {
 	Detail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	Update(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	List(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PublicList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type artikelCategoryHandler struct {
@@ -46,4 +48,12 @@ func (handler *artikelCategoryHandler) Update(ctx context.Context, req map[strin
 
 func (handler *artikelCategoryHandler) GetOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.artikelCategoryService.GetCategoryOptions(ctx, req, usr, param, slug)
+}
+
+func (handler *artikelCategoryHandler) PublicList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.artikelCategoryService.PublicList(ctx, req, usr, param, slug)
+}
+
+func (handler *artikelCategoryHandler) List(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.artikelCategoryService.GetList(ctx, req, usr, param, slug)
 }

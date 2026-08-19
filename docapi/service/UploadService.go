@@ -49,6 +49,10 @@ type UploadService interface {
 
 	UploadTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DownloadAndDeleteTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadService struct {
@@ -798,4 +802,67 @@ func (service *uploadService) DownloadAndDeleteTempLaporan(ctx context.Context, 
 	}
 
 	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (service *uploadService) UploadArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	dataUri := req["datauri"].(string)
+	datauriInfo, err := utils.ExtractBase64Info(dataUri)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	if datauriInfo.Extension == ".jfif" {
+		datauriInfo.Extension = ".jpg"
+	}
+
+	filename := utils.GenerateUniqueFilename("", datauriInfo.Extension, false)
+	folderPath := enums.PATH_ARTIKEL_KONTEN
+
+	filename, err = utils.UploadServiceDataURI(filename, folderPath, dataUri, enums.MODULE_ARTIKEL_KONTEN, int(datauriInfo.SizeInMB))
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	return utils.SendData(filename, "File berhasil di upload")
+}
+
+func (service *uploadService) ShowArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	filename, ok := slug["path"].(string)
+	if !ok || filename == "" {
+		return utils.SendError(errors.New("nama file tidak valid"), http.StatusBadRequest)
+	}
+
+	// Menggabungkan direktori root, direktori module survey, dan nama file
+	newSlug := map[string]interface{}{
+		"id": fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_ARTIKEL_KONTEN, filename),
+	}
+
+	// Gunakan fungsi Show yang sudah ada (akan menangani MinIO dan local secara otomatis)
+	return service.Show(newSlug)
+}
+
+func (service *uploadService) DeleteBulkArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type Paths []string
+	tmp, _ := json.Marshal(req["paths"])
+	var paths Paths
+	json.Unmarshal(tmp, &paths)
+
+	for i := range paths {
+		paths[i] = enums.PATH_WEBROOT_FILES + "/" + enums.PATH_ARTIKEL_KONTEN + "/" + paths[i]
+	}
+
+	var success bool
+	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_ARTIKEL_KONTEN)
+	if err != nil {
+		return utils.SendError(err, 500)
+	}
+
+	success = true
+	return utils.SendData(success, "File berhasil dihapus")
 }

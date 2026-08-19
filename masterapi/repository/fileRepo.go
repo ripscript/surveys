@@ -16,6 +16,8 @@ type FileRepo interface {
 	GetPublicImageSurvey(ctx context.Context, path *string) ([]byte, error)
 	UploadCMSImage(ctx context.Context, datauri *string) (*string, error)
 	DeleteCMSImageBulk(ctx context.Context, paths []string) (*bool, error)
+	UploadArtikelKonten(ctx context.Context, datauri *string) (*string, error)
+	DeleteArtikelKontenBulk(ctx context.Context, paths []string) (*bool, error)
 }
 
 type fileRepo struct {
@@ -105,6 +107,42 @@ func (repository *fileRepo) DeleteCMSImageBulk(ctx context.Context, paths []stri
 	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
 
 	dataBytes, err := utils.HitBackend(ctx, host, "POST", "/delete-bulk-cms-image", nil, map[string]interface{}{"paths": paths})
+	if err != nil {
+		return nil, errors.New("Delete file gagal error: " + err.Error())
+	}
+
+	var data *bool
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data dari DOCAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *fileRepo) UploadArtikelKonten(ctx context.Context, datauri *string) (*string, error) {
+	defer utils.GeneralRecover()
+
+	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
+
+	dataBytes, err := utils.HitBackend(ctx, host, "POST", "/upload-artikel-konten", nil, map[string]interface{}{"datauri": datauri})
+	if err != nil {
+		return nil, errors.New("Upload file gagal error: " + err.Error())
+	}
+
+	var data *string
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return nil, errors.New("Gagal memparsing data dari DOCAPI")
+	}
+
+	return data, nil
+}
+
+func (repository *fileRepo) DeleteArtikelKontenBulk(ctx context.Context, paths []string) (*bool, error) {
+	defer utils.GeneralRecover()
+
+	host := os.Getenv("DOCAPI_HOST") + ":" + os.Getenv("DOCAPI_PORT")
+
+	dataBytes, err := utils.HitBackend(ctx, host, "POST", "/delete-bulk-artikel-konten", nil, map[string]interface{}{"paths": paths})
 	if err != nil {
 		return nil, errors.New("Delete file gagal error: " + err.Error())
 	}

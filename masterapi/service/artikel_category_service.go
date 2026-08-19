@@ -9,6 +9,7 @@ import (
 	"backend/siccore/pb"
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -23,6 +24,8 @@ type ArtikelCategoryService interface {
 	DetailCategory(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateCategory(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetCategoryOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	PublicList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type artikelCategoryService struct {
@@ -234,4 +237,59 @@ func (service *artikelCategoryService) GetCategoryOptions(ctx context.Context, r
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi kategori artikel")
+}
+
+func (service *artikelCategoryService) GetList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	search := param.Get("search")
+	page, _ := strconv.Atoi(param.Get("page"))
+	limit, _ := strconv.Atoi(param.Get("limit"))
+	orderBy := param.Get("order_by")
+	orderDir := param.Get("order_dir")
+
+	payload := payloads.DatatablePayload{
+		Search:   search,
+		Page:     page,
+		Limit:    limit,
+		OrderBy:  orderBy,
+		OrderDir: orderDir,
+	}
+
+	if payload.Page <= 0 {
+		payload.Page = 1
+	}
+	if payload.Limit <= 0 {
+		payload.Limit = 5
+	}
+
+	data, totalData, err := service.artikelCategoryRepo.GetList(payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	totalPages := int(math.Ceil(float64(totalData) / float64(payload.Limit)))
+
+	result := map[string]interface{}{
+		"data": data,
+		"meta": map[string]interface{}{
+			"total":      totalData,
+			"page":       payload.Page,
+			"limit":      payload.Limit,
+			"totalPages": totalPages,
+		},
+	}
+
+	return utils.SendData(result, "Berhasil mengambil list kategori artikel")
+}
+
+func (service *artikelCategoryService) PublicList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	data, err := service.artikelCategoryRepo.GetPublicList()
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(data, "Berhasil mengambil list kategori artikel")
 }

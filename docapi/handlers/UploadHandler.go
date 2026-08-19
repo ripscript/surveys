@@ -37,6 +37,10 @@ type UploadHandler interface {
 	GetLaporanKontenImageBytes(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UploadTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DownloadAndDeleteTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	UploadArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ShowArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	DeleteBulkArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type uploadHandler struct {
@@ -145,4 +149,16 @@ func (handler *uploadHandler) UploadTempLaporan(ctx context.Context, req map[str
 
 func (handler *uploadHandler) DownloadAndDeleteTempLaporan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.uploadService.DownloadAndDeleteTempLaporan(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) UploadArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.UploadArtikelKonten(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) ShowArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.ShowArtikelKonten(ctx, req, usr, param, slug)
+}
+
+func (handler *uploadHandler) DeleteBulkArtikelKonten(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.uploadService.DeleteBulkArtikelKonten(ctx, req, usr, param, slug)
 }

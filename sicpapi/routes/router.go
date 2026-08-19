@@ -154,6 +154,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/view-cms-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-laporan-konten-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-foto-profil/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	e.GET("/view-artikel-konten/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 
 	// MASTERAPI Service
 	e.GET("/masterapi/healthy", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
@@ -346,16 +347,32 @@ func SetupRoutes(e *echo.Echo) {
 	artikelGroup := manajemenArtikel.Group("/artikel")
 	artikelGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	artikelGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.GET("/detail-public/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.GET("/get-options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.GET("/public-list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::ARTIKEL ==========================
 
 	// BEGIN::ARTIKEL KATEGORI ==========================
-	artikelKategoriGroup := artikelGroup.Group("/kategori")
+	artikelKategoriGroup := manajemenArtikel.Group("/kategori")
 	artikelKategoriGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	artikelKategoriGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	artikelKategoriGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	artikelKategoriGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	artikelKategoriGroup.GET("/get-options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.GET("/public-list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::ARTIKEL KATEGORI ==========================
+
+	// BEGIN::ARTIKEL PROMOTE ==========================
+	artikelPromoteGroup := manajemenArtikel.Group("/promote")
+	artikelPromoteGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelPromoteGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelPromoteGroup.PATCH("/update-status/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelPromoteGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::ARTIKEL ==========================
 
 	// END::MANAJEMEN ARTIKEL ==========================
 

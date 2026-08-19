@@ -41,6 +41,7 @@ var (
 	fileRepo              repository.FileRepo                  = repository.NewFileRepo(dbSlave, dbMaster)
 	artikelCategoryRepo   repository.ArtikelCategoryRepository = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
 	artikelRepo           repository.ArtikelRepository         = repository.NewArtikelRepository(dbSlave, dbMaster)
+	artikelPromoteRepo    repository.ArtikelPromoteRepository  = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
 )
 
 var (
@@ -64,8 +65,13 @@ var (
 		artikelCategoryRepo,
 	)
 	artikelService service.ArtikelService = service.NewArtikelService(
+		fileRepo,
 		artikelRepo,
 		artikelCategoryRepo,
+	)
+	artikelPromoteService service.ArtikelPromoteService = service.NewArtikelPromoteService(
+		artikelRepo,
+		artikelPromoteRepo,
 	)
 )
 
@@ -90,6 +96,9 @@ var (
 	)
 	artikelHandler handlers.ArtikelHandler = handlers.NewArtikelHandler(
 		artikelService,
+	)
+	artikelPromoteHandler handlers.ArtikelPromoteHandler = handlers.NewArtikelPromoteHandler(
+		artikelPromoteService,
 	)
 )
 
@@ -289,46 +298,121 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "artikel",
 		},
 	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/detail/:id": {
+		"GET": {
+			Handler: artikelHandler.Detail,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/detail-public/:id": {
+		"GET": {
+			Handler: artikelHandler.DetailPublic,
+			MenuKey: "artikel",
+		},
+	},
 	"/pengaturan-aplikasi/manajemen-artikel/artikel/update/:id": {
 		"PUT": {
 			Handler: artikelHandler.Update,
 			MenuKey: "artikel",
 		},
 	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/delete/:id": {
+		"DELETE": {
+			Handler: artikelHandler.Delete,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/get-options": {
+		"GET": {
+			Handler: artikelHandler.GetOptions,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/list": {
+		"GET": {
+			Handler: artikelHandler.List,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/public-list": {
+		"GET": {
+			Handler: artikelHandler.PublicList,
+			MenuKey: "artikel",
+		},
+	},
 	// END::ARTIKEL ===============================
 
 	// BEGIN::ARTIKEL KATEGORI ===============================
-	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/create": {
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/create": {
 		"POST": {
 			Handler: artikelCategoryHandler.Create,
-			MenuKey: "artikel",
+			MenuKey: "kategori",
 		},
 	},
-	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/delete/:id": {
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/delete/:id": {
 		"DELETE": {
 			Handler: artikelCategoryHandler.Delete,
-			MenuKey: "artikel",
+			MenuKey: "kategori",
 		},
 	},
-	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/detail/:id": {
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/detail/:id": {
 		"GET": {
 			Handler: artikelCategoryHandler.Detail,
-			MenuKey: "artikel",
+			MenuKey: "kategori",
 		},
 	},
-	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/update/:id": {
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/update/:id": {
 		"PUT": {
 			Handler: artikelCategoryHandler.Update,
-			MenuKey: "artikel",
+			MenuKey: "kategori",
 		},
 	},
-	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/get-options": {
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/get-options": {
 		"GET": {
 			Handler: artikelCategoryHandler.GetOptions,
-			MenuKey: "artikel",
+			MenuKey: "kategori",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/list": {
+		"GET": {
+			Handler: artikelCategoryHandler.List,
+			MenuKey: "kategori",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/public-list": {
+		"GET": {
+			Handler: artikelCategoryHandler.PublicList,
+			MenuKey: "kategori",
 		},
 	},
 	// BEGIN::ARTIKEL KATEGORI ===============================
+
+	// BEGIN::ARTIKEL PROMOTE ===============================
+	"/pengaturan-aplikasi/manajemen-artikel/promote/create": {
+		"POST": {
+			Handler: artikelPromoteHandler.Create,
+			MenuKey: "promote",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/promote/delete/:id": {
+		"DELETE": {
+			Handler: artikelPromoteHandler.Delete,
+			MenuKey: "promote",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/promote/update-status/:id": {
+		"PATCH": {
+			Handler: artikelPromoteHandler.UpdateStatus,
+			MenuKey: "promote",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/promote/list": {
+		"GET": {
+			Handler: artikelPromoteHandler.List,
+			MenuKey: "promote",
+		},
+	},
+	// END::ARTIKEL PROMOTE ===============================
 
 	// END::MANAJEMEN ARTIKEL ===============================
 	// END::PENGATURAN APLIKASI ===============================

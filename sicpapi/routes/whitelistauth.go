@@ -19,12 +19,16 @@ var Whitelist = map[string]map[string]bool{
 	"/view-cms-image/:path":            {"GET": true},
 	"/view-laporan-konten-image/:path": {"GET": true},
 	"/view-foto-profil/:path":          {"GET": true},
+	"/view-artikel-konten/:path":       {"GET": true},
 
 	// MASTERAPI SERVICE
-	"/masterapi/healthy":                                        {"GET": true},
-	"/tabel-data-kota-bandung":                                  {"GET": true},
-	"/pengaturan-aplikasi/manajemen-cms/landing-page":           {"GET": true},
-	"/pengaturan-aplikasi/geojson-kota-bandung-level-kecamatan": {"GET": true},
+	"/masterapi/healthy":                                               {"GET": true},
+	"/tabel-data-kota-bandung":                                         {"GET": true},
+	"/pengaturan-aplikasi/manajemen-cms/landing-page":                  {"GET": true},
+	"/pengaturan-aplikasi/geojson-kota-bandung-level-kecamatan":        {"GET": true},
+	"/pengaturan-aplikasi/manajemen-artikel/kategori/public-list":      {"GET": true},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/public-list":       {"GET": true},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/detail-public/:id": {"GET": true},
 
 	// SURVEYAPI SERVICE
 	"/surveyapi/healthy": {"GET": true},
