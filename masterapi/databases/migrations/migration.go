@@ -12,6 +12,7 @@ func Migrate(db *gorm.DB) error {
 		&models.CMSContent{},
 		&models.CMSItem{},
 		&models.CMSMedia{},
+		&models.Artikel{},
 	)
 	if err != nil {
 		return err

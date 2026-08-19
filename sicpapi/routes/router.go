@@ -339,6 +339,26 @@ func SetupRoutes(e *echo.Echo) {
 	manajemenCMSGroup.GET("/landing-page", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::MANAJEMEN CMS ==========================
 
+	// BEGIN::MANAJEMEN ARTIKEL ==========================
+	manajemenArtikel := pengaturanAplikasi.Group("/manajemen-artikel")
+
+	// BEGIN::ARTIKEL ==========================
+	artikelGroup := manajemenArtikel.Group("/artikel")
+	artikelGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::ARTIKEL ==========================
+
+	// BEGIN::ARTIKEL KATEGORI ==========================
+	artikelKategoriGroup := artikelGroup.Group("/kategori")
+	artikelKategoriGroup.POST("/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.DELETE("/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.GET("/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.PUT("/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	artikelKategoriGroup.GET("/get-options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::ARTIKEL KATEGORI ==========================
+
+	// END::MANAJEMEN ARTIKEL ==========================
+
 	// BEGIN::RATING ==========================
 	e.POST("/rating/save", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/rating/overview", func(c echo.Context) error { return HandleFunc(c, reportapiService) })

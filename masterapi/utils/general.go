@@ -554,6 +554,10 @@ func StringToPointer(s string) *string {
 	return &s
 }
 
+func Int64ToPointer(i int64) *int64 {
+	return &i
+}
+
 func TranslateError(err validator.FieldError) string {
 	snakeCaseField := toSnakeCase(err.Field())
 	field := formatToTitleCase(snakeCaseField)

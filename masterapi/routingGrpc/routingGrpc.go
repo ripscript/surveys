@@ -33,12 +33,14 @@ var (
 )
 
 var (
-	manajemenWilayahRepo  repository.ManajemenWilayahRepo  = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
-	manajemenPenggunaRepo repository.ManajemenPenggunaRepo = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
-	manajemenArtikelRepo  repository.ManajemenArtikelRepo  = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
-	manajemenPejabatRepo  repository.ManajemenPejabatRepo  = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
-	manajamenCMSRepo      repository.ManajemenCMSRepo      = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
-	fileRepo              repository.FileRepo              = repository.NewFileRepo(dbSlave, dbMaster)
+	manajemenWilayahRepo  repository.ManajemenWilayahRepo      = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
+	manajemenPenggunaRepo repository.ManajemenPenggunaRepo     = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
+	manajemenArtikelRepo  repository.ManajemenArtikelRepo      = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	manajemenPejabatRepo  repository.ManajemenPejabatRepo      = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
+	manajamenCMSRepo      repository.ManajemenCMSRepo          = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
+	fileRepo              repository.FileRepo                  = repository.NewFileRepo(dbSlave, dbMaster)
+	artikelCategoryRepo   repository.ArtikelCategoryRepository = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
+	artikelRepo           repository.ArtikelRepository         = repository.NewArtikelRepository(dbSlave, dbMaster)
 )
 
 var (
@@ -58,6 +60,13 @@ var (
 		manajamenCMSRepo,
 		fileRepo,
 	)
+	artikelCategoryService service.ArtikelCategoryService = service.NewArtikelCategoryService(
+		artikelCategoryRepo,
+	)
+	artikelService service.ArtikelService = service.NewArtikelService(
+		artikelRepo,
+		artikelCategoryRepo,
+	)
 )
 
 var (
@@ -75,6 +84,12 @@ var (
 	)
 	manajemenCMSHandler handlers.ManajemenCMSHandler = handlers.NewManajemenCMSHandler(
 		manajemenCMSService,
+	)
+	artikelCategoryHandler handlers.ArtikelCategoryHandler = handlers.NewArtikelCategoryHandler(
+		artikelCategoryService,
+	)
+	artikelHandler handlers.ArtikelHandler = handlers.NewArtikelHandler(
+		artikelService,
 	)
 )
 
@@ -264,6 +279,58 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	// END::MANAJEMEN CMS ===============================
+
+	// BEGIN::MANAJEMEN ARTIKEL ===============================
+
+	// BEGIN::ARTIKEL ===============================
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/create": {
+		"POST": {
+			Handler: artikelHandler.Create,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/update/:id": {
+		"PUT": {
+			Handler: artikelHandler.Update,
+			MenuKey: "artikel",
+		},
+	},
+	// END::ARTIKEL ===============================
+
+	// BEGIN::ARTIKEL KATEGORI ===============================
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/create": {
+		"POST": {
+			Handler: artikelCategoryHandler.Create,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/delete/:id": {
+		"DELETE": {
+			Handler: artikelCategoryHandler.Delete,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/detail/:id": {
+		"GET": {
+			Handler: artikelCategoryHandler.Detail,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/update/:id": {
+		"PUT": {
+			Handler: artikelCategoryHandler.Update,
+			MenuKey: "artikel",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-artikel/artikel/kategori/get-options": {
+		"GET": {
+			Handler: artikelCategoryHandler.GetOptions,
+			MenuKey: "artikel",
+		},
+	},
+	// BEGIN::ARTIKEL KATEGORI ===============================
+
+	// END::MANAJEMEN ARTIKEL ===============================
 	// END::PENGATURAN APLIKASI ===============================
 }
 
