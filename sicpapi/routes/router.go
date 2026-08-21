@@ -382,6 +382,14 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/rating/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::RATING ==========================
 
+	// BEGIN::DASHBOARD BUILDER ==========================
+	dashboardBuilder := pengaturanAplikasi.Group("/dashboard-builder")
+	dashboardBuilder.POST("/metrics/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.GET("/metrics/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.PUT("/metrics/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.DELETE("/metrics/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::DASHBOARD BUILDER ==========================
+
 	// END::PENGATURAN APLIKASI ==========================
 
 	// BEGIN::SISTEM ANTRIAN CETAK LAPORAN =============================

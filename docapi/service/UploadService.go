@@ -6,8 +6,6 @@ import (
 	"backend/docapi/request"
 	"backend/docapi/utils"
 	"backend/siccore/pb"
-	"backend/surveyapi/customValidator"
-	"backend/surveyapi/payloads"
 	"context"
 	"encoding/json"
 	"errors"
@@ -775,7 +773,6 @@ func (service *uploadService) DownloadAndDeleteTempLaporan(ctx context.Context, 
 	}
 
 	var validate = validator.New()
-	validate.RegisterStructValidation(customValidator.ManajemenAlurPayloadValidator, payloads.ManajemenAlurPayload{})
 
 	err = validate.Struct(payload)
 	if err != nil {

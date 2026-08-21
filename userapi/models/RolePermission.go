@@ -95,6 +95,7 @@ type MenuIDs struct {
 	DashboardUtama        int
 	DashboardWilayah      int
 	DashboardRT           int
+	DashboardBuilder      int
 }
 
 type RoleIDs struct {

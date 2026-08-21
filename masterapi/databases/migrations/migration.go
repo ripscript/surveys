@@ -13,6 +13,8 @@ func Migrate(db *gorm.DB) error {
 		&models.CMSItem{},
 		&models.CMSMedia{},
 		&models.Artikel{},
+		&models.DashboardMetric{},
+		&models.DashboardMetricMapping{},
 	)
 	if err != nil {
 		return err

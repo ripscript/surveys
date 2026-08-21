@@ -157,7 +157,8 @@ func (repository *artikelCategoryRepository) GetList(req payloads.DatatablePaylo
 			artikel_categories.id, 
 			artikel_categories.name, 
 			artikel_categories.created_at, 
-			artikel_categories.updated_at 
+			artikel_categories.updated_at,
+			(SELECT COUNT(id) FROM artikels WHERE artikels.artikel_category_id = artikel_categories.id) AS total_artikel
 		`).
 		Where("artikel_categories.deleted_at IS NULL")
 

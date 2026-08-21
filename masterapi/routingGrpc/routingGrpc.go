@@ -33,15 +33,17 @@ var (
 )
 
 var (
-	manajemenWilayahRepo  repository.ManajemenWilayahRepo      = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
-	manajemenPenggunaRepo repository.ManajemenPenggunaRepo     = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
-	manajemenArtikelRepo  repository.ManajemenArtikelRepo      = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
-	manajemenPejabatRepo  repository.ManajemenPejabatRepo      = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
-	manajamenCMSRepo      repository.ManajemenCMSRepo          = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
-	fileRepo              repository.FileRepo                  = repository.NewFileRepo(dbSlave, dbMaster)
-	artikelCategoryRepo   repository.ArtikelCategoryRepository = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
-	artikelRepo           repository.ArtikelRepository         = repository.NewArtikelRepository(dbSlave, dbMaster)
-	artikelPromoteRepo    repository.ArtikelPromoteRepository  = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
+	manajemenWilayahRepo       repository.ManajemenWilayahRepo             = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
+	manajemenPenggunaRepo      repository.ManajemenPenggunaRepo            = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
+	manajemenArtikelRepo       repository.ManajemenArtikelRepo             = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	manajemenPejabatRepo       repository.ManajemenPejabatRepo             = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
+	manajamenCMSRepo           repository.ManajemenCMSRepo                 = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
+	fileRepo                   repository.FileRepo                         = repository.NewFileRepo(dbSlave, dbMaster)
+	artikelCategoryRepo        repository.ArtikelCategoryRepository        = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
+	artikelRepo                repository.ArtikelRepository                = repository.NewArtikelRepository(dbSlave, dbMaster)
+	artikelPromoteRepo         repository.ArtikelPromoteRepository         = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
+	dashboardMetricRepo        repository.DashboardMetricRepository        = repository.NewDashboardMetricRepository(dbMaster, dbSlave)
+	dashboardMetricMappingRepo repository.DashboardMetricMappingRepository = repository.NewDashboardMetricMappingRepository(dbMaster, dbSlave)
 )
 
 var (
@@ -73,6 +75,9 @@ var (
 		artikelRepo,
 		artikelPromoteRepo,
 	)
+	dashboardMetricService service.DashboardMetricService = service.NewDashboardMetricService(
+		dashboardMetricRepo,
+	)
 )
 
 var (
@@ -99,6 +104,9 @@ var (
 	)
 	artikelPromoteHandler handlers.ArtikelPromoteHandler = handlers.NewArtikelPromoteHandler(
 		artikelPromoteService,
+	)
+	dashboardMetricHandler handlers.DashboardMetricHandler = handlers.NewDashboardMetricHandler(
+		dashboardMetricService,
 	)
 )
 
@@ -415,6 +423,33 @@ var grpcMap = map[string]map[string]RouteConfig{
 	// END::ARTIKEL PROMOTE ===============================
 
 	// END::MANAJEMEN ARTIKEL ===============================
+
+	// BEGIN:DASHBOARD BUILDER ==================================
+	"/pengaturan-aplikasi/dashboard-builder/metrics/create": {
+		"POST": {
+			Handler: dashboardMetricHandler.Create,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/metrics/detail/:id": {
+		"GET": {
+			Handler: dashboardMetricHandler.Detail,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/metrics/update/:id": {
+		"PUT": {
+			Handler: dashboardMetricHandler.Update,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/metrics/delete/:id": {
+		"DELETE": {
+			Handler: dashboardMetricHandler.Delete,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	// END:DASHBOARD BUILDER ==================================
 	// END::PENGATURAN APLIKASI ===============================
 }
 

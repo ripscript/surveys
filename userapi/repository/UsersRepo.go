@@ -416,15 +416,19 @@ func (r *usersRepo) UpdateProfileBundleTx(userID int, respondentID int, isPejaba
 	}
 
 	updateRespondentData := map[string]interface{}{
-		"name":          payload.Name,
-		"email":         payload.Email,
-		"nik":           payload.NIK,
-		"alamat":        payload.Alamat,
-		"tempat_lahir":  payload.TempatLahir,
-		"tanggal_lahir": payload.TanggalLahir,
-		"phone_number":  payload.PhoneNumber,
-		"avatar":        payload.Avatar,
+		"name":         payload.Name,
+		"email":        payload.Email,
+		"nik":          payload.NIK,
+		"alamat":       payload.Alamat,
+		"tempat_lahir": payload.TempatLahir,
+		"phone_number": payload.PhoneNumber,
+		"avatar":       payload.Avatar,
 	}
+
+	if payload.TanggalLahir != nil && *payload.TanggalLahir != "" {
+		updateRespondentData["tanggal_lahir"] = payload.TanggalLahir
+	}
+
 	if err := tx.Table("respondents").Where("id = ?", respondentID).Updates(updateRespondentData).Error; err != nil {
 		tx.Rollback()
 		return errors.New("gagal mengupdate data responden")
