@@ -41,9 +41,6 @@ func (r *dashboardMetricRepository) Delete(ctx context.Context, id int64) error 
 func (r *dashboardMetricRepository) FindByID(ctx context.Context, id int64) (*models.DashboardMetric, error) {
 	var m models.DashboardMetric
 	err := r.dbSlave.WithContext(ctx).First(&m, id).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}
