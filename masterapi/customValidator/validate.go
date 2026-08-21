@@ -1,7 +1,7 @@
 package customValidator
 
 import (
-	"backend/reportapi/payloads"
+	"backend/masterapi/payloads"
 	"regexp"
 	"strings"
 
