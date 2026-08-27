@@ -1,7 +1,7 @@
 package models
 
 import (
-	"backend/surveyapi/enums"
+	"backend/masterapi/enums"
 	"time"
 
 	"gorm.io/gorm"
