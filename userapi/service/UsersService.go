@@ -44,6 +44,7 @@ type usersService struct {
 	respondentRepo repository.RespondentRepo
 	txManager      transaction.TxManager
 	fileRepo       repository.FileRepo
+	wilayahRepo    repository.WilayahRepo
 }
 
 func NewUsersService(
@@ -51,6 +52,7 @@ func NewUsersService(
 	respondentRepo repository.RespondentRepo,
 	txManager transaction.TxManager,
 	fileRepo repository.FileRepo,
+	wilayahRepo repository.WilayahRepo,
 
 ) UsersService {
 	return &usersService{
@@ -58,6 +60,7 @@ func NewUsersService(
 		respondentRepo,
 		txManager,
 		fileRepo,
+		wilayahRepo,
 	}
 }
 
@@ -182,9 +185,23 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	if roleID == int64(enums.ROLE_KECAMATAN) && user.Respondent.KecamatanID != nil {
 		kecID := int(*user.Respondent.KecamatanID)
 		filter.KecamatanID = &kecID
+
+		getGeoName, err := service.wilayahRepo.GetGeoNameByKecamatanId(*user.Respondent.KecamatanID)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		user.GeoName = &getGeoName
 	} else if roleID == int64(enums.ROLE_KELURAHAN) && user.Respondent.KelurahanID != nil {
 		kelID := int(*user.Respondent.KelurahanID)
 		filter.KelurahanID = &kelID
+
+		getGeoName, err := service.wilayahRepo.GetGeoNameByKelurahanId(*user.Respondent.KelurahanID)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		user.GeoName = &getGeoName
 	} else if roleID == int64(enums.ROLE_RW) && user.Respondent.RwID != nil {
 		rwID := int(*user.Respondent.RwID)
 		filter.RwID = &rwID

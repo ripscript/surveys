@@ -26,6 +26,7 @@ type UserProfile struct {
 	TotalWilayahKelurahan int64                  `gorm:"-" json:"total_wilayah_kelurahan"`
 	TotalWilayahRW        int64                  `gorm:"-" json:"total_wilayah_rw"`
 	TotalWilayahRT        int64                  `gorm:"-" json:"total_wilayah_rt"`
+	GeoName               *string                `gorm:"-" json:"geo_name"`
 }
 
 func (UserProfile) TableName() string {
