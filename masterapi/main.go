@@ -48,6 +48,11 @@ func main() {
 		if err := migrations.Migrate(db); err != nil {
 			log.Fatal("Gagal melakukan migrasi:", err)
 		}
+
+		if err := migrations.AddDashboardPerformanceIndexes(db); err != nil {
+			log.Fatal("gagal menambahkan index:", err)
+		}
+
 		log.Println("Migrasi berhasil")
 	} else if *seederFlag {
 		db := configs.SetupDatabaseMasterConnection()

@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Kelurahan struct {
+type KelurahanModel struct {
 	ID                int64          `json:"id" gorm:"primaryKey;autoIncrement;not null"`
 	SubDistrictId     int64          `json:"sub_district_id" gorm:"type:bigint;not null"`
 	VillageName       string         `json:"village_name" gorm:"type:varchar(50);not null"`
@@ -18,9 +18,10 @@ type Kelurahan struct {
 	CreatedAt         time.Time      `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `json:"deleted_at" gorm:"index"`
+	GeoName           *string        `gorm:"type:varchar(255)" json:"geo_name"`
 }
 
-func (u *Kelurahan) TableName() string {
+func (u *KelurahanModel) TableName() string {
 	return "kelurahans"
 }
 
@@ -66,25 +67,4 @@ type ResultKelurahan struct {
 	SubDistrictName string
 	TotalRw         int64
 	TotalRt         int64
-}
-
-type KelurahanModel struct {
-	ID                uint           `gorm:"primaryKey" json:"id"`
-	SubDistrictID     uint           `gorm:"type:bigint;not null" json:"sub_district_id"`
-	VillageName       string         `gorm:"type:varchar(50);not null" json:"village_name"`
-	VillageNameSlug   string         `gorm:"type:varchar(70);not null" json:"village_name_slug"`
-	VillagePostalCode *string        `gorm:"type:varchar(191)" json:"village_postal_code"`
-	KodeWilayah       *string        `gorm:"type:varchar(191)" json:"kode_wilayah"`
-	Lat               *string        `gorm:"type:varchar(191)" json:"lat"`
-	Long              *string        `gorm:"type:varchar(191)" json:"long"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at"`
-	GeoName           *string        `gorm:"type:varchar(255)" json:"geo_name"`
-
-	Kecamatan *Kecamatan `gorm:"foreignKey:SubDistrictID" json:"kecamatan,omitempty"`
-}
-
-func (u *KelurahanModel) TableName() string {
-	return "kelurahans"
 }

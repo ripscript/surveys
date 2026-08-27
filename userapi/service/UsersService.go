@@ -175,6 +175,75 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 	user.Respondent.RtCode = RtCodeStr
 	user.Respondent.WilayahCode = wilayahCodeStr
 
+	roleID := user.Respondent.RoleID
+
+	filter := payloads.FilterWilayah{}
+
+	if roleID == int64(enums.ROLE_KECAMATAN) && user.Respondent.KecamatanID != nil {
+		kecID := int(*user.Respondent.KecamatanID)
+		filter.KecamatanID = &kecID
+	} else if roleID == int64(enums.ROLE_KELURAHAN) && user.Respondent.KelurahanID != nil {
+		kelID := int(*user.Respondent.KelurahanID)
+		filter.KelurahanID = &kelID
+	} else if roleID == int64(enums.ROLE_RW) && user.Respondent.RwID != nil {
+		rwID := int(*user.Respondent.RwID)
+		filter.RwID = &rwID
+	}
+
+	isLevelKota := roleID == int64(enums.ROLE_WALIKOTA) || roleID == int64(enums.ROLE_PEMERINTAH_KOTA) || roleID == int64(enums.ROLE_ADMIN)
+	isLevelKecamatan := isLevelKota || roleID == int64(enums.ROLE_KECAMATAN)
+	isLevelKelurahan := isLevelKecamatan || roleID == int64(enums.ROLE_KELURAHAN)
+	isLevelRW := isLevelKelurahan || roleID == int64(enums.ROLE_RW)
+
+	if isLevelKota {
+		totalKec, err := service.usersRepo.GetTotalKecamatan(filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		if totalKec == nil {
+			user.TotalWilayahKecamatan = 0
+		} else {
+			user.TotalWilayahKecamatan = *totalKec
+		}
+	}
+
+	if isLevelKecamatan {
+		totalKel, err := service.usersRepo.GetTotalKelurahan(filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if totalKel == nil {
+			user.TotalWilayahKelurahan = 0
+		} else {
+			user.TotalWilayahKelurahan = *totalKel
+		}
+	}
+
+	if isLevelKelurahan {
+		totalRW, err := service.usersRepo.GetTotalRW(filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if totalRW == nil {
+			user.TotalWilayahRW = 0
+		} else {
+			user.TotalWilayahRW = *totalRW
+		}
+	}
+
+	if isLevelRW {
+		totalRT, err := service.usersRepo.GetTotalRT(filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if totalRT == nil {
+			user.TotalWilayahRT = 0
+		} else {
+			user.TotalWilayahRT = *totalRT
+		}
+	}
+
 	return utils.SendData(user, "Data Profil Pengguna Berhasil Ditemukan")
 }
 

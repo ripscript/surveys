@@ -136,16 +136,16 @@ func PermissionSeed(db *gorm.DB) error {
 		// BEGIN:DASHBOARD ===================================================
 		none(Dashboard, public), viewOnly(Dashboard, rt), viewOnly(Dashboard, rw), viewOnly(Dashboard, lurah),
 		viewOnly(Dashboard, camat), none(Dashboard, pemkot), viewOnly(Dashboard, admin),
-		viewOnly(Dashboard, surveyor), none(Dashboard, walikota),
+		viewOnly(Dashboard, surveyor), viewOnly(Dashboard, walikota),
 
 		// BEGIN:DASHBOARD UTAMA ===================================================
 		none(DashboardUtama, public), viewOnly(DashboardUtama, rt), viewOnly(DashboardUtama, rw), viewOnly(DashboardUtama, lurah),
 		viewOnly(DashboardUtama, camat), none(DashboardUtama, pemkot), viewOnly(DashboardUtama, admin),
-		viewOnly(DashboardUtama, surveyor), none(DashboardUtama, walikota),
+		viewOnly(DashboardUtama, surveyor), viewOnly(DashboardUtama, walikota),
 		// BEGIN:DASHBOARD WILAYAH ===================================================
 		none(DashboardWilayah, public), none(DashboardWilayah, rt), none(DashboardWilayah, rw), none(DashboardWilayah, lurah),
 		none(DashboardWilayah, camat), none(DashboardWilayah, pemkot), none(DashboardWilayah, admin),
-		viewOnly(DashboardWilayah, surveyor), none(DashboardWilayah, walikota),
+		none(DashboardWilayah, surveyor), none(DashboardWilayah, walikota),
 		// BEGIN:DASHBOARD RT ===================================================
 		none(DashboardRT, public), none(DashboardRT, rt), none(DashboardRT, rw), none(DashboardRT, lurah),
 		none(DashboardRT, camat), none(DashboardRT, pemkot), none(DashboardRT, admin),
@@ -280,7 +280,7 @@ func PermissionSeed(db *gorm.DB) error {
 		// END:RATING ===================================================
 
 		// BEGIN:DASHBOARD BUILDER ===================================================
-		none(dashboardBuilder, public), none(dashboardBuilder, rt), none(dashboardBuilder, rw), none(dashboardBuilder, lurah), none(dashboardBuilder, camat), none(dashboardBuilder, pemkot), full(dashboardBuilder, admin), none(dashboardBuilder, surveyor), none(dashboardBuilder, walikota),
+		none(dashboardBuilder, public), none(dashboardBuilder, rt), none(dashboardBuilder, rw), none(dashboardBuilder, lurah), none(dashboardBuilder, camat), none(dashboardBuilder, pemkot), fullHidden(dashboardBuilder, admin), none(dashboardBuilder, surveyor), none(dashboardBuilder, walikota),
 		// END:DASHBOARD BUILDER ===================================================
 
 		// END:PENGATURAN APLIKASI ===================================================

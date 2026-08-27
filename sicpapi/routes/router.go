@@ -388,9 +388,25 @@ func SetupRoutes(e *echo.Echo) {
 	dashboardBuilder.GET("/metrics/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	dashboardBuilder.PUT("/metrics/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	dashboardBuilder.DELETE("/metrics/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	dashboardBuilder.POST("/mapping/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.DELETE("/mapping/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.PATCH("/mapping/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	dashboardBuilder.POST("/option-mapping/bulk-assign", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::DASHBOARD BUILDER ==========================
 
 	// END::PENGATURAN APLIKASI ==========================
+
+	// BEGIN::DASHBOARD ==========================
+	dashboardGroup := e.Group("/dashboard")
+	dashboardGroup.GET("/summary", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/sarana-pengelolaan-sampah", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/card-infrastruktur", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/stunting-vs-rtlh", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/trend", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/comparison", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/heatmap", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	// END::DASHBOARD =========================
 
 	// BEGIN::SISTEM ANTRIAN CETAK LAPORAN =============================
 	wsGroup := e.Group("/wsapi")

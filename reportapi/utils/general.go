@@ -123,6 +123,10 @@ func SetPagination(param url.Values) (int, int, int, string, error) {
 
 }
 
+func Int64ToPointer(i int64) *int64 {
+	return &i
+}
+
 func ToInt64(value interface{}) (int64, error) {
 	switch v := value.(type) {
 	case int:
@@ -615,4 +619,40 @@ func IsDuplicateKeyError(err error) bool {
 
 func StringToPointer(s string) *string {
 	return &s
+}
+
+func ParseInt64QueryParamPointer(s string) *int64 {
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &v
+}
+
+func ParseInt64SliceQueryParam(s string) []int64 {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+
+	parts := strings.Split(s, ",")
+	result := make([]int64, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" {
+			continue
+		}
+		v, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil {
+			continue
+		}
+		result = append(result, v)
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }

@@ -20,8 +20,12 @@ type UserProfile struct {
 	LastLogin          *time.Time     `gorm:"column:last_login"`
 	MustChangePassword *bool          `gorm:"column:must_change_password"`
 
-	Respondent     *RespondentProfile     `gorm:"foreignKey:RespondentID" json:"respondent"`
-	PejabatWilayah *PejabatWilayahProfile `gorm:"foreignKey:IdResponden;references:RespondentID" json:"pejabat_wilayah"`
+	Respondent            *RespondentProfile     `gorm:"foreignKey:RespondentID" json:"respondent"`
+	PejabatWilayah        *PejabatWilayahProfile `gorm:"foreignKey:IdResponden;references:RespondentID" json:"pejabat_wilayah"`
+	TotalWilayahKecamatan int64                  `gorm:"-" json:"total_wilayah_kecamatan"`
+	TotalWilayahKelurahan int64                  `gorm:"-" json:"total_wilayah_kelurahan"`
+	TotalWilayahRW        int64                  `gorm:"-" json:"total_wilayah_rw"`
+	TotalWilayahRT        int64                  `gorm:"-" json:"total_wilayah_rt"`
 }
 
 func (UserProfile) TableName() string {

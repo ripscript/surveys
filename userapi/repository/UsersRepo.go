@@ -37,6 +37,11 @@ type UsersRepo interface {
 
 	FindByRespondentID(respondentID int) (*models.UserProfile, error)
 	UpdateLastLogin(userID int, t time.Time) error
+
+	GetTotalKecamatan(filter payloads.FilterWilayah) (*int64, error)
+	GetTotalKelurahan(filter payloads.FilterWilayah) (*int64, error)
+	GetTotalRW(filter payloads.FilterWilayah) (*int64, error)
+	GetTotalRT(filter payloads.FilterWilayah) (*int64, error)
 }
 
 type usersRepo struct {
@@ -532,4 +537,62 @@ func (r *usersRepo) UpdateLastLogin(userID int, t time.Time) error {
 	return r.dbMaster.Model(&models.UserProfile{}).
 		Where("id = ?", userID).
 		Update("last_login", t).Error
+}
+
+func (r *usersRepo) GetTotalKecamatan(filter payloads.FilterWilayah) (*int64, error) {
+	defer utils.GeneralRecover()
+	var total int64
+	err := r.dbSlave.Table("kecamatans").Count(&total).Error
+	return &total, err
+}
+
+func (r *usersRepo) GetTotalKelurahan(filter payloads.FilterWilayah) (*int64, error) {
+	defer utils.GeneralRecover()
+	var total int64
+	db := r.dbSlave.Table("kelurahans")
+
+	if filter.KecamatanID != nil {
+		db = db.Where("sub_district_id = ?", *filter.KecamatanID)
+	}
+
+	err := db.Count(&total).Error
+	return &total, err
+}
+
+func (r *usersRepo) GetTotalRW(filter payloads.FilterWilayah) (*int64, error) {
+	defer utils.GeneralRecover()
+	var total int64
+	db := r.dbSlave.Table("data__rws")
+
+	if filter.KecamatanID != nil {
+		db = db.Joins("INNER JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+			Where("kelurahans.sub_district_id = ?", *filter.KecamatanID)
+	} else if filter.KelurahanID != nil {
+		db = db.Where("data__rws.kelurahan_id = ?", *filter.KelurahanID)
+	}
+
+	err := db.Count(&total).Error
+	return &total, err
+}
+
+func (r *usersRepo) GetTotalRT(filter payloads.FilterWilayah) (*int64, error) {
+	defer utils.GeneralRecover()
+	var total int64
+	db := r.dbSlave.Table("data__rts")
+
+	// Jika filter dari Kecamatan, join sampai 2 tingkat ke atas
+	if filter.KecamatanID != nil {
+		db = db.Joins("INNER JOIN data__rws ON data__rws.id = data__rts.rw_id").
+			Joins("INNER JOIN kelurahans ON kelurahans.id = data__rws.kelurahan_id").
+			Where("kelurahans.sub_district_id = ?", *filter.KecamatanID)
+	} else if filter.KelurahanID != nil {
+		// Jika filter dari Kelurahan, join 1 tingkat ke atas
+		db = db.Joins("INNER JOIN data__rws ON data__rws.id = data__rts.rw_id").
+			Where("data__rws.kelurahan_id = ?", *filter.KelurahanID)
+	} else if filter.RwID != nil {
+		db = db.Where("data__rts.rw_id = ?", *filter.RwID)
+	}
+
+	err := db.Count(&total).Error
+	return &total, err
 }

@@ -33,15 +33,19 @@ var (
 )
 
 var (
-	homeRepo         repository.HomeRepo         = repository.NewHomeRepo(dbSlave, dbMaster)
-	logRepo          repository.LogRepo          = repository.NewLogRepo(dbSlave, dbMaster)
-	surveyRepo       repository.SurveyRepo       = repository.NewSurveyRepo(dbSlave, dbMaster)
-	surveyExportRepo repository.SurveyExportRepo = repository.NewSurveyExportRepo(dbSlave, dbMaster)
-	statistikRepo    repository.StatistikRepo    = repository.NewStatistikRepo(dbSlave, dbMaster)
-	userRepo         repository.UserRepo         = repository.NewUserRepo(dbSlave, dbMaster)
-	laporanRepo      repository.LaporanRepo      = repository.NewLaporanRepo(dbSlave, dbMaster)
-	fileRepo         repository.FileRepo         = repository.NewFileRepo(dbSlave, dbMaster)
-	ratingRepo       repository.RatingRepo       = repository.NewRatingRepo(dbSlave, dbMaster)
+	homeRepo                   repository.HomeRepo                         = repository.NewHomeRepo(dbSlave, dbMaster)
+	logRepo                    repository.LogRepo                          = repository.NewLogRepo(dbSlave, dbMaster)
+	surveyRepo                 repository.SurveyRepo                       = repository.NewSurveyRepo(dbSlave, dbMaster)
+	surveyExportRepo           repository.SurveyExportRepo                 = repository.NewSurveyExportRepo(dbSlave, dbMaster)
+	statistikRepo              repository.StatistikRepo                    = repository.NewStatistikRepo(dbSlave, dbMaster)
+	userRepo                   repository.UserRepo                         = repository.NewUserRepo(dbSlave, dbMaster)
+	laporanRepo                repository.LaporanRepo                      = repository.NewLaporanRepo(dbSlave, dbMaster)
+	fileRepo                   repository.FileRepo                         = repository.NewFileRepo(dbSlave, dbMaster)
+	ratingRepo                 repository.RatingRepo                       = repository.NewRatingRepo(dbSlave, dbMaster)
+	dashboardMetricMappingRepo repository.DashboardMetricMappingRepository = repository.NewDashboardMetricMappingRepository(dbSlave, dbMaster)
+	dashboardSummaryRepo       repository.DashboardSummaryRepository       = repository.NewDashboardSummaryRepository(dbSlave)
+	wilayahRepo                repository.WilayahRepository                = repository.NewWilayahRepository(dbSlave)
+	dashboardMetricRepo        repository.DashboardMetricRepository        = repository.NewDashboardMetricRepository(dbSlave, dbMaster)
 )
 
 var (
@@ -67,6 +71,12 @@ var (
 	ratingService service.RatingService = service.NewRatingService(
 		ratingRepo,
 	)
+	dashboardService service.DashboardService = service.NewDashboardService(
+		dashboardSummaryRepo,
+		wilayahRepo,
+		dashboardMetricRepo,
+		userRepo,
+	)
 )
 
 var (
@@ -87,6 +97,9 @@ var (
 	)
 	ratingHandler handlers.RatingHandler = handlers.NewRatingHandler(
 		ratingService,
+	)
+	dashboardHandler handlers.DashboardHandler = handlers.NewDashboardHandler(
+		dashboardService,
 	)
 )
 
@@ -273,6 +286,52 @@ var grpcMap = map[string]map[string]RouteConfig{
 	},
 	// END:RATING ==================================
 	// END:PENGATURAN APLIKASI ==================================
+
+	// BEGIN:DASHBOARD ==================================
+	"/dashboard/summary": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardSummary,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/sarana-pengelolaan-sampah": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardSaranaPengelolaanSampah,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/card-infrastruktur": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardCardInfrastruktur,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/stunting-vs-rtlh": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardStuntingVsRTLH,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/trend": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardTrend,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/comparison": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardComparison,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/heatmap": {
+		"GET": {
+			Handler: dashboardHandler.GetHeatMap,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	// END:DASHBOARD ==================================
+
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

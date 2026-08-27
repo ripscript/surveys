@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"backend/masterapi/models"
+	"backend/reportapi/models"
 	"context"
 	"errors"
 

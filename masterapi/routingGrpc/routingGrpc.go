@@ -33,17 +33,20 @@ var (
 )
 
 var (
-	manajemenWilayahRepo       repository.ManajemenWilayahRepo             = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
-	manajemenPenggunaRepo      repository.ManajemenPenggunaRepo            = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
-	manajemenArtikelRepo       repository.ManajemenArtikelRepo             = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
-	manajemenPejabatRepo       repository.ManajemenPejabatRepo             = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
-	manajamenCMSRepo           repository.ManajemenCMSRepo                 = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
-	fileRepo                   repository.FileRepo                         = repository.NewFileRepo(dbSlave, dbMaster)
-	artikelCategoryRepo        repository.ArtikelCategoryRepository        = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
-	artikelRepo                repository.ArtikelRepository                = repository.NewArtikelRepository(dbSlave, dbMaster)
-	artikelPromoteRepo         repository.ArtikelPromoteRepository         = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
-	dashboardMetricRepo        repository.DashboardMetricRepository        = repository.NewDashboardMetricRepository(dbMaster, dbSlave)
-	dashboardMetricMappingRepo repository.DashboardMetricMappingRepository = repository.NewDashboardMetricMappingRepository(dbMaster, dbSlave)
+	manajemenWilayahRepo             repository.ManajemenWilayahRepo                   = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
+	manajemenPenggunaRepo            repository.ManajemenPenggunaRepo                  = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
+	manajemenArtikelRepo             repository.ManajemenArtikelRepo                   = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	manajemenPejabatRepo             repository.ManajemenPejabatRepo                   = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
+	manajamenCMSRepo                 repository.ManajemenCMSRepo                       = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
+	fileRepo                         repository.FileRepo                               = repository.NewFileRepo(dbSlave, dbMaster)
+	artikelCategoryRepo              repository.ArtikelCategoryRepository              = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
+	artikelRepo                      repository.ArtikelRepository                      = repository.NewArtikelRepository(dbSlave, dbMaster)
+	artikelPromoteRepo               repository.ArtikelPromoteRepository               = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
+	dashboardMetricRepo              repository.DashboardMetricRepository              = repository.NewDashboardMetricRepository(dbMaster, dbSlave)
+	dashboardMetricMappingRepo       repository.DashboardMetricMappingRepository       = repository.NewDashboardMetricMappingRepository(dbMaster, dbSlave)
+	formRepo                         repository.FormRepository                         = repository.NewFormRepository(dbSlave)
+	formFieldRepo                    repository.FormFieldRepository                    = repository.NewFormFieldRepository(dbSlave)
+	dashboardOptionStatusMappingRepo repository.DashboardOptionStatusMappingRepository = repository.NewDashboardOptionStatusMappingRepository(dbMaster, dbSlave)
 )
 
 var (
@@ -78,6 +81,17 @@ var (
 	dashboardMetricService service.DashboardMetricService = service.NewDashboardMetricService(
 		dashboardMetricRepo,
 	)
+	dashboardMetricMappingService service.DashboardMetricMappingService = service.NewDashboardMetricMappingService(
+		dashboardMetricRepo,
+		dashboardMetricMappingRepo,
+		formRepo,
+		formFieldRepo,
+	)
+	dashboardOptionStatusMappingService service.DashboardOptionStatusMappingService = service.NewDashboardOptionStatusMappingService(
+		dashboardOptionStatusMappingRepo,
+		dashboardMetricMappingRepo,
+		formFieldRepo,
+	)
 )
 
 var (
@@ -107,6 +121,12 @@ var (
 	)
 	dashboardMetricHandler handlers.DashboardMetricHandler = handlers.NewDashboardMetricHandler(
 		dashboardMetricService,
+	)
+	dashboardMetricMappingHandler handlers.DashboardMetricMappingHandler = handlers.NewDashboardMetricMappingHandler(
+		dashboardMetricMappingService,
+	)
+	dashboardOptionStatusMappingHandler handlers.DashboardOptionStatusMappingHandler = handlers.NewDashboardOptionStatusMappingHandler(
+		dashboardOptionStatusMappingService,
 	)
 )
 
@@ -446,6 +466,32 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/pengaturan-aplikasi/dashboard-builder/metrics/delete/:id": {
 		"DELETE": {
 			Handler: dashboardMetricHandler.Delete,
+			MenuKey: "dashboard-builder",
+		},
+	},
+
+	"/pengaturan-aplikasi/dashboard-builder/mapping/create": {
+		"POST": {
+			Handler: dashboardMetricMappingHandler.Create,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/mapping/delete/:id": {
+		"DELETE": {
+			Handler: dashboardMetricMappingHandler.Delete,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/mapping/update/:id": {
+		"PATCH": {
+			Handler: dashboardMetricMappingHandler.Update,
+			MenuKey: "dashboard-builder",
+		},
+	},
+
+	"/pengaturan-aplikasi/dashboard-builder/option-mapping/bulk-assign": {
+		"POST": {
+			Handler: dashboardOptionStatusMappingHandler.BulkAssign,
 			MenuKey: "dashboard-builder",
 		},
 	},

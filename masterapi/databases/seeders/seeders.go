@@ -6,9 +6,20 @@ import (
 
 func Seed(db *gorm.DB) error {
 
-	// seeder users
 	err := CMSSectionSeed(db)
 	if err != nil {
+		return err
+	}
+
+	if err := DashboardMetricSeed(db); err != nil {
+		return err
+	}
+
+	if err := WilayahKecamatanGeoJSONSeed(db); err != nil {
+		return err
+	}
+
+	if err := WilayahKelurahanGeoJSONSeed(db); err != nil {
 		return err
 	}
 
