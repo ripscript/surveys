@@ -12,6 +12,10 @@ type HasilSurveyHandler interface {
 	GetListSurvey(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyResultSummary(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyResultQuestionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultRespondentList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	SurveyResultRespondentDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultPerRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ExportExcelSurveyResultAll(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type hasilSurveyHandler struct {
@@ -47,4 +51,20 @@ func (handler *hasilSurveyHandler) SurveyResultSummary(ctx context.Context, req 
 
 func (handler *hasilSurveyHandler) SurveyResultQuestionDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.hasilSurveyService.SurveyResultQuestionDetail(ctx, req, usr, param, slug)
+}
+
+func (handler *hasilSurveyHandler) SurveyResultRespondentList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.hasilSurveyService.SurveyResultRespondentList(ctx, req, usr, param, slug)
+}
+
+func (handler *hasilSurveyHandler) SurveyResultRespondentDetail(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.hasilSurveyService.SurveyResultRespondentDetail(ctx, req, usr, param, slug)
+}
+
+func (handler *hasilSurveyHandler) ExportExcelSurveyResultPerRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.hasilSurveyService.ExportExcelSurveyResultPerRespondent(ctx, req, usr, param, slug)
+}
+
+func (handler *hasilSurveyHandler) ExportExcelSurveyResultAll(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.hasilSurveyService.ExportExcelSurveyResultAll(ctx, req, usr, param, slug)
 }

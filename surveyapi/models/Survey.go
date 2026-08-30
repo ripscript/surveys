@@ -145,3 +145,34 @@ type SurveyResultDetailRawDTO struct {
 	RespondentName string `json:"respondent_name"`
 	Answer         string `json:"answer"`
 }
+
+type SurveyResultRespondentRawDTO struct {
+	SurveyRespondentID int64      `json:"survey_respondent_id"`
+	RespondentID       int64      `json:"respondent_id"`
+	RespondentName     string     `json:"respondent_name"`
+	LastResponseAt     *time.Time `json:"last_response_at"`
+	TotalAnswered      int64      `json:"total_answered"`
+	Status             *int       `json:"status"`
+	StatusApproval     *string    `json:"status_approval"`
+}
+
+type SurveyResultRespondentDetailRawDTO struct {
+	FormFieldID int    `json:"form_field_id"`
+	Question    string `json:"question"`
+	Deskripsi   string `json:"deskripsi"`
+	Template    string `json:"template"`
+	Sequence    int    `json:"sequence"`
+	Answer      string `json:"answer"`
+}
+
+type ExportAllJawabanRawDTO struct {
+	RespondentID  int64      `json:"respondent_id"`
+	NamaResponden string     `json:"nama_responden"`
+	KecamatanName string     `json:"kecamatan_name"`
+	KelurahanName string     `json:"kelurahan_name"`
+	RwName        string     `json:"rw_name"`
+	RtName        string     `json:"rt_name"`
+	WaktuSelesai  *time.Time `json:"waktu_selesai"`
+	FormFieldID   int        `json:"form_field_id"`
+	Answer        *string    `json:"answer"`
+}

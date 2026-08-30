@@ -300,6 +300,10 @@ func SetupRoutes(e *echo.Echo) {
 	hasilSurveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	hasilSurveyGroup.GET("/result-summary/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	hasilSurveyGroup.GET("/result-summary/survey/:survey_code/question/:question_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/survey/:survey_code/respondents", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/survey/:survey_code/survey-respondent/:survey_respondent_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/export/survey/:survey_code/survey-respondent/:survey_respondent_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/export/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	// END:HASIL SURVEY ==============================
 
 	// BEGIN::MONITORING & LAPORAN ==========================

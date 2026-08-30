@@ -106,6 +106,12 @@ type SurveyRepo interface {
 	GetTotalValidatedResponden(ctx context.Context, surveyID int64) (int64, error)
 
 	GetSurveyResultDetailByQuestion(ctx context.Context, surveyID int64, formFieldID int64, req payloads.DatatablePayload) ([]models.SurveyResultDetailRawDTO, int64, error)
+
+	GetSurveyResultRespondents(ctx context.Context, surveyID int64, req payloads.DatatablePayload) ([]models.SurveyResultRespondentRawDTO, int64, error)
+	GetSurveyResultRespondentDetail(ctx context.Context, surveyID int64, surveyRespondentID int64) ([]models.SurveyResultRespondentDetailRawDTO, error)
+	GetSurveyRespondentByID(ctx context.Context, surveyRespondentID int64) (*models.SurveyRespondent, error)
+
+	GetAllJawabanForExport(ctx context.Context, surveyID int64) ([]models.ExportAllJawabanRawDTO, error)
 }
 
 type surveyRepo struct {
@@ -2434,4 +2440,159 @@ func (repository *surveyRepo) GetSurveyResultDetailByQuestion(ctx context.Contex
 	}
 
 	return results, totalData, nil
+}
+
+func (repository *surveyRepo) GetSurveyResultRespondents(ctx context.Context, surveyID int64, req payloads.DatatablePayload) ([]models.SurveyResultRespondentRawDTO, int64, error) {
+	defer utils.GeneralRecover()
+
+	var results []models.SurveyResultRespondentRawDTO
+	var totalData int64
+
+	countQuery := repository.dbSlave.WithContext(ctx).Table("survey_respondents sr").
+		Joins("JOIN respondents r ON r.id = sr.respondent_id").
+		Where("sr.survey_id = ?", surveyID)
+
+	if req.Search != "" {
+		countQuery = countQuery.Where("r.name ILIKE ?", "%"+req.Search+"%")
+	}
+
+	if err := countQuery.Count(&totalData).Error; err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := repository.dbSlave.WithContext(ctx).Table("survey_respondents sr").
+		Joins("JOIN respondents r ON r.id = sr.respondent_id").
+		Where("sr.survey_id = ?", surveyID)
+
+	if req.Search != "" {
+		dataQuery = dataQuery.Where("r.name ILIKE ?", "%"+req.Search+"%")
+	}
+
+	finalOrderBy := "sr.id"
+	finalOrderDir := "desc"
+
+	allowedOrderCols := map[string]string{
+		"id":                  "sr.id",
+		"nama_responden":      "r.name",
+		"tanggapan_terakhir":  "sr.updated_at",
+		"pertanyaan_terjawab": "total_answered",
+		"status":              "sr.status",
+	}
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "asc" {
+		finalOrderDir = "asc"
+	}
+
+	selectQuery := `
+		sr.id AS survey_respondent_id,
+		r.id AS respondent_id,
+		r.name AS respondent_name,
+		sr.updated_at AS last_response_at,
+		sr.status,
+		sr.status_approval,
+		(
+			SELECT COUNT(DISTINCT fr.form_field_id)
+			FROM field_responses fr
+			WHERE fr.form_response_id = sr.id
+			AND fr.answer IS NOT NULL AND fr.answer != '' AND fr.answer != '[SKIPPED_BY_LOGIC]'
+		) AS total_answered
+	`
+
+	offset := (req.Page - 1) * req.Limit
+
+	err := dataQuery.
+		Select(selectQuery).
+		Order(finalOrderBy + " " + finalOrderDir).
+		Limit(req.Limit).
+		Offset(offset).
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return results, totalData, nil
+}
+
+func (repository *surveyRepo) GetSurveyResultRespondentDetail(ctx context.Context, surveyID int64, surveyRespondentID int64) ([]models.SurveyResultRespondentDetailRawDTO, error) {
+	defer utils.GeneralRecover()
+
+	var results []models.SurveyResultRespondentDetailRawDTO
+
+	query := `
+		SELECT
+			ff.id AS form_field_id,
+			ff.question,
+			ff.deskripsi,
+			ff.template,
+			flf.sequence,
+			COALESCE(fr.answer, '') AS answer
+		FROM flow_fields flf
+		JOIN form_fields ff ON ff.id = flf.form_field_id
+		JOIN surveys s ON s.flow_detail_id = flf.flow_detail_id
+		LEFT JOIN field_responses fr ON fr.form_field_id = ff.id
+			AND fr.form_response_id = ?
+		WHERE s.id = ?
+		ORDER BY flf.sequence ASC
+	`
+
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyRespondentID, surveyID).Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (repository *surveyRepo) GetSurveyRespondentByID(ctx context.Context, surveyRespondentID int64) (*models.SurveyRespondent, error) {
+	defer utils.GeneralRecover()
+
+	var surveyRespondent models.SurveyRespondent
+	err := repository.dbSlave.WithContext(ctx).
+		Where("id = ?", surveyRespondentID).
+		First(&surveyRespondent).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return &surveyRespondent, nil
+}
+
+func (repository *surveyRepo) GetAllJawabanForExport(ctx context.Context, surveyID int64) ([]models.ExportAllJawabanRawDTO, error) {
+	defer utils.GeneralRecover()
+
+	var results []models.ExportAllJawabanRawDTO
+
+	query := `
+		SELECT
+			sr.respondent_id,
+			r.name AS nama_responden,
+			kecamatans.sub_district_name AS kecamatan_name,
+			kelurahans.village_name AS kelurahan_name,
+			rws.nama_rw AS rw_name,
+			rts.nama_rt AS rt_name,
+			sr.updated_at AS waktu_selesai,
+			fr.form_field_id,
+			fr.answer
+		FROM survey_respondents sr
+		JOIN respondents r ON r.id = sr.respondent_id
+		LEFT JOIN kecamatans ON kecamatans.id = r.kecamatan_id
+		LEFT JOIN kelurahans ON kelurahans.id = r.kelurahan_id
+		LEFT JOIN data__rws AS rws ON rws.id = r.rw_id
+		LEFT JOIN data__rts AS rts ON rts.id = r.rt_id
+		LEFT JOIN field_responses fr ON fr.form_response_id = sr.id
+		WHERE sr.survey_id = ?
+		ORDER BY sr.id ASC
+	`
+
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID).Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }

@@ -409,6 +409,22 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: hasilSurveyHandler.SurveyResultQuestionDetail,
 		MenuKey: "hasil-survey",
 	}},
+	"/hasil-survey/result-summary/survey/:survey_code/respondents": {"GET": {
+		Handler: hasilSurveyHandler.SurveyResultRespondentList,
+		MenuKey: "hasil-survey",
+	}},
+	"/hasil-survey/result-summary/survey/:survey_code/survey-respondent/:survey_respondent_id": {"GET": {
+		Handler: hasilSurveyHandler.SurveyResultRespondentDetail,
+		MenuKey: "hasil-survey",
+	}},
+	"/hasil-survey/result-summary/export/survey/:survey_code/survey-respondent/:survey_respondent_id": {"GET": {
+		Handler: hasilSurveyHandler.ExportExcelSurveyResultPerRespondent,
+		MenuKey: "hasil-survey",
+	}},
+	"/hasil-survey/result-summary/export/survey/:survey_code": {"GET": {
+		Handler: hasilSurveyHandler.ExportExcelSurveyResultAll,
+		MenuKey: "hasil-survey",
+	}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {
