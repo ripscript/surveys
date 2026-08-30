@@ -64,6 +64,15 @@ var (
 		userRepo,
 		fileRepo,
 	)
+	hasilSurveyService service.HasilSurveyService = service.NewHasilSurveyService(
+		manajemenAlurRepo,
+		templateFormulirPertanyaanRepo,
+		templateUcapanRepo,
+		surveyRepo,
+		wilayahRepo,
+		userRepo,
+		fileRepo,
+	)
 )
 
 var (
@@ -78,6 +87,11 @@ var (
 	)
 	surveyHandler handlers.SurveyHandler = handlers.NewSurveyHandler(
 		manajemenAlurService,
+		surveyService,
+	)
+	hasilSurveyHandler handlers.HasilSurveyHandler = handlers.NewHasilSurveyHandler(
+		manajemenAlurService,
+		hasilSurveyService,
 		surveyService,
 	)
 )
@@ -380,6 +394,20 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/survey-kewilayahan/respondent-rejected-survey/:survey_code": {"GET": {
 		Handler: surveyHandler.GetRejectedQuestionsBySurveyCode,
 		MenuKey: "survey-kewilayahan",
+	}},
+
+	"/hasil-survey/list": {"GET": {
+		Handler: hasilSurveyHandler.GetListSurvey,
+		MenuKey: "hasil-survey",
+	}},
+	"/hasil-survey/result-summary/survey/:survey_code": {"GET": {
+		Handler: hasilSurveyHandler.SurveyResultSummary,
+		MenuKey: "hasil-survey",
+	}},
+
+	"/hasil-survey/result-summary/survey/:survey_code/question/:question_id": {"GET": {
+		Handler: hasilSurveyHandler.SurveyResultQuestionDetail,
+		MenuKey: "hasil-survey",
 	}},
 }
 

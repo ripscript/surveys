@@ -115,3 +115,33 @@ type SurveyPreviewSection struct {
 	TotalRequiredQuestions int     `json:"total_required_questions"`
 	TotalOptionalQuestions int     `json:"total_optional_questions"`
 }
+
+type HasilSurveyDatatableResponse struct {
+	No             int64     `json:"no"`
+	ID             int       `json:"-" gorm:"column:id"`
+	SurveyCode     string    `json:"survey_code" gorm:"column:survey_code"`
+	SurveyName     string    `json:"survey_name" gorm:"column:survey_name"`
+	SurveyDimulai  time.Time `json:"start_date" gorm:"column:start_date"`
+	SurveyBerakhir time.Time `json:"end_date" gorm:"column:end_date"`
+	AlurName       string    `json:"flow_name" gorm:"column:flow_name"`
+	VersiAlur      string    `json:"flow_version" gorm:"column:flow_version"`
+	CreatedAt      time.Time `json:"created_at" gorm:"column:created_at"`
+	Status         string    `json:"status" gorm:"column:status"`
+}
+
+type SurveyResultRawDTO struct {
+	FormFieldID int    `json:"form_field_id"`
+	Question    string `json:"question"`
+	Deskripsi   string `json:"deskripsi"`
+	Template    string `json:"template"`
+	Required    bool   `json:"required"`
+	Sequence    int    `json:"sequence"`
+	Answer      string `json:"answer"`
+	Total       int64  `json:"total"`
+}
+
+type SurveyResultDetailRawDTO struct {
+	RespondentID   int64  `json:"respondent_id"`
+	RespondentName string `json:"respondent_name"`
+	Answer         string `json:"answer"`
+}

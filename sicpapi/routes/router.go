@@ -151,6 +151,7 @@ func SetupRoutes(e *echo.Echo) {
 
 	// DOCAPI SERVICE
 	e.GET("/view-survey-image/:id", func(c echo.Context) error { return HandleFunc(c, docapiService) })
+	e.GET("/view-public-survey-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-cms-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-laporan-konten-image/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	e.GET("/view-foto-profil/:path", func(c echo.Context) error { return HandleFunc(c, docapiService) })
@@ -293,6 +294,13 @@ func SetupRoutes(e *echo.Echo) {
 
 	surveyKewilayahanGroup.GET("/respondent-rejected-all", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 	surveyKewilayahanGroup.GET("/respondent-rejected-survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+
+	// BEGIN:HASIL SURVEY ==============================
+	hasilSurveyGroup := e.Group("/hasil-survey")
+	hasilSurveyGroup.GET("/list", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/survey/:survey_code", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	hasilSurveyGroup.GET("/result-summary/survey/:survey_code/question/:question_id", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
+	// END:HASIL SURVEY ==============================
 
 	// BEGIN::MONITORING & LAPORAN ==========================
 	monitoringDanLaporanGroup := e.Group("/monitoring-dan-laporan")

@@ -99,6 +99,13 @@ type SurveyRepo interface {
 	ActionRequiredCount(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent) (int64, error)
 
 	GetFieldResponsesForHeatpoint(surveyIDs []int64, formFieldIDs []int64) ([]models.FieldResponse, error)
+
+	GetListHasilSurvey(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent, req payloads.HasilSurveyDatatablePayload) ([]models.HasilSurveyDatatableResponse, int64, error)
+
+	GetSurveyResultRaw(ctx context.Context, surveyID int64) ([]models.SurveyResultRawDTO, error)
+	GetTotalValidatedResponden(ctx context.Context, surveyID int64) (int64, error)
+
+	GetSurveyResultDetailByQuestion(ctx context.Context, surveyID int64, formFieldID int64, req payloads.DatatablePayload) ([]models.SurveyResultDetailRawDTO, int64, error)
 }
 
 type surveyRepo struct {
@@ -2211,4 +2218,220 @@ func (repository *surveyRepo) GetFieldResponsesForHeatpoint(surveyIDs []int64, f
 	}
 
 	return data, nil
+}
+
+func (repository *surveyRepo) GetListHasilSurvey(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent, req payloads.HasilSurveyDatatablePayload) ([]models.HasilSurveyDatatableResponse, int64, error) {
+	defer utils.GeneralRecover()
+	var data []models.HasilSurveyDatatableResponse
+	var totalData int64
+
+	db := repository.dbSlave.Table("surveys").
+		Joins("LEFT JOIN users ON users.id = surveys.created_by").
+		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id")
+
+	if req.Status != "" {
+		db = db.Where("surveys.status = ?", req.Status)
+	}
+
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		searchStr := strings.TrimSpace(req.Search)
+		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
+
+		if isDate {
+			db = db.Where(`
+				surveys.name ILIKE ? OR
+				flow_details.name ILIKE ? OR
+				flow_details.version ILIKE ? OR
+				users.first_name ILIKE ? OR
+				DATE(surveys.start_date) = ? OR
+				DATE(surveys.end_date) = ? OR
+				DATE(flow_details.created_at) = ? OR
+				DATE(flow_details.updated_at) = ?
+			`, searchTerm, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate, parsedDate, parsedDate)
+		} else if len(searchStr) == 4 {
+			db = db.Where(`
+				surveys.name ILIKE ? OR
+				flow_details.name ILIKE ? OR
+				flow_details.version ILIKE ? OR
+				users.first_name ILIKE ? OR
+				EXTRACT(YEAR FROM surveys.start_date)::TEXT = ? OR
+				EXTRACT(YEAR FROM surveys.end_date)::TEXT = ? OR
+				EXTRACT(YEAR FROM flow_details.created_at)::TEXT = ? OR
+				EXTRACT(YEAR FROM flow_details.updated_at)::TEXT = ?
+			`, searchTerm, searchTerm, searchTerm, searchTerm, searchStr, searchStr, searchStr, searchStr)
+		} else {
+			db = db.Where(`
+				surveys.name ILIKE ? OR
+				flow_details.name ILIKE ? OR
+				flow_details.version ILIKE ? OR
+				users.first_name ILIKE ?
+			`, searchTerm, searchTerm, searchTerm, searchTerm)
+		}
+	}
+
+	err := db.Count(&totalData).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	db = db.Select(`
+		surveys.id,
+		surveys.name AS survey_name,
+		surveys.start_date,
+		surveys.end_date,
+		flow_details.name AS flow_name,
+		flow_details.version AS flow_version,
+		surveys.created_at,
+		surveys.status
+	`)
+
+	if req.OrderBy != "" {
+		finalOrderBy := "surveys.created_at"
+		finalOrderDir := "desc"
+
+		allowedOrderCols := map[string]string{
+			"id":           "surveys.id",
+			"survey_name":  "surveys.name",
+			"start_date":   "surveys.start_date",
+			"end_date":     "surveys.end_date",
+			"flow_name":    "flow_details.name",
+			"flow_version": "flow_details.version",
+			"created_at":   "surveys.created_at",
+			"status":       "surveys.status",
+		}
+
+		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
+			finalOrderBy = mappedCol
+		}
+
+		if strings.ToLower(req.OrderDir) == "asc" {
+			finalOrderDir = "asc"
+		}
+
+		db = db.Order(finalOrderBy + " " + finalOrderDir)
+	} else {
+		db = db.Order("surveys.created_at desc")
+	}
+
+	offset := (req.Page - 1) * req.Limit
+	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for i := range data {
+		data[i].No = int64(offset + i + 1)
+	}
+
+	return data, totalData, nil
+}
+
+func (repository *surveyRepo) GetSurveyResultRaw(ctx context.Context, surveyID int64) ([]models.SurveyResultRawDTO, error) {
+	defer utils.GeneralRecover()
+
+	var results []models.SurveyResultRawDTO
+
+	query := `
+		SELECT
+			ff.id AS form_field_id,
+			ff.question,
+			ff.deskripsi,
+			ff.template,
+			ff.required,
+			flf.sequence,
+			COALESCE(fr.answer, '') AS answer,
+			COUNT(fr.id) AS total
+		FROM flow_fields flf
+		JOIN form_fields ff ON ff.id = flf.form_field_id
+		JOIN surveys s ON s.flow_detail_id = flf.flow_detail_id
+		LEFT JOIN field_responses fr ON fr.form_field_id = ff.id
+			AND fr.form_response_id IN (
+				SELECT id FROM survey_respondents 
+				WHERE survey_id = s.id AND status_approval = 'validated_lurah'
+			)
+			AND fr.answer IS NOT NULL AND fr.answer != '' AND fr.answer != '[SKIPPED_BY_LOGIC]'
+		WHERE s.id = ?
+		GROUP BY ff.id, ff.question, ff.deskripsi, ff.template, ff.required, flf.sequence, fr.answer
+		ORDER BY flf.sequence ASC
+	`
+
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID).Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (repository *surveyRepo) GetTotalValidatedResponden(ctx context.Context, surveyID int64) (int64, error) {
+	defer utils.GeneralRecover()
+
+	var total int64
+
+	err := repository.dbSlave.WithContext(ctx).
+		Table("survey_respondents").
+		Where("survey_id = ? AND status_approval = ?", surveyID, "validated_lurah").
+		Count(&total).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return total, nil
+}
+
+func (repository *surveyRepo) GetSurveyResultDetailByQuestion(ctx context.Context, surveyID int64, formFieldID int64, req payloads.DatatablePayload) ([]models.SurveyResultDetailRawDTO, int64, error) {
+	defer utils.GeneralRecover()
+
+	var results []models.SurveyResultDetailRawDTO
+	var totalData int64
+
+	baseQuery := repository.dbSlave.WithContext(ctx).Table("field_responses fr").
+		Joins("JOIN survey_respondents sr ON sr.id = fr.form_response_id").
+		Joins("JOIN respondents r ON r.id = sr.respondent_id").
+		Where("sr.survey_id = ?", surveyID).
+		Where("fr.form_field_id = ?", formFieldID).
+		Where("sr.status_approval = ?", "validated_lurah").
+		Where("fr.answer IS NOT NULL AND fr.answer != '' AND fr.answer != ?", "[SKIPPED_BY_LOGIC]")
+
+	if req.Search != "" {
+		baseQuery = baseQuery.Where("r.name ILIKE ?", "%"+req.Search+"%")
+	}
+
+	if err := baseQuery.Session(&gorm.Session{}).Count(&totalData).Error; err != nil {
+		return nil, 0, err
+	}
+
+	finalOrderBy := "r.name"
+	finalOrderDir := "asc"
+
+	allowedOrderCols := map[string]string{
+		"id":     "r.id",
+		"name":   "r.name",
+		"answer": "fr.answer",
+	}
+
+	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
+		finalOrderBy = mappedCol
+	}
+
+	if strings.ToLower(req.OrderDir) == "desc" {
+		finalOrderDir = "desc"
+	}
+
+	offset := (req.Page - 1) * req.Limit
+
+	err := baseQuery.
+		Select("r.id AS respondent_id, r.name AS respondent_name, fr.answer").
+		Order(finalOrderBy + " " + finalOrderDir).
+		Limit(req.Limit).
+		Offset(offset).
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return results, totalData, nil
 }

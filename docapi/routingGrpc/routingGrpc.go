@@ -61,7 +61,7 @@ var grpcMap = map[string]map[string]func(context.Context, map[string]interface{}
 
 	"/upload-survey-image":            {"POST": uploadHandler.UploadSurveyImage},
 	"/view-survey-image/:id":          {"GET": uploadHandler.ShowSurveyImage},
-	"/view-public-survey-image/:path": {"POST": uploadHandler.ShowPublicSurveyImage},
+	"/view-public-survey-image/:path": {"GET": uploadHandler.ShowPublicSurveyImage},
 	"/delete-bulk-survey-image":       {"POST": uploadHandler.DeleteBulkSurveyImage},
 
 	"/upload-cms-image":      {"POST": uploadHandler.UploadCMSImage},
