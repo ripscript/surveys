@@ -21,7 +21,6 @@ type ManajemenCMSRepo interface {
 	GetListSection(req payloads.DatatablePayload) ([]models.CMSSectionDatatable, int64, error)
 	GetSectionById(id int) (*models.CMSSection, error)
 	UpdateSection(section *models.CMSSection) (*models.CMSSection, error)
-	DeleteSection(section *models.CMSSection) error
 	GetSectionBySlug(slug string) (*models.CMSSection, error)
 	UpsertContents(sectionID int, contents []models.CMSContent) error
 	UpsertItems(sectionID int, items []models.CMSItem) error
@@ -31,6 +30,8 @@ type ManajemenCMSRepo interface {
 	SwapSectionOrder(sectionA, sectionB *models.CMSSection) error
 	SyncMedia(sectionID int, media []models.CMSMedia) (removedImagePaths []string, err error)
 	GetLandingPageSections() ([]models.CMSSection, error)
+
+	DeleteSection(section *models.CMSSection) ([]string, error)
 }
 
 type manajemenCMSRepo struct {
@@ -251,14 +252,6 @@ func (repository *manajemenCMSRepo) UpdateSection(section *models.CMSSection) (*
 		return nil, err
 	}
 	return section, nil
-}
-
-func (repository *manajemenCMSRepo) DeleteSection(section *models.CMSSection) error {
-	err := repository.dbMaster.Delete(section).Error
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (repository *manajemenCMSRepo) GetSectionBySlug(slug string) (*models.CMSSection, error) {
@@ -514,6 +507,12 @@ func (repo *manajemenCMSRepo) SwapSectionOrder(sectionA, sectionB *models.CMSSec
 func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSMedia) (removedImagePaths []string, err error) {
 	err = repository.dbMaster.Transaction(func(tx *gorm.DB) error {
 		keepOrders := make([]int, 0, len(media))
+		keepURLs := make(map[string]bool, len(media))
+		for _, m := range media {
+			keepURLs[m.ImageURL] = true
+		}
+
+		candidateRemoved := make([]string, 0)
 
 		for _, m := range media {
 			keepOrders = append(keepOrders, m.ItemOrder)
@@ -531,9 +530,8 @@ func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSM
 				return err
 			}
 
-			// gambar item ini diganti dengan yang baru -> path lama perlu dihapus juga
 			if existing.ImageURL != m.ImageURL {
-				removedImagePaths = append(removedImagePaths, existing.ImageURL)
+				candidateRemoved = append(candidateRemoved, existing.ImageURL)
 			}
 
 			existing.ImageURL = m.ImageURL
@@ -544,7 +542,6 @@ func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSM
 			}
 		}
 
-		// ambil row yang akan dihapus dulu supaya path-nya bisa dikembalikan ke service
 		var toDelete []models.CMSMedia
 		if err := tx.Where("section_id = ? AND item_order NOT IN ?", sectionID, keepOrders).
 			Find(&toDelete).Error; err != nil {
@@ -552,7 +549,13 @@ func (repository *manajemenCMSRepo) SyncMedia(sectionID int, media []models.CMSM
 		}
 		for _, d := range toDelete {
 			if d.ImageURL != "" {
-				removedImagePaths = append(removedImagePaths, d.ImageURL)
+				candidateRemoved = append(candidateRemoved, d.ImageURL)
+			}
+		}
+
+		for _, p := range candidateRemoved {
+			if !keepURLs[p] {
+				removedImagePaths = append(removedImagePaths, p)
 			}
 		}
 
@@ -585,4 +588,58 @@ func (repo *manajemenCMSRepo) GetLandingPageSections() ([]models.CMSSection, err
 	}
 
 	return sections, nil
+}
+
+func (repository *manajemenCMSRepo) DeleteSection(section *models.CMSSection) ([]string, error) {
+	var filesToDelete []string
+
+	err := repository.dbMaster.Transaction(func(tx *gorm.DB) error {
+		var contents []models.CMSContent
+		if err := tx.Where("section_id = ?", section.ID).Find(&contents).Error; err == nil {
+			for _, content := range contents {
+				if content.ValueImage != nil && *content.ValueImage != "" {
+					filesToDelete = append(filesToDelete, *content.ValueImage)
+				}
+			}
+		}
+
+		var items []models.CMSItem
+		if err := tx.Where("section_id = ?", section.ID).Find(&items).Error; err == nil {
+			for _, item := range items {
+				if item.Image != nil && *item.Image != "" {
+					filesToDelete = append(filesToDelete, *item.Image)
+				}
+				if item.Icon != nil && *item.Icon != "" {
+					filesToDelete = append(filesToDelete, *item.Icon)
+				}
+			}
+		}
+
+		var media []models.CMSMedia
+		if err := tx.Where("section_id = ?", section.ID).Find(&media).Error; err == nil {
+			for _, m := range media {
+				if m.ImageURL != "" {
+					filesToDelete = append(filesToDelete, m.ImageURL)
+				}
+			}
+		}
+
+		if err := tx.Where("section_id = ?", section.ID).Delete(&models.CMSContent{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("section_id = ?", section.ID).Delete(&models.CMSItem{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("section_id = ?", section.ID).Delete(&models.CMSMedia{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(section).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return filesToDelete, err
 }

@@ -4,6 +4,7 @@ import "time"
 
 type LogBlockRating struct {
 	ID         int        `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	RatingID   int        `json:"rating_id" gorm:"column:rating_id;type:integer"`
 	IP         *string    `json:"ip" gorm:"column:ip;type:varchar(20)"`
 	IsBlocked  string     `json:"is_blocked" gorm:"column:is_blocked;type:varchar(255);not null;default:'false'"`
 	CreatedAt  *time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`

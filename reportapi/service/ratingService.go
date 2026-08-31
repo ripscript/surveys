@@ -20,6 +20,7 @@ type RatingService interface {
 	SaveRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	RatingOverview(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	RatingList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetOldRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type ratingService struct {
@@ -184,4 +185,23 @@ func (service *ratingService) RatingList(ctx context.Context, req map[string]int
 	}
 
 	return utils.SendData(result, "Berhasil mendapatkan data rating")
+}
+
+func (service *ratingService) GetOldRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	deviceID := param.Get("device_id")
+	if deviceID == "" {
+		return utils.SendError(errors.New("device_id wajib diisi"), http.StatusBadRequest)
+	}
+
+	oldRating, err := service.ratingRepo.GetOldRatingByDeviceID(deviceID)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("data rating untuk perangkat ini belum ada"), http.StatusNotFound)
+		}
+		return utils.SendError(errors.New("terjadi kesalahan saat mengambil data rating lama"), http.StatusInternalServerError)
+	}
+
+	return utils.SendData(oldRating, "Berhasil mendapatkan ulasan lama Anda")
 }

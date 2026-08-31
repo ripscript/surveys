@@ -284,6 +284,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "rating",
 		},
 	},
+	"/rating/get-old-rating": {
+		"GET": {
+			Handler: ratingHandler.GetOldRating,
+			MenuKey: "rating",
+		},
+	},
 	// END:RATING ==================================
 	// END:PENGATURAN APLIKASI ==================================
 

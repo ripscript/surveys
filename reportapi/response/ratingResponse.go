@@ -1,5 +1,7 @@
 package response
 
+import "time"
+
 type RatingOverviewResponse struct {
 	Overview    float64 `json:"overview" gorm:"column:overview"`
 	MaxRating   int     `json:"max_rating" gorm:"-"`
@@ -9,4 +11,10 @@ type RatingOverviewResponse struct {
 	Rate3       int64   `json:"rate_3" gorm:"column:rate_3"`
 	Rate4       int64   `json:"rate_4" gorm:"column:rate_4"`
 	Rate5       int64   `json:"rate_5" gorm:"column:rate_5"`
+}
+
+type OldRatingResponse struct {
+	Rating    int        `json:"rating"`
+	Ulasan    string     `json:"ulasan"`
+	CreatedAt *time.Time `json:"created_at"`
 }

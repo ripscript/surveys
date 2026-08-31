@@ -12,6 +12,7 @@ type RatingHandler interface {
 	SaveRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	RatingOverview(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	RatingList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetOldRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type ratingHandler struct {
@@ -36,4 +37,8 @@ func (handler *ratingHandler) RatingOverview(ctx context.Context, req map[string
 
 func (handler *ratingHandler) RatingList(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.ratingService.RatingList(ctx, req, usr, param, slug)
+}
+
+func (handler *ratingHandler) GetOldRating(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.ratingService.GetOldRating(ctx, req, usr, param, slug)
 }

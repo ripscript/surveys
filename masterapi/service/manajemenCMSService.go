@@ -207,6 +207,17 @@ func (service *manajemenCMSService) UpdateNameSection(ctx context.Context, req m
 		return utils.SendError(errors.New("Section ini tidak dapat diubah"), http.StatusBadRequest)
 	}
 
+	if getSectionById.Name != payload.Name {
+		exist, err := service.manajemenCMSRepo.IsNameSectionExist(payload.Name)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+
+		if exist {
+			return utils.SendError(errors.New("Nama section sudah digunakan"), http.StatusBadRequest)
+		}
+	}
+
 	getSectionById.Name = payload.Name
 
 	_, err = service.manajemenCMSRepo.UpdateSection(getSectionById)
@@ -241,13 +252,14 @@ func (service *manajemenCMSService) DeleteSection(ctx context.Context, req map[s
 		return utils.SendError(errors.New("Section ini tidak dapat dihapus"), http.StatusBadRequest)
 	}
 
-	if getSectionById.Type == models.SectionTypePicture {
-
+	filesToDelete, err := service.manajemenCMSRepo.DeleteSection(getSectionById)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server saat menghapus section, silahkan coba lagi nanti"), http.StatusInternalServerError)
 	}
 
-	err = service.manajemenCMSRepo.DeleteSection(getSectionById)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	if len(filesToDelete) > 0 {
+		detachedCtx := context.WithoutCancel(ctx)
+		service.fileRepo.DeleteCMSImageBulk(detachedCtx, filesToDelete)
 	}
 
 	return utils.SendData(nil, "Section berhasil dihapus")

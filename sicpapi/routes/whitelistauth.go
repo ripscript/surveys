@@ -37,7 +37,8 @@ var Whitelist = map[string]map[string]bool{
 	"/survey/public-question-options":                     {"GET": true},
 	"/survey/heat-point-wilayah-kota-bandung":             {"POST": true},
 
-	"/rating/save": {"POST": true},
+	"/rating/save":           {"POST": true},
+	"/rating/get-old-rating": {"GET": true},
 
 	// PYREPORTAPI SERVICE
 	"/py-reportapi/healthy": {"GET": true},

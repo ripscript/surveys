@@ -18,6 +18,7 @@ type RatingRepo interface {
 	CountRatingByIPToday(ip string) (int64, error)
 	GetRatingOverview() (*response.RatingOverviewResponse, error)
 	GetListRating(req request.RatingDatatablePayload) ([]models.RatingDatatable, int64, error)
+	GetOldRatingByDeviceID(deviceID string) (*response.OldRatingResponse, error)
 }
 
 type ratingRepo struct {
@@ -49,6 +50,7 @@ func (repository *ratingRepo) InsertRatingTransaction(payload request.RatingRequ
 	}
 
 	logData := models.LogBlockRating{
+		RatingID:   ratingData.ID,
 		DeviceID:   payload.DeviceId,
 		DeviceInfo: &payload.DeviceInfo,
 		IsBlocked:  "false",
@@ -214,4 +216,28 @@ func (repository *ratingRepo) GetListRating(req request.RatingDatatablePayload) 
 	}
 
 	return data, totalData, nil
+}
+
+func (repository *ratingRepo) GetOldRatingByDeviceID(deviceID string) (*response.OldRatingResponse, error) {
+	defer utils.GeneralRecover()
+
+	var result response.OldRatingResponse
+
+	err := repository.dbSlave.Table("log_block_ratings").
+		Select("ratings.rating, ratings.ulasan, ratings.created_at").
+		Joins("JOIN ratings ON ratings.id = log_block_ratings.rating_id").
+		Where("log_block_ratings.device_id = ?", deviceID).
+		Order("log_block_ratings.created_at DESC").
+		Limit(1).
+		Scan(&result).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Rating == 0 && result.Ulasan == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return &result, nil
 }

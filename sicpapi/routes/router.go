@@ -392,6 +392,7 @@ func SetupRoutes(e *echo.Echo) {
 	e.POST("/rating/save", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/rating/overview", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	e.GET("/rating/list", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	e.GET("/rating/get-old-rating", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::RATING ==========================
 
 	// BEGIN::DASHBOARD BUILDER ==========================
