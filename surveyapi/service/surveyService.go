@@ -4207,16 +4207,48 @@ func (service *surveyService) SurveyOptions(ctx context.Context, req map[string]
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	hd := hashids.NewData()
+	hd.Salt = os.Getenv("HASHID_SALT")
+	hd.MinLength = 24
+
+	h, err := hashids.NewWithData(hd)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	for i := range data {
+		var codeStr *string
+		code, err := h.Encode([]int{int(*data[i].ID)})
+		if err != nil {
+			codeStr = nil
+		}
+		codeStr = &code
+		data[i].Code = codeStr
+	}
+
 	currentTotalLoaded := (page-1)*limit + len(data)
 	hasMore := int64(currentTotalLoaded) < totalData
 
-	responseData := response.OptionsResponse{
+	getLatestSurveyActive, err := service.surveyRepo.GetLatestSurveyActive(ctx)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+		}
+	}
+
+	var latestSurveyActiveID *int
+	if getLatestSurveyActive != nil {
+		latestSurveyActiveID = &getLatestSurveyActive.ID
+	}
+
+	responseData := response.OptionsSurveyResponse{
 		Options: data,
-		Meta: response.PaginationMeta{
-			CurrentPage: page,
-			PerPage:     limit,
-			Total:       totalData,
-			HasMore:     hasMore,
+		Meta: response.PaginationSurveyMeta{
+			CurrentPage:          page,
+			PerPage:              limit,
+			Total:                totalData,
+			HasMore:              hasMore,
+			LatestSurveyActiveID: latestSurveyActiveID,
 		},
 	}
 

@@ -91,7 +91,7 @@ type SurveyRepo interface {
 	ResolveFlaggingBySection(ctx context.Context, tx *gorm.DB, respondentID int64, fieldIDs []int64) error
 
 	ResetFlaggingBySurveyID(ctx context.Context, tx *gorm.DB, surveyID int64) error
-	SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
+	SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItemSurvey, int64, error)
 	PublicSurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error)
 	SurveyQuestionOptions(surveyId int64, req payloads.SurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error)
 	PublicSurveyQuestionOptions(req payloads.PublicSurveyQuestionOptionsPayload) ([]response.OptionItem, int64, error)
@@ -112,6 +112,7 @@ type SurveyRepo interface {
 	GetSurveyRespondentByID(ctx context.Context, surveyRespondentID int64) (*models.SurveyRespondent, error)
 
 	GetAllJawabanForExport(ctx context.Context, surveyID int64) ([]models.ExportAllJawabanRawDTO, error)
+	GetLatestSurveyActive(ctx context.Context) (*models.Survey, error)
 }
 
 type surveyRepo struct {
@@ -1822,9 +1823,9 @@ func (repository *surveyRepo) ResetFlaggingBySurveyID(ctx context.Context, tx *g
 		Update("is_revisied", "false").Error
 }
 
-func (repository *surveyRepo) SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItem, int64, error) {
+func (repository *surveyRepo) SurveyOptions(req payloads.SurveyOptionsPayload) ([]response.OptionItemSurvey, int64, error) {
 	defer utils.GeneralRecover()
-	var data []response.OptionItem
+	var data []response.OptionItemSurvey
 	var totalData int64
 
 	db := repository.dbSlave.Table("surveys").
@@ -2595,4 +2596,19 @@ func (repository *surveyRepo) GetAllJawabanForExport(ctx context.Context, survey
 	}
 
 	return results, nil
+}
+
+func (repository *surveyRepo) GetLatestSurveyActive(ctx context.Context) (*models.Survey, error) {
+	defer utils.GeneralRecover()
+
+	var survey models.Survey
+	err := repository.dbSlave.WithContext(ctx).
+		Where("surveys.status != ?", "finished").
+		Order("surveys.id DESC").
+		First(&survey).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return &survey, nil
 }
