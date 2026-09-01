@@ -375,6 +375,246 @@ func (repository *surveyRepo) UpdateSurvey(survey *models.Survey) error {
 	return nil
 }
 
+// func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent, req payloads.SurveyWilayahDatatablePayload) ([]models.SurveyWilayahDatatableResponse, int64, error) {
+// 	defer utils.GeneralRecover()
+// 	var data []models.SurveyWilayahDatatableResponse
+// 	var totalData int64
+
+// 	db := repository.dbSlave.Table("surveys").
+// 		Joins("LEFT JOIN users ON users.id = surveys.created_by").
+// 		Joins("LEFT JOIN flow_details ON flow_details.id = surveys.flow_detail_id").
+// 		Where("surveys.approval_survey = 'approved' OR surveys.approval_survey = 'non_approval'")
+
+// 	if req.StatusSurvey == string(enums.STATUS_SURVEY_UPCOMING) {
+// 		// Jika belum waktunya, dan statusnya belum dipaksa selesai
+// 		db = db.Where("surveys.start_date > NOW() AND surveys.status = 'ongoing'")
+// 	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_ONGOING) {
+// 		// Jika sedang berjalan, dan statusnya belum dipaksa selesai
+// 		db = db.Where("surveys.start_date <= NOW() AND surveys.end_date >= NOW() AND surveys.status = 'ongoing'")
+// 	} else if req.StatusSurvey == string(enums.STATUS_SURVEY_FINISHED) {
+// 		// Jika statusnya SUDAH finished (ditutup manual) ATAU waktunya sudah lewat (expired)
+// 		db = db.Where("surveys.status = 'finished' OR surveys.end_date < NOW()")
+// 	}
+
+// 	if respondentLogin.RoleId != nil {
+// 		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+
+// 			var kecId, kelId, rwId int64
+// 			if respondentLogin.KecamatanId != nil {
+// 				kecId = *respondentLogin.KecamatanId
+// 			}
+// 			if respondentLogin.KelurahanId != nil {
+// 				kelId = *respondentLogin.KelurahanId
+// 			}
+// 			if respondentLogin.RWId != nil {
+// 				rwId = *respondentLogin.RWId
+// 			}
+
+// 			db = db.Where(`
+// 			EXISTS (
+// 				SELECT 1 FROM survey_wilayahs
+// 				WHERE survey_wilayahs.survey_id = surveys.id
+// 				AND survey_wilayahs.kecamatan_id = ?
+// 				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+// 				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+// 			)
+// 			OR NOT EXISTS (
+// 				SELECT 1 FROM survey_wilayahs
+// 				WHERE survey_wilayahs.survey_id = surveys.id
+// 			)`, kecId, kelId, rwId)
+
+// 			if *respondentLogin.RoleId == int64(enums.ROLE_RT) {
+// 				db = db.Where(`
+//                     NOT EXISTS (
+//                         SELECT 1 FROM survey_respondents
+//                         WHERE survey_respondents.survey_id = surveys.id
+//                         AND survey_respondents.respondent_id = ?
+//                     )
+//                     OR EXISTS (
+//                         SELECT 1 FROM survey_respondents
+//                         WHERE survey_respondents.survey_id = surveys.id
+//                         AND survey_respondents.respondent_id = ?
+//                         AND (
+//                             survey_respondents.status != 2
+//                             OR (survey_respondents.status = 2 AND survey_respondents.status_approval = 'validated_lurah')
+//                         )
+//                     )
+//                 `, respondentLogin.ID, respondentLogin.ID)
+// 			}
+// 		}
+// 	}
+
+// 	if req.Search != "" {
+// 		searchTerm := "%" + req.Search + "%"
+// 		searchStr := strings.TrimSpace(req.Search)
+// 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
+
+// 		if isDate {
+// 			db = db.Where(`
+// 				surveys.name ILIKE ? OR
+// 				flow_details.name ILIKE ? OR
+// 				users.first_name ILIKE ? OR
+// 				DATE(surveys.start_date) = ? OR
+// 				DATE(surveys.end_date) = ? OR
+// 				DATE(flow_details.created_at) = ? OR
+// 				DATE(flow_details.updated_at) = ?
+// 			`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate, parsedDate, parsedDate)
+// 		} else if len(searchStr) == 4 {
+// 			db = db.Where(`
+// 				surveys.name ILIKE ? OR
+// 				flow_details.name ILIKE ? OR
+// 				users.first_name ILIKE ? OR
+// 				EXTRACT(YEAR FROM surveys.start_date)::TEXT = ? OR
+// 				EXTRACT(YEAR FROM surveys.end_date)::TEXT = ? OR
+// 				EXTRACT(YEAR FROM flow_details.created_at)::TEXT = ? OR
+// 				EXTRACT(YEAR FROM flow_details.updated_at)::TEXT = ?
+// 			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr, searchStr, searchStr)
+// 		} else {
+// 			db = db.Where(`
+// 				surveys.name ILIKE ? OR
+// 				flow_details.name ILIKE ? OR
+// 				users.first_name ILIKE ?
+// 			`, searchTerm, searchTerm, searchTerm)
+// 		}
+// 	}
+
+// 	err := db.Count(&totalData).Error
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	var respID int64 = 0
+// 	if respondentLogin != nil {
+// 		respID = respondentLogin.ID
+// 	}
+
+// 	selectQuery := fmt.Sprintf(`
+// 		surveys.id,
+// 		surveys.name AS survey_name,
+// 		surveys.start_date,
+// 		surveys.end_date,
+// 		flow_details.name AS flow_name,
+// 		surveys.created_at,
+// 		surveys.updated_at,
+// 		surveys.created_by,
+// 		users.first_name AS created_by_name,
+// 		(SELECT COUNT(id) FROM survey_respondents WHERE survey_respondents.survey_id = surveys.id) AS total_responden,
+// 		surveys.status,
+// 		surveys.approval_survey,
+
+// 		-- [UPDATE DISINI] Gunakan DISTINCT form_field_id agar soal multiple-choices tidak terhitung ganda
+// 		(
+// 			SELECT COUNT(DISTINCT form_field_id)
+// 			FROM flow_fields
+// 			WHERE flow_detail_id = surveys.flow_detail_id
+// 		) AS jumlah_total_soal,
+
+// 		(
+// 			SELECT COUNT(DISTINCT fr.form_field_id)
+// 			FROM field_responses fr
+// 			INNER JOIN survey_respondents sr ON sr.id = fr.form_response_id
+// 			WHERE sr.survey_id = surveys.id AND sr.respondent_id = %d
+// 		) AS jumlah_soal_terisi,
+
+// 		CASE
+// 			WHEN (
+// 				SELECT COUNT(DISTINCT fr.form_field_id)
+// 				FROM field_responses fr
+// 				INNER JOIN survey_respondents sr ON sr.id = fr.form_response_id
+// 				WHERE sr.survey_id = surveys.id AND sr.respondent_id = %d
+// 			) = 0 THEN 'Belum Terisi'
+
+// 			WHEN (
+// 				SELECT COUNT(DISTINCT fr.form_field_id)
+// 				FROM field_responses fr
+// 				INNER JOIN survey_respondents sr ON sr.id = fr.form_response_id
+// 				WHERE sr.survey_id = surveys.id AND sr.respondent_id = %d
+// 			) >= (
+// 				-- Menghitung JUMLAH SOAL WAJIB (Required) dari flow_fields
+// 				SELECT COUNT(flf.id)
+// 				FROM flow_fields flf
+// 				INNER JOIN form_fields ff ON ff.id = flf.form_field_id
+// 				WHERE flf.flow_detail_id = surveys.flow_detail_id
+// 				AND ff.required = true
+// 			) THEN 'Sudah Terisi'
+
+// 			ELSE 'Sedang Berjalan'
+// 		END AS status_keterisian,
+
+// 		(
+// 			SELECT CASE
+// 				WHEN status = 2 AND status_approval = 'revisi_rt' THEN 'revisi'
+// 				WHEN status = 2 THEN 'selesai'
+// 				WHEN status = 1 THEN 'draft'
+// 				WHEN status = 0 THEN 'sedang berlangsung'
+// 				ELSE NULL
+// 			END
+// 			FROM survey_respondents
+// 			WHERE survey_id = surveys.id AND respondent_id = %d
+// 			LIMIT 1
+// 		) AS status_respondent,
+
+// 		COALESCE((
+// 			SELECT true
+// 			FROM survey_respondents
+// 			WHERE survey_id = surveys.id
+// 			AND respondent_id = %d
+// 			AND status = 2
+// 			AND (status_approval IS NULL OR status_approval != 'revisi_rt')
+// 			LIMIT 1
+// 		), false) AS survey_is_done
+
+// 	`, respID, respID, respID, respID, respID)
+
+// 	db = db.Select(selectQuery)
+
+// 	if req.OrderBy != "" {
+// 		finalOrderBy := "surveys.created_at"
+// 		finalOrderDir := "desc"
+
+// 		allowedOrderCols := map[string]string{
+// 			"id":                 "surveys.id",
+// 			"survey_name":        "surveys.name",
+// 			"start_date":         "surveys.start_date",
+// 			"end_date":           "surveys.end_date",
+// 			"flow_name":          "flow_details.name",
+// 			"created_at":         "surveys.created_at",
+// 			"updated_at":         "surveys.updated_at",
+// 			"created_by_name":    "users.first_name",
+// 			"total_responden":    "total_responden",
+// 			"status":             "surveys.status",
+// 			"approval_survey":    "surveys.approval_survey",
+// 			"status_keterisian":  "status_keterisian",
+// 			"jumlah_soal_terisi": "jumlah_soal_terisi",
+// 			"jumlah_total_soal":  "jumlah_total_soal",
+// 		}
+
+// 		if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed {
+// 			finalOrderBy = mappedCol
+// 		}
+
+// 		if strings.ToLower(req.OrderDir) == "asc" {
+// 			finalOrderDir = "asc"
+// 		}
+
+// 		db = db.Order(finalOrderBy + " " + finalOrderDir)
+// 	} else {
+// 		db = db.Order("surveys.created_at desc")
+// 	}
+
+// 	offset := (req.Page - 1) * req.Limit
+// 	err = db.Limit(req.Limit).Offset(offset).Find(&data).Error
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	for i := range data {
+// 		data[i].No = int64(offset + i + 1)
+// 	}
+
+// 	return data, totalData, nil
+// }
+
 func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomClaims, respondentLogin *models.Respondent, req payloads.SurveyWilayahDatatablePayload) ([]models.SurveyWilayahDatatableResponse, int64, error) {
 	defer utils.GeneralRecover()
 	var data []models.SurveyWilayahDatatableResponse
@@ -410,21 +650,24 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				rwId = *respondentLogin.RWId
 			}
 
-			db = db.Where(`
-			EXISTS (
-				SELECT 1 FROM survey_wilayahs 
-				WHERE survey_wilayahs.survey_id = surveys.id 
-				AND survey_wilayahs.kecamatan_id = ?
-				AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
-				AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
-			) 
-			OR NOT EXISTS (
-				SELECT 1 FROM survey_wilayahs 
-				WHERE survey_wilayahs.survey_id = surveys.id
+			// [FIX] dibungkus (...) supaya precedence AND/OR tidak bocor ke Where lain
+			db = db.Where(`(
+				EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id 
+					AND survey_wilayahs.kecamatan_id = ?
+					AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+					AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+				) 
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs 
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)
 			)`, kecId, kelId, rwId)
 
 			if *respondentLogin.RoleId == int64(enums.ROLE_RT) {
-				db = db.Where(`
+				// [FIX] dibungkus (...) — ini klausa kritikal yang sebelumnya bisa "dilewati" oleh OR di search
+				db = db.Where(`(
                     NOT EXISTS (
                         SELECT 1 FROM survey_respondents 
                         WHERE survey_respondents.survey_id = surveys.id
@@ -439,7 +682,7 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
                             OR (survey_respondents.status = 2 AND survey_respondents.status_approval = 'validated_lurah')
                         )
                     )
-                `, respondentLogin.ID, respondentLogin.ID)
+                )`, respondentLogin.ID, respondentLogin.ID)
 			}
 		}
 	}
@@ -449,8 +692,9 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 		searchStr := strings.TrimSpace(req.Search)
 		parsedDate, isDate := utils.TryParseIndonesianDate(req.Search)
 
+		// [FIX] semua varian search dibungkus (...)
 		if isDate {
-			db = db.Where(`
+			db = db.Where(`(
 				surveys.name ILIKE ? OR
 				flow_details.name ILIKE ? OR
 				users.first_name ILIKE ? OR
@@ -458,9 +702,9 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				DATE(surveys.end_date) = ? OR
 				DATE(flow_details.created_at) = ? OR
 				DATE(flow_details.updated_at) = ?
-			`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate, parsedDate, parsedDate)
+			)`, searchTerm, searchTerm, searchTerm, parsedDate, parsedDate, parsedDate, parsedDate)
 		} else if len(searchStr) == 4 {
-			db = db.Where(`
+			db = db.Where(`(
 				surveys.name ILIKE ? OR
 				flow_details.name ILIKE ? OR
 				users.first_name ILIKE ? OR
@@ -468,13 +712,13 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				EXTRACT(YEAR FROM surveys.end_date)::TEXT = ? OR
 				EXTRACT(YEAR FROM flow_details.created_at)::TEXT = ? OR
 				EXTRACT(YEAR FROM flow_details.updated_at)::TEXT = ?
-			`, searchTerm, searchTerm, searchTerm, searchStr, searchStr, searchStr, searchStr)
+			)`, searchTerm, searchTerm, searchTerm, searchStr, searchStr, searchStr, searchStr)
 		} else {
-			db = db.Where(`
+			db = db.Where(`(
 				surveys.name ILIKE ? OR
 				flow_details.name ILIKE ? OR
 				users.first_name ILIKE ?
-			`, searchTerm, searchTerm, searchTerm)
+			)`, searchTerm, searchTerm, searchTerm)
 		}
 	}
 
