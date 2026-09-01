@@ -1,4 +1,3 @@
-# app/worker/report_worker.py
 import asyncio
 import logging
 import signal
@@ -14,6 +13,7 @@ from app.config import (
 )
 from app.shutdown import shutdown_event
 from app.repository import notification_repo
+from app.utils.debug import dprint, dprint_file
 
 logger = logging.getLogger("py-reportapi-worker")
 
@@ -86,7 +86,7 @@ async def claim_and_process(worker_id: int):
     logger.info(f"[Worker {worker_id}] Memproses job {job_id} (laporan_id={laporan_id})")
 
     try:
-        pdf_bytes = await report_service.build_report_pdf(laporan_id)
+        pdf_bytes = await report_service.build_report_pdf(user_id, laporan_id)
         logger.info(f"[Worker {worker_id}] PDF untuk job {job_id} berhasil dibuat, size: {len(pdf_bytes)} bytes")
 
         document_id = await file_repo.upload_to_document_service(pdf_bytes, laporan_id)

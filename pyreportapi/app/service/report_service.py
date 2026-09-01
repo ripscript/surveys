@@ -8,6 +8,7 @@ from weasyprint.text.fonts import FontConfiguration
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend, wajib untuk server tanpa display
 import matplotlib.pyplot as plt
+from app.utils.debug import dprint, dprint_file
 
 from app.repository import file_repo
 
@@ -89,16 +90,15 @@ async def build_narrative_text(session, report_orm, comp_dict) -> str:
 
     return template_text
 
-async def build_report_pdf(laporan_id: int) -> bytes:
+async def build_report_pdf(user_id: int,laporan_id: int) -> bytes:
     async with SlaveSession() as session:
-        # HANYA 1 QUERY SAJA KE DATABASE, SEMUANYA SUDAH TERBAWA
         report_data = await report_repo.find_by_id(session, laporan_id)
 
         if not report_data:
             raise Exception("Laporan tidak ditemukan")
 
         report_dict = serialize_report(report_data)
-        cover_data = report_data.cover # Akses cover dari relasi langsung
+        cover_data = report_data.cover
 
         bg_depan_data_uri = None
         bg_belakang_data_uri = None

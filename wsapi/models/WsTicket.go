@@ -2,6 +2,8 @@ package models
 
 import "time"
 
+// WsTicket represents a WebSocket ticket for user authentication and session management.
+
 type WsTicket struct {
 	ID        int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	Ticket    string    `gorm:"column:ticket;primaryKey;size:64" json:"ticket"`
