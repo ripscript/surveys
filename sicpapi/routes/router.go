@@ -426,4 +426,6 @@ func SetupRoutes(e *echo.Echo) {
 	wsGroup.GET("/get-ticket", func(c echo.Context) error { return HandleFunc(c, wsApiService) })
 	e.POST("/download-temp-laporan", func(c echo.Context) error { return HandleFunc(c, docapiService) })
 	// END::SISTEM ANTRIAN CETAK LAPORAN =============================
+
+	// e.POST("/generate-password", func(c echo.Context) error { return HandleFunc(c, userapiService) })
 }

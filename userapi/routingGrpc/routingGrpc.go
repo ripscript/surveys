@@ -166,6 +166,8 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/users/blokir/:id": {"PUT": {Handler: usersBlokirHandler.OpenBlokir, MenuKey: "user"}},
 	// Surveyor
 	"/surveyor/options": {"GET": {Handler: respondentHandler.SurveyorOption, MenuKey: ""}},
+
+	"/generate-password": {"POST": {Handler: respondentHandler.GeneratePassword, MenuKey: ""}},
 }
 
 func (s *GRPCServer) SendData(ctx context.Context, req *pb.ProxyRequest) (*pb.ProxyResponse, error) {

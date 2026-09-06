@@ -9,6 +9,7 @@ import (
 	"backend/userapi/utils"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -17,8 +18,10 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -46,6 +49,7 @@ type RespondentService interface {
 	UpdatePasswordRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	RespondentOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GeneratePassword(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -868,4 +872,37 @@ func (service *respondentService) RespondentOptions(ctx context.Context, req map
 	}
 
 	return utils.SendData(responseData, "Berhasil mengambil opsi responden")
+}
+
+func (service *respondentService) GeneratePassword(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	type payloadStruct struct {
+		Password string `json:"password" validate:"required,password_rule"`
+	}
+
+	var payload payloadStruct
+
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	err = json.Unmarshal(jsonBytes, &payload)
+	if err != nil {
+		if jsonErr, ok := err.(*json.UnmarshalTypeError); ok {
+			// Mendeteksi jika frontend mengirim string ke field number
+			if strings.Contains(jsonErr.Field, "value_number") || strings.Contains(jsonErr.Field, "value_option_id") {
+				return utils.SendError(fmt.Errorf("Field '%s' harus berupa angka (number), tidak boleh string", jsonErr.Field), http.StatusBadRequest)
+			}
+		}
+		return utils.SendError(fmt.Errorf("Format payload tidak valid: %v", err), http.StatusBadRequest)
+	}
+
+	spew.Dump(payload.Password)
+
+	hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	hashedPassword := string(hashedBytes)
+
+	return utils.SendData(map[string]interface{}{"hashed_password": hashedPassword}, "Generate password success")
 }
