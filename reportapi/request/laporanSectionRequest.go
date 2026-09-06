@@ -37,7 +37,7 @@ type UpsertSubSectionPayload struct {
 // LEVEL 3: CONFIG TABEL (JSONB Target)
 // ============================================================================
 type TableConfigPayload struct {
-	TableStyle       string `json:"table_style" validate:"required,oneof=grouped_header simple"`
+	TableStyle       string `json:"table_style" validate:"required,oneof=simple grouped_header respondent_text respondent_text_grouped respondent_media respondent_media_grouped"`
 	ShowTerritoryCol bool   `json:"show_territory_col"`
 
 	// Label kustom untuk kolom "Wilayah" (opsional, fallback ke "Wilayah" jika kosong)
@@ -80,10 +80,12 @@ type NarrativeVariablePayload struct {
 // LEVEL 3: CONFIG GRAFIK (Kolom flat di report_components, BUKAN JSONB)
 // ============================================================================
 type ChartConfigPayload struct {
-	ChartType      string  `json:"chart_type" validate:"required,oneof=bar line pie"`
+	ChartType      string  `json:"chart_type" validate:"required,oneof=bar line pie map"`
 	ChartDirection *string `json:"chart_direction" validate:"omitempty,oneof=vertical horizontal"`
 	IsMultipleData bool    `json:"is_multiple_data"`
 	FormFieldIDs   []int   `json:"form_field_ids" validate:"required,min=1,dive,min=1"`
+
+	MapType *string `json:"map_type" validate:"omitempty,oneof=point heatmap choropleth"`
 }
 
 // KEBUTUHAN UPDATE SECTION

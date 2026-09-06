@@ -6,6 +6,7 @@ load_dotenv()
 PORT = os.getenv("PORT", "8086")
 HOST = os.getenv("HOST", "localhost")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+API_GATEWAY_URL = os.getenv("API_GATEWAY_URL", "http://localhost:8080")
 
 DEBUG_TO_FILE = os.getenv("DEBUG_TO_FILE", "false").lower() == "true"
 

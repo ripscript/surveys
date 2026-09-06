@@ -21,6 +21,7 @@ type ReportComponent struct {
 	// --- SPESIFIK: GRAFIK ---
 	ChartType      *string `gorm:"column:chart_type;type:varchar(50)" json:"chart_type,omitempty"`           // 'bar', 'pie', 'line'
 	ChartDirection *string `gorm:"column:chart_direction;type:varchar(20)" json:"chart_direction,omitempty"` // 'horizontal', 'vertical'
+	MapType        *string `gorm:"column:map_type;type:varchar(20)" json:"map_type,omitempty"`               // 'point', 'heatmap', 'choropleth'
 
 	// --- SPESIFIK: TABEL ---
 	TableStyle  *string        `gorm:"column:table_style;type:varchar(50)" json:"table_style,omitempty"` // 'simple', 'grouped_header'

@@ -131,7 +131,15 @@
                         {% for r_row in table_data.rows %}
                         <tr>
                             {% for td in r_row %}
-                            <td class="text-{{ td.align }}">{{ td.value }}</td>
+                            <td class="text-{{ td.align }}">
+                                {% if td.type == 'link_list' %}
+                                    {% for link in td.value %}
+                                        <a target="_blank" href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    {{ td.value }}
+                                {% endif %}
+                            </td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
@@ -153,7 +161,7 @@
 {% endmacro %}
 
     {% if cover %}
-    <div class="cover">
+    <div class="page-break cover">
         {% if cover.img_depan %}
             <img class="cover-img" src="{{ bg_depan }}" alt="Cover Depan">
         {% endif %}
@@ -169,7 +177,60 @@
             <h3 style="margin-bottom: 15px; text-align: center;">KATA PENGANTAR</h3>
             <span style="font-size: 14px!important;">{{ cover.kata_pengantar }}</span>
             <br><br><br><br>
-            <p style="text-align: right;">Kota Bandung, 07 November 2026<br><br><br><br>Walikota Bandung</p>
+            <p style="text-align: right;">
+                {% if report_data %}
+                    {% if report_data.tingkat_wilayah == '6' %}Kota Bandung, {% endif %}
+                    {% if report_data.tingkat_wilayah == '5' %}
+                        {% if user_data %}
+                            {% if user_data.respondent %}
+                                {% if user_data.respondent.kecamatan %}
+                                    {{ user_data.respondent.kecamatan.sub_district_name }}, 
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                    {% if report_data.tingkat_wilayah == '4' %}
+                        {% if user_data %}
+                            {% if user_data.respondent %}
+                                {% if user_data.respondent.kelurahan %}
+                                    {{ user_data.respondent.kelurahan.village_name }}, 
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                {% endif %}{{ tanggal_format }}
+                <br><br><br><br>
+
+                {% if report_data %}
+                    {% if report_data.tingkat_wilayah == '6' %}Kepala Bidang Riset dan Inovasi Daerah<br>Yuliandri Rahadiyanto,S IP., M.SI.{% endif %}
+
+                    {% if report_data.tingkat_wilayah == '5' %}
+                        Kepala Kecamatan
+                        {% if user_data %}
+                            {% if user_data.respondent %}
+                                {% if user_data.respondent.kecamatan %}
+                                    {{ user_data.respondent.kecamatan.sub_district_name }}
+                                {% endif %}
+                                <br>
+                                {{ user_data.respondent.name }}
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if report_data.tingkat_wilayah == '4' %}
+                        Kepala Kelurahan
+                        {% if user_data %}
+                            {% if user_data.respondent %}
+                                {% if user_data.respondent.kelurahan %}
+                                    {{ user_data.respondent.kelurahan.village_name }}
+                                {% endif %}
+                                <br>
+                                {{ user_data.respondent.name }}
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+            </p>
         </div>
     {% endif %}
 
@@ -203,7 +264,7 @@
     </div>
 
     {% if cover and (cover.img_belakang or cover.text_belakang) %}
-    <div class="cover">
+    <div class="page-break cover">
         {% if cover.img_belakang %}
             <img class="cover-img" src="{{ bg_belakang }}" alt="Cover Belakang">
         {% endif %}

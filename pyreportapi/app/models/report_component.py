@@ -21,6 +21,7 @@ class ReportComponent(Base):
     form_field_ids: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     is_multiple_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     chart_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    map_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     chart_direction: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     table_style: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     table_config: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)

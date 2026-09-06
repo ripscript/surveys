@@ -1,17 +1,41 @@
 import inspect
 from pprint import pformat
 
-def _format(obj):
+def _format(obj, _seen=None):
+    if _seen is None:
+        _seen = set()
+
+    obj_id = id(obj)
+    if obj_id in _seen:
+        return "<circular reference>"
+
     if hasattr(obj, "__dict__"):
-        return f"{obj.__class__.__name__}({pformat(vars(obj))})"
-    return pformat(obj)
+        _seen = _seen | {obj_id}
+        attrs = vars(obj)
+        formatted = {
+            k: _format(v, _seen)
+            for k, v in attrs.items()
+            if k != "_sa_instance_state"  # opsional: sembunyikan internal SQLAlchemy
+        }
+        return f"{obj.__class__.__name__}({pformat(formatted)})"
+
+    if isinstance(obj, dict):
+        return {k: _format(v, _seen) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple, set)):
+        return type(obj)(_format(v, _seen) for v in obj)
+
+    return obj
 
 def _build_output(args, kwargs, tag):
     lines = [f"BEGIN:DEBUG[{tag}]========================================"]
     for a in args:
-        lines.append(_format(a))
+        result = _format(a)
+        lines.append(result if isinstance(result, str) else pformat(result))
     for k, v in kwargs.items():
-        lines.append(f"{k} = {_format(v)}")
+        result = _format(v)
+        formatted = result if isinstance(result, str) else pformat(result)
+        lines.append(f"{k} = {formatted}")
     lines.append(f"END:DEBUG[{tag}]==========================================")
     return "\n".join(lines)
 

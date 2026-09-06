@@ -32,7 +32,11 @@ func (r *wilayahRepo) GetGeoNameByKecamatanId(kecamatanId int64) (string, error)
 		return "", err
 	}
 
-	return *kecamatan.GeoName, nil
+	if kecamatan.GeoName != nil {
+		return *kecamatan.GeoName, nil
+	}
+
+	return "", nil
 }
 
 func (r *wilayahRepo) GetGeoNameByKelurahanId(kelurahanId int64) (string, error) {
@@ -42,5 +46,10 @@ func (r *wilayahRepo) GetGeoNameByKelurahanId(kelurahanId int64) (string, error)
 		return "", err
 	}
 
-	return *kelurahan.GeoName, nil
+	if kelurahan.GeoName != nil {
+		return *kelurahan.GeoName, nil
+	}
+
+	return "", nil
+
 }

@@ -1003,7 +1003,7 @@ func (service *surveyService) PreviewSurveyIndex(ctx context.Context, req map[st
 	if respondentExistsInSurvey != nil {
 		if *respondentExistsInSurvey.Status == 2 {
 			if respondentExistsInSurvey.StatusApproval != nil {
-				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
+				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) && *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_VALIDATED_LURAH) {
 					return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
 				}
 			} else {
@@ -1182,7 +1182,7 @@ func (service *surveyService) PreviewSurvey(ctx context.Context, req map[string]
 	if respondentExistsInSurvey != nil {
 		if *respondentExistsInSurvey.Status == 2 {
 			if respondentExistsInSurvey.StatusApproval != nil {
-				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) {
+				if *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_REVISI_RT) && *respondentExistsInSurvey.StatusApproval != string(enums.STATUS_APPROVAL_SURVEY_RESPONDENT_VALIDATED_LURAH) {
 					return utils.SendError(errors.New("Anda sudah menyelesaikan survey ini"), http.StatusBadRequest)
 				}
 			} else {
@@ -4811,23 +4811,29 @@ func (service *surveyService) ExportExcelSurveyResultsMassal(ctx context.Context
 	levelWilayahStr := param.Get("level")
 	codeWilayahStr := param.Get("code_wilayah")
 
-	if levelWilayahStr == "" || codeWilayahStr == "" {
-		return utils.SendError(errors.New("Parameter 'level' dan 'code_wilayah' wajib disertakan pada URL"), http.StatusBadRequest)
+	if levelWilayahStr == "" {
+		return utils.SendError(errors.New("Parameter 'level' wajib disertakan pada URL"), http.StatusBadRequest)
 	}
 
 	levelWilayah, err := strconv.Atoi(levelWilayahStr)
-	if err != nil || levelWilayah < 2 || levelWilayah > 5 {
+	if err != nil || levelWilayah < 2 || levelWilayah > 6 {
 		return utils.SendError(errors.New("Parameter 'level' tidak valid"), http.StatusBadRequest)
 	}
 
 	decodedSurveyIDs, _ := h.DecodeWithError(codeStr)
-	decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
-	if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
-		return utils.SendError(errors.New("Kode HashID tidak valid atau termanipulasi"), http.StatusBadRequest)
+
+	var wilayahID int64
+
+	if codeWilayahStr != "" {
+		decodedWilayahIDs, _ := h.DecodeWithError(codeWilayahStr)
+		if len(decodedSurveyIDs) == 0 || len(decodedWilayahIDs) == 0 {
+			return utils.SendError(errors.New("Kode HashID tidak valid atau termanipulasi"), http.StatusBadRequest)
+		}
+
+		wilayahID = int64(decodedWilayahIDs[0])
 	}
 
 	surveyID := int64(decodedSurveyIDs[0])
-	wilayahID := int64(decodedWilayahIDs[0])
 
 	survey, err := service.surveyRepo.GetSurveyById(surveyID)
 	if err != nil {

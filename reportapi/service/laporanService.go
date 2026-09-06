@@ -225,7 +225,7 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 
 	laporan := models.Report{
 		Name:           _req.NamaLaporan,
-		RespondentID:   usr.ID,
+		RespondentID:   usr.RespondentID,
 		TingkatWilayah: strconv.Itoa(_req.TingkatWilayah),
 		KecamatanID:    datatypes.JSON(kecamatanJSON),
 		KelurahanID:    datatypes.JSON(kelurahanJSON),
@@ -696,9 +696,20 @@ func validateTableConfig(cfg *request.TableConfigPayload) error {
 		if len(cfg.Groups) == 0 {
 			return errors.New("groups wajib diisi jika table_style = grouped_header")
 		}
+
+	case "respondent_text_grouped", "respondent_media_grouped":
+		if len(cfg.Groups) == 0 {
+			return fmt.Errorf("groups wajib diisi jika table_style = %s", cfg.TableStyle)
+		}
+
 	case "simple":
 		if len(cfg.Columns) == 0 {
 			return errors.New("columns wajib diisi jika table_style = simple")
+		}
+
+	case "respondent_text", "respondent_media":
+		if len(cfg.Columns) == 0 {
+			return fmt.Errorf("columns wajib diisi jika table_style = %s", cfg.TableStyle)
 		}
 	}
 	return nil
@@ -736,6 +747,20 @@ func validateChartConfig(cfg *request.ChartConfigPayload) error {
 				return errors.New("form_field_ids harus tepat 1 jika is_multiple_data bernilai false")
 			}
 		}
+
+	case "map":
+		if cfg.ChartDirection != nil {
+			return errors.New("chart_direction tidak boleh diisi untuk chart_type = map")
+		}
+		if cfg.IsMultipleData {
+			return errors.New("is_multiple_data harus bernilai false untuk chart_type = map")
+		}
+		if len(cfg.FormFieldIDs) != 1 {
+			return errors.New("form_field_ids harus tepat 1 untuk chart_type = map")
+		}
+		if cfg.MapType == nil {
+			return errors.New("map_type wajib diisi untuk chart_type = map")
+		}
 	}
 	return nil
 }
@@ -749,13 +774,13 @@ func extractFieldIDsFromConfig(componentType string, tableCfg *request.TableConf
 			return ids
 		}
 		switch tableCfg.TableStyle {
-		case "grouped_header":
+		case "grouped_header", "respondent_text_grouped", "respondent_media_grouped":
 			for _, g := range tableCfg.Groups {
 				for _, col := range g.Columns {
 					ids = append(ids, col.FormFieldID)
 				}
 			}
-		case "simple":
+		case "simple", "respondent_text", "respondent_media":
 			for _, col := range tableCfg.Columns {
 				ids = append(ids, col.FormFieldID)
 			}
@@ -770,13 +795,28 @@ func extractFieldIDsFromConfig(componentType string, tableCfg *request.TableConf
 	return ids
 }
 
-func allowedFieldTypesForComponent(componentType string, chartCfg *request.ChartConfigPayload) map[string]bool {
+func allowedFieldTypesForComponent(componentType string, tableCfg *request.TableConfigPayload, chartCfg *request.ChartConfigPayload) map[string]bool {
 	switch componentType {
 	case "table":
-		return map[string]bool{"number": true}
+		if tableCfg == nil {
+			return map[string]bool{"number": true}
+		}
+		switch tableCfg.TableStyle {
+		case "respondent_text", "respondent_text_grouped":
+			return map[string]bool{"long-answer": true}
+		case "respondent_media", "respondent_media_grouped":
+			return map[string]bool{"image-template": true}
+		default: // simple, grouped_header
+			return map[string]bool{"number": true}
+		}
 	case "chart":
-		if chartCfg != nil && chartCfg.ChartType == "pie" {
-			return map[string]bool{"number": true, "multiple-choices": true}
+		if chartCfg != nil {
+			switch chartCfg.ChartType {
+			case "pie":
+				return map[string]bool{"number": true, "multiple-choices": true}
+			case "map":
+				return map[string]bool{"maps": true}
+			}
 		}
 		return map[string]bool{"number": true}
 	default:
@@ -795,7 +835,7 @@ func (service *laporanService) validateFieldTypesForComponent(componentType stri
 		return err
 	}
 
-	allowed := allowedFieldTypesForComponent(componentType, chartCfg)
+	allowed := allowedFieldTypesForComponent(componentType, tableCfg, chartCfg)
 
 	for _, id := range fieldIDs {
 		fieldType, exists := fieldTypes[id]
@@ -804,7 +844,7 @@ func (service *laporanService) validateFieldTypesForComponent(componentType stri
 		}
 		if !allowed[fieldType] {
 			if componentType == "table" {
-				return fmt.Errorf("form_field_id %d bertipe '%s' tidak bisa dipakai di table, hanya tipe 'number' yang diizinkan", id, fieldType)
+				return fmt.Errorf("form_field_id %d bertipe '%s' tidak sesuai dengan table_style '%s'", id, fieldType, tableCfg.TableStyle)
 			}
 			return fmt.Errorf("form_field_id %d bertipe '%s' tidak bisa dipakai di chart_type '%s'", id, fieldType, chartCfg.ChartType)
 		}
@@ -946,7 +986,6 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 		if len(payloads.SubSections) > 0 {
 			return utils.SendError(errors.New("sub_sections tidak boleh diisi jika has_sub_section bernilai false"), http.StatusBadRequest)
 		}
-		// component_type sudah divalidasi wajib oleh tag required_if di atas
 	}
 
 	// 4. Pastikan Laporan Induk ada di Database
@@ -958,6 +997,21 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 	}
 	if laporan == nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	// 4.5 VALIDASI BISNIS: choropleth hanya untuk tingkat kecamatan/kota
+	if !*payloads.HasSubSection {
+		_, chartCfg, _ := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
+		if err := validateMapTypeAgainstTingkatWilayah(chartCfg, laporan.TingkatWilayah); err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+	} else {
+		for _, pSub := range payloads.SubSections {
+			_, chartCfg, _ := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
+			if err := validateMapTypeAgainstTingkatWilayah(chartCfg, laporan.TingkatWilayah); err != nil {
+				return utils.SendError(err, http.StatusBadRequest)
+			}
+		}
 	}
 
 	// ========================================================================
@@ -1094,6 +1148,7 @@ func buildVisualAndNarrativeComponents(
 			visualComp.ChartType = &chartType
 			visualComp.ChartDirection = chartConfig.ChartDirection
 			visualComp.IsMultipleData = chartConfig.IsMultipleData
+			visualComp.MapType = chartConfig.MapType
 
 			fieldIDsBytes, _ := json.Marshal(chartConfig.FormFieldIDs)
 			visualComp.FormFieldIDs = datatypes.JSON(fieldIDsBytes)
@@ -1718,4 +1773,14 @@ func (service *laporanService) DeleteSectionReport(ctx context.Context, req map[
 	}
 
 	return utils.SendData(nil, "Berhasil menghapus section laporan")
+}
+
+func validateMapTypeAgainstTingkatWilayah(chartCfg *request.ChartConfigPayload, tingkatWilayah string) error {
+	if chartCfg == nil || chartCfg.ChartType != "map" || chartCfg.MapType == nil {
+		return nil
+	}
+	if *chartCfg.MapType == "choropleth" && tingkatWilayah == "4" {
+		return errors.New("map_type 'choropleth' tidak bisa digunakan untuk laporan tingkat kelurahan")
+	}
+	return nil
 }

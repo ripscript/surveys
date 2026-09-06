@@ -242,7 +242,7 @@ func PermissionSeed(db *gorm.DB) error {
 		none(AktifitasSurvey, public), none(AktifitasSurvey, rt), none(AktifitasSurvey, rw), none(AktifitasSurvey, lurah), none(AktifitasSurvey, camat), none(AktifitasSurvey, pemkot), full(AktifitasSurvey, admin), none(AktifitasSurvey, surveyor), full(AktifitasSurvey, walikota),
 
 		// BEGIN:LAPORAN ===================================================
-		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), none(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
+		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), full(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
 		// END:MONITORING DAN LAPORAN ===================================================
 
 		// Survey Kewilayahan

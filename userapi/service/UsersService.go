@@ -131,7 +131,9 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		wilayahCodeStr = &wckel
 	}
 
-	user.Respondent.KelurahanCode = kelurahanCodeStr
+	if user.Respondent != nil {
+		user.Respondent.KelurahanCode = kelurahanCodeStr
+	}
 
 	var RwCodeStr *string
 	if user.Respondent != nil && user.Respondent.RwID != nil {
@@ -151,7 +153,9 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		wilayahCodeStr = &wcrw
 	}
 
-	user.Respondent.RwCode = RwCodeStr
+	if user.Respondent != nil {
+		user.Respondent.RwCode = RwCodeStr
+	}
 
 	if user.Respondent != nil && user.Respondent.Avatar != nil {
 		user.Respondent.Avatar = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-foto-profil/" + *user.Respondent.Avatar)
@@ -175,8 +179,14 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		wilayahCodeStr = &wcrt
 	}
 
-	user.Respondent.RtCode = RtCodeStr
-	user.Respondent.WilayahCode = wilayahCodeStr
+	if user.Respondent != nil {
+		user.Respondent.RtCode = RtCodeStr
+		user.Respondent.WilayahCode = wilayahCodeStr
+	}
+
+	if user.Respondent == nil {
+		return utils.SendError(errors.New("Data responden pengguna tidak ditemukan"), http.StatusNotFound)
+	}
 
 	roleID := user.Respondent.RoleID
 
@@ -196,7 +206,7 @@ func (service *usersService) GetProfile(ctx context.Context, req map[string]inte
 		kelID := int(*user.Respondent.KelurahanID)
 		filter.KelurahanID = &kelID
 
-		getGeoName, err := service.wilayahRepo.GetGeoNameByKelurahanId(*user.Respondent.KelurahanID)
+		getGeoName, err := service.wilayahRepo.GetGeoNameByKelurahanId(int64(kelID))
 		if err != nil {
 			return utils.SendError(err, http.StatusInternalServerError)
 		}

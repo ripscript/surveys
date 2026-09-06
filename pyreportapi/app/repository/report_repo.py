@@ -371,3 +371,190 @@ async def get_multiple_choice_totals(session: AsyncSession, report: Report, fiel
     ]
     final_results.sort(key=lambda x: x["count"], reverse=True)
     return final_results
+
+async def get_respondent_text_data(session: AsyncSession, report: Report, field_ids: list[int]) -> list[dict]:
+    """
+    Untuk table_style = 'respondent_text' / 'respondent_text_grouped'.
+    Beda dengan get_table_response_data (agregasi SUM per wilayah), fungsi ini
+    mengembalikan data PER RESPONDENT (1 respondent = 1 baris), lengkap dengan
+    nama Kecamatan/Kelurahan/RW/RT, dan jawaban mentah (apa adanya) dari
+    field_responses.answer untuk tiap field_id yang diminta.
+
+    Filter wajib data valid tetap dipakai: surveys.status = 'finished'
+    AND survey_respondents.status_approval = 'validated_lurah'.
+    """
+    if not field_ids:
+        return []
+
+    survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
+    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
+    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
+
+    params = {"field_ids": tuple(field_ids)}
+
+    filter_survey_sql = ""
+    if survey_ids:
+        filter_survey_sql = "AND sr.survey_id = ANY(:survey_ids)"
+        params["survey_ids"] = tuple(survey_ids)
+
+    # Filter wilayah, sama pola dengan get_multiple_choice_totals
+    territory_filter = ""
+    if str(report.tingkat_wilayah) == "5":
+        if not kecamatan_ids:
+            return []
+        params["kecamatan_ids"] = tuple(kecamatan_ids)
+        territory_filter = "AND r.kecamatan_id = ANY(:kecamatan_ids)"
+    elif str(report.tingkat_wilayah) == "4":
+        if not kelurahan_ids:
+            return []
+        params["kelurahan_ids"] = tuple(kelurahan_ids)
+        territory_filter = "AND r.kelurahan_id = ANY(:kelurahan_ids)"
+    # tingkat_wilayah == "6" (kota) -> tanpa filter wilayah tambahan (semua kecamatan)
+
+    sql = f"""
+        SELECT
+            sr.id AS survey_respondent_id,
+            k.sub_district_name AS kecamatan_name,
+            kel.village_name AS kelurahan_name,
+            rw.nama_rw AS rw_name,
+            rt.nama_rt AS rt_name,
+            fr.form_field_id,
+            fr.answer
+        FROM survey_respondents sr
+        JOIN surveys s ON s.id = sr.survey_id AND s.status = 'finished'
+        JOIN respondents r ON r.id = sr.respondent_id AND r.deleted_at IS NULL
+        LEFT JOIN kecamatans k ON k.id = r.kecamatan_id AND k.deleted_at IS NULL
+        LEFT JOIN kelurahans kel ON kel.id = r.kelurahan_id AND kel.deleted_at IS NULL
+        LEFT JOIN data__rws rw ON rw.id = r.rw_id AND rw.deleted_at IS NULL
+        LEFT JOIN data__rts rt ON rt.id = r.rt_id AND rt.deleted_at IS NULL
+        LEFT JOIN field_responses fr
+            ON fr.form_response_id = sr.id
+            AND fr.form_field_id = ANY(:field_ids)
+            AND fr.deleted_at IS NULL
+        WHERE sr.status_approval = 'validated_lurah'
+            {filter_survey_sql}
+            {territory_filter}
+        ORDER BY sr.id ASC
+    """
+
+    result = await session.execute(text(sql), params)
+    raw_data = result.all()
+
+    # Rakit per survey_respondent_id -> 1 respondent = 1 baris,
+    # dengan answers = {form_field_id: answer_mentah}
+    respondent_map = {}
+    order = []
+
+    for d in raw_data:
+        sr_id = d.survey_respondent_id
+        if sr_id not in respondent_map:
+            respondent_map[sr_id] = {
+                "kecamatan_name": d.kecamatan_name,
+                "kelurahan_name": d.kelurahan_name,
+                "rw_name": d.rw_name,
+                "rt_name": d.rt_name,
+                "answers": {},
+            }
+            order.append(sr_id)
+
+        if d.form_field_id is not None:
+            respondent_map[sr_id]["answers"][d.form_field_id] = d.answer
+
+    return [respondent_map[sr_id] for sr_id in order]
+
+async def get_maps_response_data(session: AsyncSession, report: Report, field_id: int) -> list[tuple[float, float]]:
+    """
+    Untuk chart_type = 'map'. Mengambil & flatten semua titik lat/lng dari
+    field_responses bertipe 'maps' untuk satu field_id, lintas semua respondent
+    dalam cakupan laporan. 1 baris field_responses.answer bisa berisi BANYAK
+    titik sekaligus: '[{"lat":..,"lng":..}, {"lat":..,"lng":..}]'
+    """
+    survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
+    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
+    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
+
+    params = {"field_id": field_id}
+    filter_survey_sql = ""
+    if survey_ids:
+        filter_survey_sql = "AND sr.survey_id = ANY(:survey_ids)"
+        params["survey_ids"] = tuple(survey_ids)
+
+    territory_filter = ""
+    if str(report.tingkat_wilayah) == "5":
+        if not kecamatan_ids:
+            return []
+        params["kecamatan_ids"] = tuple(kecamatan_ids)
+        territory_filter = "AND r.kecamatan_id = ANY(:kecamatan_ids)"
+    elif str(report.tingkat_wilayah) == "4":
+        if not kelurahan_ids:
+            return []
+        params["kelurahan_ids"] = tuple(kelurahan_ids)
+        territory_filter = "AND r.kelurahan_id = ANY(:kelurahan_ids)"
+    # tingkat_wilayah == "6" (kota) -> tanpa filter tambahan
+
+    sql = f"""
+        SELECT fr.answer
+        FROM field_responses fr
+        JOIN survey_respondents sr ON sr.id = fr.form_response_id {filter_survey_sql}
+        JOIN surveys s ON s.id = sr.survey_id AND s.status = 'finished'
+        JOIN respondents r ON r.id = sr.respondent_id AND r.deleted_at IS NULL
+        WHERE fr.form_field_id = :field_id
+          AND fr.deleted_at IS NULL
+          AND fr.answer IS NOT NULL
+          AND fr.answer != ''
+          AND sr.status_approval = 'validated_lurah'
+          {territory_filter}
+    """
+    result = await session.execute(text(sql), params)
+    rows = result.all()
+
+    points: list[tuple[float, float]] = []
+    for row in rows:
+        try:
+            parsed = json.loads(row.answer)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(parsed, list):
+            continue
+        for p in parsed:
+            if not isinstance(p, dict):
+                continue
+            lat, lng = p.get("lat"), p.get("lng")
+            if lat is None or lng is None:
+                continue
+            try:
+                points.append((float(lat), float(lng)))
+            except (TypeError, ValueError):
+                continue
+
+    return points
+
+
+async def get_wilayah_names_for_report(session: AsyncSession, report: Report) -> list[str]:
+    """
+    Ambil daftar nama kecamatan/kelurahan (geo_name) yang jadi cakupan laporan,
+    dipakai untuk filter boundary GeoJSON supaya peta hanya render wilayah
+    yang relevan, bukan seluruh kota.
+    """
+    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
+    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
+
+    if str(report.tingkat_wilayah) == "5":
+        if not kecamatan_ids:
+            return []
+        result = await session.execute(
+            text("SELECT geo_name FROM kecamatans WHERE id = ANY(:ids) AND geo_name IS NOT NULL"),
+            {"ids": tuple(kecamatan_ids)},
+        )
+        return [row.geo_name for row in result.all()]
+
+    if str(report.tingkat_wilayah) == "4":
+        if not kelurahan_ids:
+            return []
+        result = await session.execute(
+            text("SELECT geo_name FROM kelurahans WHERE id = ANY(:ids) AND geo_name IS NOT NULL"),
+            {"ids": tuple(kelurahan_ids)},
+        )
+        return [row.geo_name for row in result.all()]
+
+    return []

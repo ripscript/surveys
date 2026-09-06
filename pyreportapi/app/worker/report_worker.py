@@ -3,6 +3,7 @@ import logging
 import signal
 
 from app.database import MasterSession
+from app.database import SlaveSession
 from app.repository import report_queue_repo, file_repo
 from app.service import report_service
 from app.config import (
@@ -14,6 +15,7 @@ from app.config import (
 from app.shutdown import shutdown_event
 from app.repository import notification_repo
 from app.utils.debug import dprint, dprint_file
+from app.repository import user_repo
 
 logger = logging.getLogger("py-reportapi-worker")
 
