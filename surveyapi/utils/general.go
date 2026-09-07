@@ -618,3 +618,14 @@ func StringToInt64(str string) (int64, error) {
 	}
 	return i, nil
 }
+
+func StringToPointer(str string) *string {
+	if str == "" {
+		return nil
+	}
+	return &str
+}
+
+func IntToPointer(i int) *int {
+	return &i
+}

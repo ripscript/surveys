@@ -13,6 +13,7 @@ type Report struct {
 	TingkatWilayah string         `gorm:"column:tingkat_wilayah;type:varchar(255);not null" json:"tingkat_wilayah"`
 	KecamatanID    datatypes.JSON `gorm:"column:kecamatan_id;type:jsonb" json:"kecamatan_id"`
 	KelurahanID    datatypes.JSON `gorm:"column:kelurahan_id;type:jsonb" json:"kelurahan_id"`
+	RWID           datatypes.JSON `gorm:"column:rw_id;type:jsonb" json:"rw_id"`
 	SurveyID       datatypes.JSON `gorm:"column:survey_id;type:jsonb;not null" json:"survey_id"`
 	CreatedAt      *time.Time     `gorm:"column:created_at" json:"created_at,omitempty"`
 	UpdatedAt      *time.Time     `gorm:"column:updated_at" json:"updated_at,omitempty"`

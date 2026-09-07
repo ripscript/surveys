@@ -110,46 +110,14 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
         territory_order = [row.sub_district_name for row in res_master.all()]
 
     # =========================================================
-    # LOGIKA KHUSUS TINGKAT WILAYAH = 5 (KECAMATAN) -> Group by Kecamatan Terpilih
+    # LOGIKA KHUSUS TINGKAT WILAYAH = 5 (KECAMATAN) -> Group by Kelurahan Terpilih
     # =========================================================
     elif str(report.tingkat_wilayah) == "5":
-        if not kecamatan_ids:
-            return [] # Jika tidak ada filter kecamatan, cegah query untuk keamanan
-        
-        params["kecamatan_ids"] = tuple(kecamatan_ids)
-        
-        sql = f"""
-            SELECT 
-                k.sub_district_name AS territory_name,
-                fr.form_field_id,
-                COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
-            FROM kecamatans k
-            LEFT JOIN respondents r 
-                ON r.kecamatan_id = k.id AND r.deleted_at IS NULL
-            LEFT JOIN survey_respondents sr 
-                ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
-            LEFT JOIN field_responses fr 
-                ON fr.form_response_id = sr.id 
-                AND fr.form_field_id = ANY(:field_ids)
-                AND fr.deleted_at IS NULL
-            WHERE k.deleted_at IS NULL
-              AND k.id = ANY(:kecamatan_ids)
-            GROUP BY k.sub_district_name, fr.form_field_id
-            ORDER BY k.sub_district_name ASC
-        """
-        stmt_master = text("SELECT sub_district_name FROM kecamatans WHERE deleted_at IS NULL AND id = ANY(:kecamatan_ids) ORDER BY sub_district_name ASC")
-        res_master = await session.execute(stmt_master, params)
-        territory_order = [row.sub_district_name for row in res_master.all()]
-
-    # =========================================================
-    # LOGIKA KHUSUS TINGKAT WILAYAH = 4 (KELURAHAN) -> Group by Kelurahan Terpilih
-    # =========================================================
-    elif str(report.tingkat_wilayah) == "4":
         if not kelurahan_ids:
-            return [] # Jika tidak ada filter kelurahan, cegah query
-        
+            return []  # Jika tidak ada filter kelurahan, cegah query untuk keamanan
+
         params["kelurahan_ids"] = tuple(kelurahan_ids)
-        
+
         sql = f"""
             SELECT 
                 kel.village_name AS territory_name,
@@ -172,7 +140,40 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
         stmt_master = text("SELECT village_name FROM kelurahans WHERE deleted_at IS NULL AND id = ANY(:kelurahan_ids) ORDER BY village_name ASC")
         res_master = await session.execute(stmt_master, params)
         territory_order = [row.village_name for row in res_master.all()]
-        
+
+    # =========================================================
+    # LOGIKA KHUSUS TINGKAT WILAYAH = 4 (KELURAHAN) -> Group by RW Terpilih
+    # =========================================================
+    elif str(report.tingkat_wilayah) == "4":
+        rw_ids = report.rw_id if isinstance(report.rw_id, list) else []
+        if not rw_ids:
+            return []  # Jika tidak ada filter RW, cegah query
+
+        params["rw_ids"] = tuple(rw_ids)
+
+        sql = f"""
+            SELECT 
+                rw.nama_rw AS territory_name,
+                fr.form_field_id,
+                COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
+            FROM data__rws rw
+            LEFT JOIN respondents r 
+                ON r.rw_id = rw.id AND r.deleted_at IS NULL
+            LEFT JOIN survey_respondents sr 
+                ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
+            LEFT JOIN field_responses fr 
+                ON fr.form_response_id = sr.id 
+                AND fr.form_field_id = ANY(:field_ids)
+                AND fr.deleted_at IS NULL
+            WHERE rw.deleted_at IS NULL
+              AND rw.id = ANY(:rw_ids)
+            GROUP BY rw.nama_rw, fr.form_field_id
+            ORDER BY rw.nama_rw ASC
+        """
+        stmt_master = text("SELECT nama_rw FROM data__rws WHERE deleted_at IS NULL AND id = ANY(:rw_ids) ORDER BY nama_rw ASC")
+        res_master = await session.execute(stmt_master, params)
+        territory_order = [row.nama_rw for row in res_master.all()]
+
     else:
         # Fallback jika wilayah tidak dikenali
         return []
@@ -198,8 +199,8 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
     # Penamaan label row sesuai dengan mapping tingkat_wilayah
     child_wilayah_map = {
         "6": "Kecamatan",
-        "5": "Kecamatan", 
-        "4": "Kelurahan",        
+        "5": "Kelurahan",
+        "4": "RW",       
     }
     child_tingkat_wilayah = child_wilayah_map.get(str(report.tingkat_wilayah), "Wilayah")
 

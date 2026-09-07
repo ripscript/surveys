@@ -17,6 +17,7 @@ class Report(Base):
     tingkat_wilayah: Mapped[str] = mapped_column(String(255), nullable=False)
     kecamatan_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     kelurahan_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
+    rw_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     survey_id: Mapped[Any] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

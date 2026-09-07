@@ -52,17 +52,20 @@ type laporanService struct {
 	laporanRepo repository.LaporanRepo
 	fileRepo    repository.FileRepo
 	surveyRepo  repository.SurveyRepo
+	userRepo    repository.UserRepo
 }
 
 func NewLaporanService(
 	laporanRepo repository.LaporanRepo,
 	fileRepo repository.FileRepo,
 	surveyRepo repository.SurveyRepo,
+	userRepo repository.UserRepo,
 ) LaporanService {
 	return &laporanService{
 		laporanRepo: laporanRepo,
 		fileRepo:    fileRepo,
 		surveyRepo:  surveyRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -170,6 +173,15 @@ func (service *laporanService) ChangeNameReport(ctx context.Context, req map[str
 func (service *laporanService) CreateReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil || respondentLogin == nil || respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
 	var _req request.CreateLaporanPayload
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
@@ -195,26 +207,106 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 		return utils.SendError(errors.New("nama laporan sudah digunakan, silakan gunakan nama lain"), http.StatusBadRequest)
 	}
 
-	// Validasi tingkat wilayah — whitelist eksplisit, tolak nilai tak dikenal
-	switch _req.TingkatWilayah {
-	case 6: // kota — tidak butuh kecamatan/kelurahan
-	case 5: // kecamatan
-		if len(_req.KecamatanIDs) == 0 {
-			return utils.SendError(errors.New("kecamatan_ids wajib diisi untuk tingkat wilayah kecamatan"), http.StatusBadRequest)
+	var (
+		tingkatWilayah int
+		kecamatanIDs   []int64
+		kelurahanIDs   []int64
+		rwIDs          []int64
+	)
+
+	roleLogin := *respondentLogin.RoleId
+
+	switch roleLogin {
+	case int64(enums.ROLE_ADMIN):
+		switch _req.TingkatWilayah {
+		case 6:
+			tingkatWilayah = 6
+			// breakdown otomatis = semua kecamatan aktif, tidak perlu kecamatan_ids
+		case 5:
+			if len(_req.KecamatanIDs) == 0 {
+				return utils.SendError(errors.New("kecamatan_ids wajib diisi untuk tingkat wilayah kecamatan"), http.StatusBadRequest)
+			}
+			valid, verr := service.laporanRepo.ValidateKecamatanExist(_req.KecamatanIDs)
+			if verr != nil {
+				return utils.SendError(verr, http.StatusInternalServerError)
+			}
+			if !valid {
+				return utils.SendError(errors.New("kecamatan_ids tidak valid"), http.StatusBadRequest)
+			}
+			tingkatWilayah = 5
+			kecamatanIDs = _req.KecamatanIDs
+
+			for _, kecID := range kecamatanIDs {
+				children, cerr := service.laporanRepo.GetKelurahanIDsByKecamatanID(kecID)
+				if cerr != nil {
+					return utils.SendError(cerr, http.StatusInternalServerError)
+				}
+				kelurahanIDs = append(kelurahanIDs, children...)
+			}
+		case 4:
+			if len(_req.KelurahanIDs) == 0 {
+				return utils.SendError(errors.New("kelurahan_ids wajib diisi untuk tingkat wilayah kelurahan"), http.StatusBadRequest)
+			}
+			valid, verr := service.laporanRepo.ValidateKelurahanExist(_req.KelurahanIDs)
+			if verr != nil {
+				return utils.SendError(verr, http.StatusInternalServerError)
+			}
+			if !valid {
+				return utils.SendError(errors.New("kelurahan_ids tidak valid"), http.StatusBadRequest)
+			}
+			tingkatWilayah = 4
+			kelurahanIDs = _req.KelurahanIDs
+
+			for _, kelID := range kelurahanIDs {
+				children, cerr := service.laporanRepo.GetRWIDsByKelurahanID(kelID)
+				if cerr != nil {
+					return utils.SendError(cerr, http.StatusInternalServerError)
+				}
+				rwIDs = append(rwIDs, children...)
+			}
+		default:
+			return utils.SendError(errors.New("tingkat_wilayah tidak valid"), http.StatusBadRequest)
 		}
-	case 4: // kelurahan
-		if len(_req.KelurahanIDs) == 0 {
-			return utils.SendError(errors.New("kelurahan_ids wajib diisi untuk tingkat wilayah kelurahan"), http.StatusBadRequest)
+
+	case int64(enums.ROLE_KECAMATAN):
+		if respondentLogin.KecamatanId == nil || *respondentLogin.KecamatanId == 0 {
+			return utils.SendError(errors.New("akun kecamatan tidak memiliki data wilayah"), http.StatusForbidden)
 		}
+		tingkatWilayah = 5
+		kecamatanID := *respondentLogin.KecamatanId
+		kecamatanIDs = []int64{kecamatanID}
+
+		kelurahanIDs, err = service.laporanRepo.GetKelurahanIDsByKecamatanID(kecamatanID)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+	case int64(enums.ROLE_KELURAHAN):
+		if respondentLogin.KelurahanId == nil || *respondentLogin.KelurahanId == 0 {
+			return utils.SendError(errors.New("akun kelurahan tidak memiliki data wilayah"), http.StatusForbidden)
+		}
+		tingkatWilayah = 4
+		kelurahanID := *respondentLogin.KelurahanId
+		kelurahanIDs = []int64{kelurahanID}
+
+		rwIDs, err = service.laporanRepo.GetRWIDsByKelurahanID(kelurahanID)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
 	default:
-		return utils.SendError(errors.New("tingkat_wilayah tidak valid"), http.StatusBadRequest)
+		return utils.SendError(errors.New("role Anda tidak diizinkan membuat laporan"), http.StatusForbidden)
 	}
 
-	kecamatanJSON, err := json.Marshal(_req.KecamatanIDs)
+	kecamatanJSON, err := json.Marshal(kecamatanIDs)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
-	kelurahanJSON, err := json.Marshal(_req.KelurahanIDs)
+	kelurahanJSON, err := json.Marshal(kelurahanIDs)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	rwJSON, err := json.Marshal(rwIDs)
 	if err != nil {
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
@@ -223,12 +315,23 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	if string(kecamatanJSON) == "null" {
+		kecamatanJSON = []byte("[]")
+	}
+	if string(kelurahanJSON) == "null" {
+		kelurahanJSON = []byte("[]")
+	}
+	if string(rwJSON) == "null" {
+		rwJSON = []byte("[]")
+	}
+
 	laporan := models.Report{
 		Name:           _req.NamaLaporan,
 		RespondentID:   usr.RespondentID,
-		TingkatWilayah: strconv.Itoa(_req.TingkatWilayah),
+		TingkatWilayah: strconv.Itoa(tingkatWilayah),
 		KecamatanID:    datatypes.JSON(kecamatanJSON),
 		KelurahanID:    datatypes.JSON(kelurahanJSON),
+		RWID:           datatypes.JSON(rwJSON),
 		SurveyID:       datatypes.JSON(surveyJSON),
 	}
 

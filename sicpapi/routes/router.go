@@ -428,4 +428,5 @@ func SetupRoutes(e *echo.Echo) {
 	// END::SISTEM ANTRIAN CETAK LAPORAN =============================
 
 	// e.POST("/generate-password", func(c echo.Context) error { return HandleFunc(c, userapiService) })
+	e.POST("/seed-answer/run", func(c echo.Context) error { return HandleFunc(c, surveyapiService) })
 }

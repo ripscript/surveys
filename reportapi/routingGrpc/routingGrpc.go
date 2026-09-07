@@ -67,6 +67,7 @@ var (
 		laporanRepo,
 		fileRepo,
 		surveyRepo,
+		userRepo,
 	)
 	ratingService service.RatingService = service.NewRatingService(
 		ratingRepo,

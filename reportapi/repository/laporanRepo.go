@@ -89,6 +89,11 @@ type LaporanRepo interface {
 	RunInTransaction(fn func(txRepo LaporanRepo) error) error
 	DeleteReportByID(reportID int64) error
 	DeleteSectionReportBySectionID(sectionID int64) error
+
+	GetKelurahanIDsByKecamatanID(kecamatanID int64) ([]int64, error)
+	GetRWIDsByKelurahanID(kelurahanID int64) ([]int64, error)
+	ValidateKecamatanExist(kecamatanIDs []int64) (bool, error)
+	ValidateKelurahanExist(kelurahanIDs []int64) (bool, error)
 }
 
 type laporanRepo struct {
@@ -938,4 +943,46 @@ func (repository *laporanRepo) DeleteSectionReportBySectionID(sectionID int64) e
 	}
 
 	return tx.Commit().Error
+}
+
+func (r *laporanRepo) GetRWIDsByKelurahanID(kelurahanID int64) ([]int64, error) {
+	defer utils.GeneralRecover()
+	var rwIDs []int64
+	err := r.dbSlave.Table("data__rws").
+		Where("kelurahan_id = ? AND deleted_at IS NULL", kelurahanID).
+		Pluck("id", &rwIDs).Error
+	return rwIDs, err
+}
+
+func (r *laporanRepo) ValidateKecamatanExist(kecamatanIDs []int64) (bool, error) {
+	defer utils.GeneralRecover()
+	var count int64
+	err := r.dbSlave.Table("kecamatans").
+		Where("id IN ? AND deleted_at IS NULL", kecamatanIDs).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count == int64(len(kecamatanIDs)), nil
+}
+
+func (r *laporanRepo) ValidateKelurahanExist(kelurahanIDs []int64) (bool, error) {
+	defer utils.GeneralRecover()
+	var count int64
+	err := r.dbSlave.Table("kelurahans").
+		Where("id IN ? AND deleted_at IS NULL", kelurahanIDs).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count == int64(len(kelurahanIDs)), nil
+}
+
+func (r *laporanRepo) GetKelurahanIDsByKecamatanID(kecamatanID int64) ([]int64, error) {
+	defer utils.GeneralRecover()
+	var kelurahanIDs []int64
+	err := r.dbSlave.Table("kelurahans").
+		Where("sub_district_id = ? AND deleted_at IS NULL", kecamatanID).
+		Pluck("id", &kelurahanIDs).Error
+	return kelurahanIDs, err
 }

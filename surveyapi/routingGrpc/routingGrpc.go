@@ -73,6 +73,11 @@ var (
 		userRepo,
 		fileRepo,
 	)
+	seedAnswerService service.SeedAnswerService = service.NewSeedAnswerService(
+		surveyRepo,
+		manajemenAlurRepo,
+		surveyService,
+	)
 )
 
 var (
@@ -93,6 +98,9 @@ var (
 		manajemenAlurService,
 		hasilSurveyService,
 		surveyService,
+	)
+	seedAnswerHandler handlers.SeedAnswerHandler = handlers.NewSeedAnswerHandler(
+		seedAnswerService,
 	)
 )
 
@@ -424,6 +432,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/hasil-survey/result-summary/export/survey/:survey_code": {"GET": {
 		Handler: hasilSurveyHandler.ExportExcelSurveyResultAll,
 		MenuKey: "hasil-survey",
+	}},
+
+	"/seed-answer/run": {"POST": {
+		Handler: seedAnswerHandler.SeedSurveyAnswer,
+		MenuKey: "",
 	}},
 }
 

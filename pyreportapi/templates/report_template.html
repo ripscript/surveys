@@ -178,55 +178,31 @@
             <span style="font-size: 14px!important;">{{ cover.kata_pengantar }}</span>
             <br><br><br><br>
             <p style="text-align: right;">
-                {% if report_data %}
-                    {% if report_data.tingkat_wilayah == '6' %}Kota Bandung, {% endif %}
-                    {% if report_data.tingkat_wilayah == '5' %}
-                        {% if user_data %}
-                            {% if user_data.respondent %}
-                                {% if user_data.respondent.kecamatan %}
-                                    {{ user_data.respondent.kecamatan.sub_district_name }}, 
-                                {% endif %}
-                            {% endif %}
+                {% if user_data %}
+                    {% if user_data.respondent %}
+                        {% if user_data.respondent.role_id == 7 %}Kota Bandung, {% endif %}
+                        {% if user_data.respondent.role_id == 5 %}
+                            {{ user_data.respondent.kecamatan.sub_district_name }}, 
+                        {% endif %}
+                        {% if user_data.respondent.role_id == 4 %}
+                            {{ user_data.respondent.kelurahan.village_name }}, 
                         {% endif %}
                     {% endif %}
-                    {% if report_data.tingkat_wilayah == '4' %}
-                        {% if user_data %}
-                            {% if user_data.respondent %}
-                                {% if user_data.respondent.kelurahan %}
-                                    {{ user_data.respondent.kelurahan.village_name }}, 
-                                {% endif %}
-                            {% endif %}
-                        {% endif %}
-                    {% endif %}
-                {% endif %}{{ tanggal_format }}
+                {% endif %}
+                {{ tanggal_format }}
                 <br><br><br><br>
 
-                {% if report_data %}
-                    {% if report_data.tingkat_wilayah == '6' %}Kepala Bidang Riset dan Inovasi Daerah<br>Yuliandri Rahadiyanto,S IP., M.SI.{% endif %}
-
-                    {% if report_data.tingkat_wilayah == '5' %}
-                        Kepala Kecamatan
-                        {% if user_data %}
-                            {% if user_data.respondent %}
-                                {% if user_data.respondent.kecamatan %}
-                                    {{ user_data.respondent.kecamatan.sub_district_name }}
-                                {% endif %}
-                                <br>
-                                {{ user_data.respondent.name }}
-                            {% endif %}
+                {% if user_data %}
+                    {% if user_data.respondent %}
+                        {% if user_data.respondent.role_id == 7 %}Kepala Bidang Riset dan Inovasi Daerah<br>Yuliandri Rahadiyanto,S IP., M.SI.{% endif %}
+                        {% if user_data.respondent.role_id == 5 %}
+                            Kepala Kecamatan {{ user_data.respondent.kecamatan.sub_district_name }}<br>
+                            {{ user_data.respondent.name }}
                         {% endif %}
-                    {% endif %}
-
-                    {% if report_data.tingkat_wilayah == '4' %}
-                        Kepala Kelurahan
-                        {% if user_data %}
-                            {% if user_data.respondent %}
-                                {% if user_data.respondent.kelurahan %}
-                                    {{ user_data.respondent.kelurahan.village_name }}
-                                {% endif %}
-                                <br>
-                                {{ user_data.respondent.name }}
-                            {% endif %}
+                        {% if user_data.respondent.role_id == 4 %}
+                            Kepala Kelurahan {{ user_data.respondent.kelurahan.village_name }}
+                            <br>
+                            {{ user_data.respondent.name }}
                         {% endif %}
                     {% endif %}
                 {% endif %}

@@ -163,7 +163,7 @@ async def build_report_pdf(user_id: int,laporan_id: int) -> bytes:
 
         now = datetime.now()
         tanggal_format = f"{now.day:02d} {BULAN_ID[now.month]} {now.year}"
-        # dprint_file(userData.respondent.kecamatan)
+        # dprint_file(userData)
         html_out = await template.render_async(
             report=report_dict,  
             report_data=report_data,    

@@ -2,9 +2,10 @@ package request
 
 type CreateLaporanPayload struct {
 	NamaLaporan    string  `json:"nama_laporan" validate:"required"`
-	TingkatWilayah int     `json:"tingkat_wilayah" validate:"required,oneof=4 5 6"` // 6=kota, 5=kecamatan, 4=kelurahan
+	TingkatWilayah int     `json:"tingkat_wilayah" validate:"omitempty,oneof=4 5 6"`
 	KecamatanIDs   []int64 `json:"kecamatan_ids"`
 	KelurahanIDs   []int64 `json:"kelurahan_ids"`
+	RWIDs          []int64 `json:"rw_ids"`
 	SurveyIDs      []int64 `json:"survey_ids" validate:"required,min=1"`
 }
 
