@@ -363,6 +363,18 @@ func (service *manajemenCMSService) GetSectionBySlug(ctx context.Context, req ma
 		return utils.SendError(errors.New("Section tidak ditemukan"), http.StatusNotFound)
 	}
 
+	for i := range getSectionBySlug.Contents {
+		var filePath string
+
+		if getSectionBySlug.Contents[i].Key == "button_link" {
+			if getSectionBySlug.Contents[i].ValueText != nil && *getSectionBySlug.Contents[i].ValueText != "" {
+				_filePath := *getSectionBySlug.Contents[i].ValueText
+				filePath = os.Getenv("API_GATEWAY_URL") + "/view-cms-image/" + _filePath
+			}
+			getSectionBySlug.Contents[i].ValueText = &filePath
+		}
+	}
+
 	for i := range getSectionBySlug.Items {
 		var filePath string
 
@@ -420,6 +432,9 @@ func (service *manajemenCMSService) UpdateSectionContent(ctx context.Context, re
 }
 
 func (service *manajemenCMSService) updateContentSection(ctx context.Context, req map[string]interface{}, section *models.CMSSection) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+	detachedCtx := context.WithoutCancel(ctx)
+
 	var payload payloads.UpdateContentSectionPayload
 
 	err := utils.DynamicBind(req, &payload)
@@ -437,8 +452,90 @@ func (service *manajemenCMSService) updateContentSection(ctx context.Context, re
 		}
 	}
 
+	// Ambil content lama dari DB untuk keperluan cleanup file
+	existingContents, err := service.manajemenCMSRepo.GetContentsBySectionID(section.ID)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+	existingByKey := make(map[string]*models.CMSContent, len(existingContents))
+	for i := range existingContents {
+		existingByKey[existingContents[i].Key] = &existingContents[i]
+	}
+
+	availableMime := []string{"image/png", "image/jpg", "image/jpeg", "image/webp", "application/pdf"}
+	availablesExt := []string{".png", ".jpg", ".jpeg", ".webp", ".jfif", ".pdf"}
+	maxSizeInKB := float64(5120)
+
+	var uploadedFiles []string
+	rollbackUploadedFiles := func() {
+		if len(uploadedFiles) > 0 {
+			service.fileRepo.DeleteCMSImageBulk(detachedCtx, uploadedFiles)
+		}
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			rollbackUploadedFiles()
+			panic(r)
+		}
+	}()
+
+	var oldPathsToDelete []string
+
 	contents := make([]models.CMSContent, 0, len(payload.Contents))
 	for _, c := range payload.Contents {
+		if c.Key == "button_link" {
+			old, hasOld := existingByKey[c.Key]
+			var oldValue *string
+			if hasOld {
+				oldValue = old.ValueText
+			}
+
+			switch {
+			case c.ValueText == nil || *c.ValueText == "":
+				if oldValue != nil && *oldValue != "" {
+					oldPathsToDelete = append(oldPathsToDelete, *oldValue)
+				}
+
+			case strings.HasPrefix(*c.ValueText, "data:"):
+				if !strings.HasPrefix(*c.ValueText, "data:image") && !strings.HasPrefix(*c.ValueText, "data:application/pdf") {
+					rollbackUploadedFiles()
+					return utils.SendError(errors.New("Format file tidak didukung. Hanya menerima file gambar (PNG, JPG, WEBP, PDF)"), http.StatusBadRequest)
+				}
+
+				base64Data, err := utils.ExtractBase64Info(*c.ValueText)
+				if err != nil {
+					rollbackUploadedFiles()
+					return utils.SendError(errors.New("Gagal memproses gambar"), http.StatusBadRequest)
+				}
+				if !slices.Contains(availablesExt, base64Data.Extension) || !slices.Contains(availableMime, base64Data.MimeType) {
+					rollbackUploadedFiles()
+					return utils.SendError(errors.New("Format file gambar tidak didukung"), http.StatusBadRequest)
+				}
+				if base64Data.SizeInKB > maxSizeInKB {
+					rollbackUploadedFiles()
+					return utils.SendError(errors.New("Ukuran gambar tidak boleh melebihi 5MB"), http.StatusBadRequest)
+				}
+
+				path, err := service.fileRepo.UploadCMSImage(ctx, c.ValueText)
+				if err != nil || path == nil {
+					rollbackUploadedFiles()
+					return utils.SendError(errors.New("Gagal mengunggah gambar"), http.StatusInternalServerError)
+				}
+
+				if oldValue != nil && *oldValue != "" {
+					oldPathsToDelete = append(oldPathsToDelete, *oldValue)
+				}
+
+				c.ValueText = path
+				uploadedFiles = append(uploadedFiles, *path)
+
+			default:
+				// bukan data URI -> dianggap link lama, TIDAK diupload ulang.
+				relativePath := toRelativeImagePath(*c.ValueText)
+				c.ValueText = &relativePath
+			}
+
+		}
 		contents = append(contents, models.CMSContent{
 			SectionID: section.ID,
 			Key:       c.Key,
@@ -449,7 +546,12 @@ func (service *manajemenCMSService) updateContentSection(ctx context.Context, re
 
 	err = service.manajemenCMSRepo.UpsertContents(section.ID, contents)
 	if err != nil {
+		rollbackUploadedFiles()
 		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	}
+
+	if len(oldPathsToDelete) > 0 {
+		service.fileRepo.DeleteCMSImageBulk(detachedCtx, oldPathsToDelete)
 	}
 
 	return utils.SendData(nil, "Konten section berhasil diperbarui")

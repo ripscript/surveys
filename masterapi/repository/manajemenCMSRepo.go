@@ -32,6 +32,7 @@ type ManajemenCMSRepo interface {
 	GetLandingPageSections() ([]models.CMSSection, error)
 
 	DeleteSection(section *models.CMSSection) ([]string, error)
+	GetContentsBySectionID(sectionID int) ([]models.CMSContent, error)
 }
 
 type manajemenCMSRepo struct {
@@ -642,4 +643,13 @@ func (repository *manajemenCMSRepo) DeleteSection(section *models.CMSSection) ([
 	})
 
 	return filesToDelete, err
+}
+
+func (repository *manajemenCMSRepo) GetContentsBySectionID(sectionID int) ([]models.CMSContent, error) {
+	var contents []models.CMSContent
+	err := repository.dbSlave.Where("section_id = ?", sectionID).Find(&contents).Error
+	if err != nil {
+		return nil, err
+	}
+	return contents, nil
 }

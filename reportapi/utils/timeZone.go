@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"time"
+	_ "time/tzdata"
 )
 
 func TimeNow() time.Time {
@@ -20,16 +21,11 @@ func TimeNow() time.Time {
 }
 
 func ParseToWIB(t time.Time) time.Time {
-	loc, _ := time.LoadLocation("Asia/Jakarta")
-	return time.Date(
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-		t.Minute(),
-		t.Second(),
-		0, loc,
-	)
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*60*60)
+	}
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
 }
 
 func NowWIB() time.Time {
