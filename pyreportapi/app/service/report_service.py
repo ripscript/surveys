@@ -730,7 +730,7 @@ async def build_chart_image_from_component(session, report_orm, comp_dict) -> di
                         )
 
         max_val = max(all_values) if all_values else 0
-        headroom = max(max_val * 0.12, 1)
+        headroom = max(max_val * 0.12, 120)
 
         tick_positions = list(range(n_territories))
         if chart_direction == "horizontal":

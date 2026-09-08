@@ -15,6 +15,7 @@ class Report(Base):
     name: Mapped[str] = mapped_column(String(191), nullable=False)
     respondent_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tingkat_wilayah: Mapped[str] = mapped_column(String(255), nullable=False)
+    breakdown_level: Mapped[str] = mapped_column(String(20), nullable=False)
     kecamatan_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     kelurahan_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     rw_id: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)

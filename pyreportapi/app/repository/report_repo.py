@@ -66,154 +66,78 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
     if not field_ids:
         return []
 
-    # Parsing JSON IDs dari tabel reports (Handling jika None atau dict kosong)
     survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
     kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
     kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
-    
-    # Kumpulkan parameter dasar untuk dikirim ke raw query SQLAlchemy
-    params = {"field_ids": tuple(field_ids)} # Harus tuple untuk clause IN / ANY
-    
-    # Filter survey (karena survey_id adalah array jsonb)
+    rw_ids = report.rw_id if isinstance(report.rw_id, list) else []
+
+    params = {"field_ids": tuple(field_ids)}
     filter_survey_sql = ""
     if survey_ids:
         filter_survey_sql = "AND survey_respondents.survey_id = ANY(:survey_ids)"
         params["survey_ids"] = tuple(survey_ids)
 
-    sql = ""
+    breakdown = report.breakdown_level
     territory_order = []
 
-    # =========================================================
-    # LOGIKA KHUSUS TINGKAT WILAYAH = 6 (KOTA) -> Group by Semua Kecamatan
-    # =========================================================
-    if str(report.tingkat_wilayah) == "6":
-        sql = f"""
-            SELECT 
-                k.sub_district_name AS territory_name,
-                fr.form_field_id,
-                COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
-            FROM kecamatans k
-            LEFT JOIN respondents r 
-                ON r.kecamatan_id = k.id AND r.deleted_at IS NULL
-            LEFT JOIN survey_respondents sr 
-                ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
-            LEFT JOIN field_responses fr 
-                ON fr.form_response_id = sr.id 
-                AND fr.form_field_id = ANY(:field_ids)
-                AND fr.deleted_at IS NULL
-            WHERE k.deleted_at IS NULL
-            GROUP BY k.sub_district_name, fr.form_field_id
-            ORDER BY k.sub_district_name ASC
-        """
-        stmt_master = text("SELECT sub_district_name FROM kecamatans WHERE deleted_at IS NULL ORDER BY sub_district_name ASC")
-        res_master = await session.execute(stmt_master)
-        territory_order = [row.sub_district_name for row in res_master.all()]
-
-    # =========================================================
-    # LOGIKA KHUSUS TINGKAT WILAYAH = 5 (KECAMATAN) -> Group by Kelurahan Terpilih
-    # =========================================================
-    elif str(report.tingkat_wilayah) == "5":
+    if breakdown == "kecamatan":
+        join_table, name_col, resp_col = "kecamatans", "sub_district_name", "kecamatan_id"
+        filter_ids = kecamatan_ids
+    elif breakdown == "kelurahan":
         if not kelurahan_ids:
-            return []  # Jika tidak ada filter kelurahan, cegah query untuk keamanan
-
-        params["kelurahan_ids"] = tuple(kelurahan_ids)
-
-        sql = f"""
-            SELECT 
-                kel.village_name AS territory_name,
-                fr.form_field_id,
-                COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
-            FROM kelurahans kel
-            LEFT JOIN respondents r 
-                ON r.kelurahan_id = kel.id AND r.deleted_at IS NULL
-            LEFT JOIN survey_respondents sr 
-                ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
-            LEFT JOIN field_responses fr 
-                ON fr.form_response_id = sr.id 
-                AND fr.form_field_id = ANY(:field_ids)
-                AND fr.deleted_at IS NULL
-            WHERE kel.deleted_at IS NULL
-              AND kel.id = ANY(:kelurahan_ids)
-            GROUP BY kel.village_name, fr.form_field_id
-            ORDER BY kel.village_name ASC
-        """
-        stmt_master = text("SELECT village_name FROM kelurahans WHERE deleted_at IS NULL AND id = ANY(:kelurahan_ids) ORDER BY village_name ASC")
-        res_master = await session.execute(stmt_master, params)
-        territory_order = [row.village_name for row in res_master.all()]
-
-    # =========================================================
-    # LOGIKA KHUSUS TINGKAT WILAYAH = 4 (KELURAHAN) -> Group by RW Terpilih
-    # =========================================================
-    elif str(report.tingkat_wilayah) == "4":
-        rw_ids = report.rw_id if isinstance(report.rw_id, list) else []
+            return []
+        join_table, name_col, resp_col = "kelurahans", "village_name", "kelurahan_id"
+        filter_ids = kelurahan_ids
+    elif breakdown == "rw":
         if not rw_ids:
-            return []  # Jika tidak ada filter RW, cegah query
-
-        params["rw_ids"] = tuple(rw_ids)
-
-        sql = f"""
-            SELECT 
-                rw.nama_rw AS territory_name,
-                fr.form_field_id,
-                COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
-            FROM data__rws rw
-            LEFT JOIN respondents r 
-                ON r.rw_id = rw.id AND r.deleted_at IS NULL
-            LEFT JOIN survey_respondents sr 
-                ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
-            LEFT JOIN field_responses fr 
-                ON fr.form_response_id = sr.id 
-                AND fr.form_field_id = ANY(:field_ids)
-                AND fr.deleted_at IS NULL
-            WHERE rw.deleted_at IS NULL
-              AND rw.id = ANY(:rw_ids)
-            GROUP BY rw.nama_rw, fr.form_field_id
-            ORDER BY rw.nama_rw ASC
-        """
-        stmt_master = text("SELECT nama_rw FROM data__rws WHERE deleted_at IS NULL AND id = ANY(:rw_ids) ORDER BY nama_rw ASC")
-        res_master = await session.execute(stmt_master, params)
-        territory_order = [row.nama_rw for row in res_master.all()]
-
+            return []
+        join_table, name_col, resp_col = "data__rws", "nama_rw", "rw_id"
+        filter_ids = rw_ids
     else:
-        # Fallback jika wilayah tidak dikenali
         return []
 
-    # Eksekusi Query Gabungan
+    filter_extra_sql = ""
+    if filter_ids:
+        params["filter_ids"] = tuple(filter_ids)
+        filter_extra_sql = f"AND m.id = ANY(:filter_ids)"
+
+    sql = f"""
+        SELECT 
+            m.{name_col} AS territory_name,
+            fr.form_field_id,
+            COALESCE(SUM(CAST(NULLIF(fr.answer, '') AS NUMERIC)), 0) as total_value
+        FROM {join_table} m
+        LEFT JOIN respondents r ON r.{resp_col} = m.id AND r.deleted_at IS NULL
+        LEFT JOIN survey_respondents sr ON sr.respondent_id = r.id {filter_survey_sql.replace('survey_respondents.', 'sr.')}
+        LEFT JOIN field_responses fr 
+            ON fr.form_response_id = sr.id 
+            AND fr.form_field_id = ANY(:field_ids)
+            AND fr.deleted_at IS NULL
+        WHERE m.deleted_at IS NULL {filter_extra_sql}
+        GROUP BY m.{name_col}, fr.form_field_id
+        ORDER BY m.{name_col} ASC
+    """
+    stmt_master = text(f"SELECT {name_col} FROM {join_table} m WHERE m.deleted_at IS NULL {filter_extra_sql} ORDER BY {name_col} ASC")
+    res_master = await session.execute(stmt_master, params)
+    territory_order = [getattr(row, name_col) for row in res_master.all()]
+
     result = await session.execute(text(sql), params)
     raw_data = result.all()
 
-    # =========================================================
-    # MERAKIT DATA (GROUPING BERDASARKAN WILAYAH)
-    # =========================================================
-    # Persiapkan Dictionary Map Kosong sesuai wilayah master agar baris yang datanya 0 tetap muncul
     row_map = {t_name: {f_id: 0 for f_id in field_ids} for t_name in territory_order}
-
     for d in raw_data:
-        t_name = d.territory_name
-        f_id = d.form_field_id
+        t_name, f_id = d.territory_name, d.form_field_id
         val = int(d.total_value) if d.total_value else 0
-
         if t_name in row_map and f_id is not None:
             row_map[t_name][f_id] = val
 
-    # Penamaan label row sesuai dengan mapping tingkat_wilayah
-    child_wilayah_map = {
-        "6": "Kecamatan",
-        "5": "Kelurahan",
-        "4": "RW",       
-    }
-    child_tingkat_wilayah = child_wilayah_map.get(str(report.tingkat_wilayah), "Wilayah")
+    label_map = {"kecamatan": "Kecamatan", "kelurahan": "Kelurahan", "rw": "RW"}
+    child_tingkat_wilayah = label_map.get(breakdown, "Wilayah")
 
-    # Format akhir menjadi list of dictionary
-    final_results = []
-    for t_name in territory_order:
-        final_results.append({
-            "territory_name": t_name,
-            "tingkat_wilayah": child_tingkat_wilayah,
-            "values": row_map[t_name]
-        })
-
-    return final_results
+    return [
+        {"territory_name": t_name, "tingkat_wilayah": child_tingkat_wilayah, "values": row_map[t_name]}
+        for t_name in territory_order
+    ]
 
 
 async def calculate_narrative_variable(session, report, calculation_type: str, source_form_field_id: int):
@@ -305,16 +229,9 @@ async def calculate_narrative_variable(session, report, calculation_type: str, s
 async def get_multiple_choice_totals(session: AsyncSession, report: Report, field_id: int) -> list[dict]:
     """
     Hitung total responden per opsi jawaban (multiple-choice).
-    field_responses.answer menyimpan form_answer_fields.id (bukan teks label),
-    jadi perlu JOIN ke form_answer_fields untuk dapat label opsi ('Ya'/'Tidak'/dst).
-    Semua opsi yang terdaftar di form_answer_fields untuk field ini akan selalu
-    muncul di hasil (default count = 0) walau belum ada yang menjawab opsi itu.
     """
     survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
-    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
-    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
 
-    # Ambil master opsi jawaban untuk field ini (biar opsi dengan 0 jawaban tetap muncul)
     stmt_options = text("""
         SELECT id, option
         FROM form_answer_fields
@@ -327,23 +244,16 @@ async def get_multiple_choice_totals(session: AsyncSession, report: Report, fiel
     if not option_master:
         return []
 
-    params = {"field_id": field_id}
+    territory = _get_territory_filter(report, alias="r")
+    if territory is None:
+        return []
+    territory_filter, territory_params = territory
+
+    params = {"field_id": field_id, **territory_params}
     filter_survey_sql = ""
     if survey_ids:
         filter_survey_sql = "AND sr.survey_id = ANY(:survey_ids)"
         params["survey_ids"] = tuple(survey_ids)
-
-    territory_filter = ""
-    if str(report.tingkat_wilayah) == "5":
-        if not kecamatan_ids:
-            return []
-        params["kecamatan_ids"] = tuple(kecamatan_ids)
-        territory_filter = "AND r.kecamatan_id = ANY(:kecamatan_ids)"
-    elif str(report.tingkat_wilayah) == "4":
-        if not kelurahan_ids:
-            return []
-        params["kelurahan_ids"] = tuple(kelurahan_ids)
-        territory_filter = "AND r.kelurahan_id = ANY(:kelurahan_ids)"
 
     sql = f"""
         SELECT 
@@ -365,7 +275,6 @@ async def get_multiple_choice_totals(session: AsyncSession, report: Report, fiel
     result = await session.execute(text(sql), params)
     count_map = {row.option_id: int(row.total_count) for row in result.all()}
 
-    # Gabungkan ke master opsi supaya opsi yang belum ada yang jawab tetap muncul (0)
     final_results = [
         {"option": label, "count": count_map.get(opt_id, 0)}
         for opt_id, label in option_master
@@ -376,41 +285,24 @@ async def get_multiple_choice_totals(session: AsyncSession, report: Report, fiel
 async def get_respondent_text_data(session: AsyncSession, report: Report, field_ids: list[int]) -> list[dict]:
     """
     Untuk table_style = 'respondent_text' / 'respondent_text_grouped'.
-    Beda dengan get_table_response_data (agregasi SUM per wilayah), fungsi ini
-    mengembalikan data PER RESPONDENT (1 respondent = 1 baris), lengkap dengan
-    nama Kecamatan/Kelurahan/RW/RT, dan jawaban mentah (apa adanya) dari
-    field_responses.answer untuk tiap field_id yang diminta.
-
-    Filter wajib data valid tetap dipakai: surveys.status = 'finished'
-    AND survey_respondents.status_approval = 'validated_lurah'.
+    1 respondent = 1 baris, lengkap dengan nama Kecamatan/Kelurahan/RW/RT,
+    dan jawaban mentah dari field_responses.answer.
     """
     if not field_ids:
         return []
 
     survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
-    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
-    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
 
-    params = {"field_ids": tuple(field_ids)}
+    territory = _get_territory_filter(report, alias="r")
+    if territory is None:
+        return []
+    territory_filter, territory_params = territory
 
+    params = {"field_ids": tuple(field_ids), **territory_params}
     filter_survey_sql = ""
     if survey_ids:
         filter_survey_sql = "AND sr.survey_id = ANY(:survey_ids)"
         params["survey_ids"] = tuple(survey_ids)
-
-    # Filter wilayah, sama pola dengan get_multiple_choice_totals
-    territory_filter = ""
-    if str(report.tingkat_wilayah) == "5":
-        if not kecamatan_ids:
-            return []
-        params["kecamatan_ids"] = tuple(kecamatan_ids)
-        territory_filter = "AND r.kecamatan_id = ANY(:kecamatan_ids)"
-    elif str(report.tingkat_wilayah) == "4":
-        if not kelurahan_ids:
-            return []
-        params["kelurahan_ids"] = tuple(kelurahan_ids)
-        territory_filter = "AND r.kelurahan_id = ANY(:kelurahan_ids)"
-    # tingkat_wilayah == "6" (kota) -> tanpa filter wilayah tambahan (semua kecamatan)
 
     sql = f"""
         SELECT
@@ -441,8 +333,6 @@ async def get_respondent_text_data(session: AsyncSession, report: Report, field_
     result = await session.execute(text(sql), params)
     raw_data = result.all()
 
-    # Rakit per survey_respondent_id -> 1 respondent = 1 baris,
-    # dengan answers = {form_field_id: answer_mentah}
     respondent_map = {}
     order = []
 
@@ -465,33 +355,21 @@ async def get_respondent_text_data(session: AsyncSession, report: Report, field_
 
 async def get_maps_response_data(session: AsyncSession, report: Report, field_id: int) -> list[tuple[float, float]]:
     """
-    Untuk chart_type = 'map'. Mengambil & flatten semua titik lat/lng dari
-    field_responses bertipe 'maps' untuk satu field_id, lintas semua respondent
-    dalam cakupan laporan. 1 baris field_responses.answer bisa berisi BANYAK
-    titik sekaligus: '[{"lat":..,"lng":..}, {"lat":..,"lng":..}]'
+    Untuk chart_type = 'map'. Flatten semua titik lat/lng dari field_responses
+    bertipe 'maps' untuk satu field_id, sesuai cakupan laporan.
     """
     survey_ids = report.survey_id if isinstance(report.survey_id, list) else []
-    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
-    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
 
-    params = {"field_id": field_id}
+    territory = _get_territory_filter(report, alias="r")
+    if territory is None:
+        return []
+    territory_filter, territory_params = territory
+
+    params = {"field_id": field_id, **territory_params}
     filter_survey_sql = ""
     if survey_ids:
         filter_survey_sql = "AND sr.survey_id = ANY(:survey_ids)"
         params["survey_ids"] = tuple(survey_ids)
-
-    territory_filter = ""
-    if str(report.tingkat_wilayah) == "5":
-        if not kecamatan_ids:
-            return []
-        params["kecamatan_ids"] = tuple(kecamatan_ids)
-        territory_filter = "AND r.kecamatan_id = ANY(:kecamatan_ids)"
-    elif str(report.tingkat_wilayah) == "4":
-        if not kelurahan_ids:
-            return []
-        params["kelurahan_ids"] = tuple(kelurahan_ids)
-        territory_filter = "AND r.kelurahan_id = ANY(:kelurahan_ids)"
-    # tingkat_wilayah == "6" (kota) -> tanpa filter tambahan
 
     sql = f"""
         SELECT fr.answer
@@ -535,21 +413,24 @@ async def get_wilayah_names_for_report(session: AsyncSession, report: Report) ->
     """
     Ambil daftar nama kecamatan/kelurahan (geo_name) yang jadi cakupan laporan,
     dipakai untuk filter boundary GeoJSON supaya peta hanya render wilayah
-    yang relevan, bukan seluruh kota.
+    yang relevan. Boundary polygon cuma ada di level kecamatan & kelurahan
+    (RW belum ada boundary-nya), jadi breakdown "rw" tetap pakai boundary kelurahan.
     """
     kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
     kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
 
-    if str(report.tingkat_wilayah) == "5":
+    breakdown = report.breakdown_level
+
+    if breakdown == "kecamatan":
         if not kecamatan_ids:
-            return []
+            return []  # tingkat kota (semua kecamatan) -> tidak perlu highlight khusus
         result = await session.execute(
             text("SELECT geo_name FROM kecamatans WHERE id = ANY(:ids) AND geo_name IS NOT NULL"),
             {"ids": tuple(kecamatan_ids)},
         )
         return [row.geo_name for row in result.all()]
 
-    if str(report.tingkat_wilayah) == "4":
+    if breakdown in ("kelurahan", "rw"):
         if not kelurahan_ids:
             return []
         result = await session.execute(
@@ -559,3 +440,33 @@ async def get_wilayah_names_for_report(session: AsyncSession, report: Report) ->
         return [row.geo_name for row in result.all()]
 
     return []
+
+def _get_territory_filter(report: Report, alias: str = "r"):
+    """
+    Bangun filter SQL scope wilayah berdasarkan breakdown_level (BUKAN tingkat_wilayah lagi).
+    Return:
+        (filter_sql: str, extra_params: dict)  -> filter valid, termasuk filter kosong ("") untuk kasus admin tingkat kota
+        None                                    -> scope tidak valid/kosong, caller HARUS return [] (safety, cegah query tanpa batas)
+    """
+    breakdown = report.breakdown_level
+    kecamatan_ids = report.kecamatan_id if isinstance(report.kecamatan_id, list) else []
+    kelurahan_ids = report.kelurahan_id if isinstance(report.kelurahan_id, list) else []
+    rw_ids = report.rw_id if isinstance(report.rw_id, list) else []
+
+    if breakdown == "kecamatan":
+        if kecamatan_ids:
+            return f"AND {alias}.kecamatan_id = ANY(:territory_ids)", {"territory_ids": tuple(kecamatan_ids)}
+        # kecamatan_ids kosong -> laporan tingkat kota (Admin), tanpa filter tambahan = semua data
+        return "", {}
+
+    if breakdown == "kelurahan":
+        if not kelurahan_ids:
+            return None
+        return f"AND {alias}.kelurahan_id = ANY(:territory_ids)", {"territory_ids": tuple(kelurahan_ids)}
+
+    if breakdown == "rw":
+        if not rw_ids:
+            return None
+        return f"AND {alias}.rw_id = ANY(:territory_ids)", {"territory_ids": tuple(rw_ids)}
+
+    return None

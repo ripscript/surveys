@@ -11,6 +11,7 @@ type Report struct {
 	Name           string         `gorm:"column:name;type:varchar(191);not null" json:"name"`
 	RespondentID   int64          `gorm:"column:respondent_id;not null;index:idx_reports_respondent_id" json:"respondent_id"`
 	TingkatWilayah string         `gorm:"column:tingkat_wilayah;type:varchar(255);not null" json:"tingkat_wilayah"`
+	BreakdownLevel string         `gorm:"column:breakdown_level;type:varchar(20);not null" json:"breakdown_level"`
 	KecamatanID    datatypes.JSON `gorm:"column:kecamatan_id;type:jsonb" json:"kecamatan_id"`
 	KelurahanID    datatypes.JSON `gorm:"column:kelurahan_id;type:jsonb" json:"kelurahan_id"`
 	RWID           datatypes.JSON `gorm:"column:rw_id;type:jsonb" json:"rw_id"`

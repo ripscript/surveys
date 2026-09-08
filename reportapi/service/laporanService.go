@@ -20,10 +20,6 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/johnfercher/maroto/v2/pkg/components/text"
-	"github.com/johnfercher/maroto/v2/pkg/consts/align"
-	"github.com/johnfercher/maroto/v2/pkg/core"
-	"github.com/johnfercher/maroto/v2/pkg/props"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -151,6 +147,10 @@ func (service *laporanService) ChangeNameReport(ctx context.Context, req map[str
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
 	if laporan.Name != payload.Name {
 		isNameExists, err := service.laporanRepo.IsNameExists(nil, payload.Name)
 		if err != nil {
@@ -209,6 +209,7 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 
 	var (
 		tingkatWilayah int
+		breakdownLevel string
 		kecamatanIDs   []int64
 		kelurahanIDs   []int64
 		rwIDs          []int64
@@ -221,7 +222,9 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 		switch _req.TingkatWilayah {
 		case 6:
 			tingkatWilayah = 6
-			// breakdown otomatis = semua kecamatan aktif, tidak perlu kecamatan_ids
+			breakdownLevel = "kecamatan"
+			// kecamatanIDs kosong -> generate akan pakai SEMUA kecamatan aktif
+
 		case 5:
 			if len(_req.KecamatanIDs) == 0 {
 				return utils.SendError(errors.New("kecamatan_ids wajib diisi untuk tingkat wilayah kecamatan"), http.StatusBadRequest)
@@ -234,15 +237,10 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 				return utils.SendError(errors.New("kecamatan_ids tidak valid"), http.StatusBadRequest)
 			}
 			tingkatWilayah = 5
+			breakdownLevel = "kecamatan"
 			kecamatanIDs = _req.KecamatanIDs
+			// TIDAK diturunkan ke kelurahan
 
-			for _, kecID := range kecamatanIDs {
-				children, cerr := service.laporanRepo.GetKelurahanIDsByKecamatanID(kecID)
-				if cerr != nil {
-					return utils.SendError(cerr, http.StatusInternalServerError)
-				}
-				kelurahanIDs = append(kelurahanIDs, children...)
-			}
 		case 4:
 			if len(_req.KelurahanIDs) == 0 {
 				return utils.SendError(errors.New("kelurahan_ids wajib diisi untuk tingkat wilayah kelurahan"), http.StatusBadRequest)
@@ -255,15 +253,10 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 				return utils.SendError(errors.New("kelurahan_ids tidak valid"), http.StatusBadRequest)
 			}
 			tingkatWilayah = 4
+			breakdownLevel = "kelurahan"
 			kelurahanIDs = _req.KelurahanIDs
+			// TIDAK diturunkan ke RW
 
-			for _, kelID := range kelurahanIDs {
-				children, cerr := service.laporanRepo.GetRWIDsByKelurahanID(kelID)
-				if cerr != nil {
-					return utils.SendError(cerr, http.StatusInternalServerError)
-				}
-				rwIDs = append(rwIDs, children...)
-			}
 		default:
 			return utils.SendError(errors.New("tingkat_wilayah tidak valid"), http.StatusBadRequest)
 		}
@@ -273,6 +266,7 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 			return utils.SendError(errors.New("akun kecamatan tidak memiliki data wilayah"), http.StatusForbidden)
 		}
 		tingkatWilayah = 5
+		breakdownLevel = "kelurahan"
 		kecamatanID := *respondentLogin.KecamatanId
 		kecamatanIDs = []int64{kecamatanID}
 
@@ -286,6 +280,7 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 			return utils.SendError(errors.New("akun kelurahan tidak memiliki data wilayah"), http.StatusForbidden)
 		}
 		tingkatWilayah = 4
+		breakdownLevel = "rw"
 		kelurahanID := *respondentLogin.KelurahanId
 		kelurahanIDs = []int64{kelurahanID}
 
@@ -329,6 +324,7 @@ func (service *laporanService) CreateReport(ctx context.Context, req map[string]
 		Name:           _req.NamaLaporan,
 		RespondentID:   usr.RespondentID,
 		TingkatWilayah: strconv.Itoa(tingkatWilayah),
+		BreakdownLevel: breakdownLevel,
 		KecamatanID:    datatypes.JSON(kecamatanJSON),
 		KelurahanID:    datatypes.JSON(kelurahanJSON),
 		RWID:           datatypes.JSON(rwJSON),
@@ -394,6 +390,10 @@ func (service *laporanService) GetCoverReport(ctx context.Context, req map[strin
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
 	getLaporanKonten, err := service.laporanRepo.GetReportCoverByReportId(laporanID)
 	if err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -450,6 +450,10 @@ func (service *laporanService) GetDetailReport(ctx context.Context, req map[stri
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
 	if laporan.Cover != nil {
 		if laporan.Cover.ImgDepan != nil {
 			laporan.Cover.LinkImgDepan = utils.StringToPointer(os.Getenv("API_GATEWAY_URL") + "/view-laporan-konten-image/" + *laporan.Cover.ImgDepan)
@@ -484,6 +488,10 @@ func (service *laporanService) ListSectionReport(ctx context.Context, req map[st
 
 	if laporan == nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
 	}
 
 	search := param.Get("search")
@@ -583,9 +591,17 @@ func (service *laporanService) UpdateCoverReport(ctx context.Context, req map[st
 		}
 	}
 
-	_, err = service.laporanRepo.GetReportByID(laporanID)
+	laporan, err := service.laporanRepo.GetReportByID(laporanID)
 	if err != nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan == nil {
+		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
 	}
 
 	// konten lama (bisa nil kalau belum pernah ada)
@@ -740,45 +756,6 @@ func getExtFromMime(mimeType string) string {
 		return ".webp"
 	default:
 		return ".jpg" // Fallback aman
-	}
-}
-
-func (service *laporanService) renderNarrativeComponent(m core.Maroto, laporan *models.Report, comp models.ReportComponent) {
-	if comp.NarrativeTemplate == nil || *comp.NarrativeTemplate == "" {
-		return
-	}
-
-	finalText := *comp.NarrativeTemplate
-
-	// Unmarshal NarrativeLogic dari datatypes.JSONB
-	if len(comp.NarrativeLogic) > 0 {
-		var logic request.NarrativeLogicPayload
-		if err := json.Unmarshal(comp.NarrativeLogic, &logic); err == nil {
-			for _, v := range logic.Variables {
-				// Hitung nilai variabel via SQL Repo
-				calcVal, err := service.laporanRepo.CalculateNarrativeVariable(laporan, v)
-				if err == nil {
-					finalText = strings.ReplaceAll(finalText, v.Placeholder, calcVal)
-				}
-			}
-		}
-	}
-
-	// Cetak teks hasil kalkulasi
-	paragraphs := strings.Split(finalText, "\n\n")
-	for _, p := range paragraphs {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		m.AddAutoRow(
-			text.NewCol(12, p, props.Text{
-				Family: "Tinos",
-				Size:   11,
-				Align:  align.Justify,
-			}),
-		)
-		m.AddRow(4, text.NewCol(12, " "))
 	}
 }
 
@@ -1100,6 +1077,10 @@ func (service *laporanService) CreateSectionReport(ctx context.Context, req map[
 	}
 	if laporan == nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
 	}
 
 	// 4.5 VALIDASI BISNIS: choropleth hanya untuk tingkat kecamatan/kota
@@ -1521,6 +1502,10 @@ func (service *laporanService) GetSectionDetail(ctx context.Context, req map[str
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
 	sectionIdStr, ok := slug["section_id"].(string)
 	if !ok {
 		return utils.SendError(errors.New("Section tidak valid"), http.StatusBadRequest)
@@ -1658,6 +1643,10 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 	}
 	if laporan == nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if laporan.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
 	}
 
 	// 5. Pastikan Section yang mau di-update ada & benar-benar milik Laporan ini
@@ -1802,6 +1791,10 @@ func (service *laporanService) DeleteReport(ctx context.Context, req map[string]
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if report.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
 	var kontenImage []string
 
 	if report.Cover != nil {
@@ -1848,6 +1841,10 @@ func (service *laporanService) DeleteSectionReport(ctx context.Context, req map[
 
 	if report == nil {
 		return utils.SendError(errors.New("Laporan tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if report.RespondentID != usr.RespondentID {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
 	}
 
 	sectionIdStr, ok := slug["section_id"].(string)
