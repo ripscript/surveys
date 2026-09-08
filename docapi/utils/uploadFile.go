@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/minio/minio-go"
 )
@@ -23,8 +24,8 @@ func UploadService(fileName string, folderPath string, file string, module strin
 
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		fmt.Println("Error loading location:", err)
-		return "", err
+		fmt.Println("Warning: failed to load Asia/Jakarta timezone, using fixed WIB offset:", err)
+		loc = time.FixedZone("WIB", 7*60*60)
 	}
 
 	// Get current date in Asia/Jakarta timezone
@@ -102,7 +103,8 @@ func UploadServiceMinio(fileName string, folderPath string, file string, module 
 	// Load Jakarta timezone
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		return "", fmt.Errorf("error loading location: %v", err)
+		fmt.Println("Warning: failed to load Asia/Jakarta timezone, using fixed WIB offset:", err)
+		loc = time.FixedZone("WIB", 7*60*60)
 	}
 
 	// Get current date in Asia/Jakarta timezone

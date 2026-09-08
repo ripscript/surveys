@@ -23,6 +23,7 @@ func TimeNow() time.Time {
 func ParseToWIB(t time.Time) time.Time {
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
+		fmt.Println("Warning: failed to load Asia/Jakarta timezone, using fixed WIB offset:", err)
 		loc = time.FixedZone("WIB", 7*60*60)
 	}
 	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)

@@ -900,7 +900,13 @@ func (service *manajemenCMSService) GetLandingPage(ctx context.Context, req map[
 				if c.ValueImage != nil && *c.ValueImage != "" {
 					contentMap[c.Key] = baseImageURL + *c.ValueImage
 				} else if c.ValueText != nil {
-					contentMap[c.Key] = *c.ValueText
+					if c.Key == "button_link" {
+						_filePath := *c.ValueText
+						filePath := os.Getenv("API_GATEWAY_URL") + "/view-cms-image/" + _filePath
+						contentMap[c.Key] = &filePath
+					} else {
+						contentMap[c.Key] = *c.ValueText
+					}
 				} else {
 					contentMap[c.Key] = ""
 				}
