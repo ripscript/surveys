@@ -542,27 +542,7 @@ func (service *laporanService) ListSectionReport(ctx context.Context, req map[st
 	return utils.SendData(result, "Berhasil membuat laporan")
 }
 
-func isHTTPURL(s string) bool {
-	u, err := url.ParseRequestURI(s)
-	if err != nil {
-		return false
-	}
-	return u.Scheme == "http" || u.Scheme == "https"
-}
-
-func isManagedStorageURL(s string, storageBaseURL string) bool {
-	return storageBaseURL != "" && strings.HasPrefix(s, storageBaseURL)
-}
-
 const cmsImagePathMarker = "/view-laporan-konten-image/"
-
-func toRelativeImagePath(image string) string {
-	_, after, ok := strings.Cut(image, cmsImagePathMarker)
-	if !ok {
-		return image
-	}
-	return after
-}
 
 func (service *laporanService) UpdateCoverReport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
@@ -743,28 +723,6 @@ func isSamePath(old *string, new *string) bool {
 		return old == new
 	}
 	return *old == *new
-}
-
-// Helper untuk mengekstrak ekstensi dari mime type yang aman
-func getExtFromMime(mimeType string) string {
-	switch {
-	case strings.Contains(mimeType, "jpeg") || strings.Contains(mimeType, "jpg"):
-		return ".jpg"
-	case strings.Contains(mimeType, "png"):
-		return ".png"
-	case strings.Contains(mimeType, "webp"):
-		return ".webp"
-	default:
-		return ".jpg" // Fallback aman
-	}
-}
-
-func sumWidthsBefore(groupSpans []int, uptoGroupIdx int) int {
-	count := 0
-	for i := 0; i < uptoGroupIdx; i++ {
-		count += groupSpans[i]
-	}
-	return count
 }
 
 func validateTableConfig(cfg *request.TableConfigPayload) error {
@@ -1240,8 +1198,11 @@ func buildVisualAndNarrativeComponents(
 	}
 
 	var narrativeComp *models.ReportComponent
-	if narrativeTemplate != nil && narrativeLogic != nil {
-		logicBytes, _ := json.Marshal(narrativeLogic)
+	if narrativeTemplate != nil && *narrativeTemplate != "" {
+		var logicBytes []byte
+		if narrativeLogic != nil {
+			logicBytes, _ = json.Marshal(narrativeLogic)
+		}
 		narrativeComp = &models.ReportComponent{
 			Type:              "narrative",
 			NarrativeTemplate: narrativeTemplate,
@@ -1443,6 +1404,7 @@ func extractComponentFields(components []models.ReportComponent) (
 			cfg := request.ChartConfigPayload{
 				IsMultipleData: visual.IsMultipleData,
 				ChartDirection: visual.ChartDirection,
+				MapType:        visual.MapType,
 			}
 			if visual.ChartType != nil {
 				cfg.ChartType = *visual.ChartType
@@ -1647,6 +1609,21 @@ func (service *laporanService) UpdateSectionReport(ctx context.Context, req map[
 
 	if laporan.RespondentID != usr.RespondentID {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke laporan ini"), http.StatusForbidden)
+	}
+
+	// 4.5 VALIDASI BISNIS: choropleth hanya untuk tingkat kecamatan/kota
+	if !*payloads.HasSubSection {
+		_, chartCfg, _ := parseComponentConfig(payloads.ComponentType, payloads.ComponentConfig)
+		if err := validateMapTypeAgainstTingkatWilayah(chartCfg, laporan.TingkatWilayah); err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+	} else {
+		for _, pSub := range payloads.SubSections {
+			_, chartCfg, _ := parseComponentConfig(pSub.ComponentType, pSub.ComponentConfig)
+			if err := validateMapTypeAgainstTingkatWilayah(chartCfg, laporan.TingkatWilayah); err != nil {
+				return utils.SendError(err, http.StatusBadRequest)
+			}
+		}
 	}
 
 	// 5. Pastikan Section yang mau di-update ada & benar-benar milik Laporan ini
