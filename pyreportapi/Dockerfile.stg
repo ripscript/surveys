@@ -1,25 +1,34 @@
-FROM python:3.12-alpine
+FROM python:3.12-slim
 
 WORKDIR /app/pyreportapi
 
-# Install dependency system jika diperlukan
-RUN apk add --no-cache \
+# System dependencies
+RUN apt-get update && apt-get install -y \
     gcc \
-    musl-dev \
-    libffi-dev
+    g++ \
+    make \
+    libffi-dev \
+    libssl-dev \
+    pkg-config \
+    libgdal-dev \
+    gdal-bin \
+    libgeos-dev \
+    libproj-dev \
+    proj-bin \
+    libfreetype6-dev \
+    libpng-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements terlebih dahulu agar layer dependency bisa di-cache
 COPY ./pyreportapi/requirements.txt ./
 
-# Install Python dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+    pip install -r requirements.txt
 
-# Copy source code
 COPY ./pyreportapi ./
 
-# Copy environment staging
 COPY ./pyreportapi/.env .env
 
-# Runtime
 CMD ["python", "main.py"]
