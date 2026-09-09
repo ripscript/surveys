@@ -386,25 +386,29 @@ func (service *usersService) UpdateUsers(slug map[string]interface{}, req map[st
 		return utils.SendError(errors.New("Responden tidak ditemukan"), http.StatusNotFound)
 	}
 
-	if *oldRespondent.PhoneNumber != payload.PhoneNumber {
-		checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(payload.PhoneNumber)
-		if err != nil {
-			if err.Error() != gorm.ErrRecordNotFound.Error() {
-				return utils.SendError(err, http.StatusInternalServerError)
+	if oldRespondent.PhoneNumber != nil {
+		if *oldRespondent.PhoneNumber != payload.PhoneNumber {
+			checkPhoneNumberRespondent, err := service.usersRepo.CheckPhoneNumber(payload.PhoneNumber)
+			if err != nil {
+				if err.Error() != gorm.ErrRecordNotFound.Error() {
+					return utils.SendError(err, http.StatusInternalServerError)
+				}
 			}
-		}
-		if checkPhoneNumberRespondent > 0 {
-			return utils.SendError(errors.New("Nomor telepon sudah digunakan"), http.StatusConflict)
+			if checkPhoneNumberRespondent > 0 {
+				return utils.SendError(errors.New("Nomor telepon sudah digunakan"), http.StatusConflict)
+			}
 		}
 	}
 
-	if *oldRespondent.Email != payload.Email {
-		checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(payload.Email)
-		if err != nil {
-			return utils.SendError(err, http.StatusInternalServerError)
-		}
-		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
-			return utils.SendError(fmt.Errorf("Email Sudah Digunakan"), http.StatusBadRequest)
+	if oldRespondent.Email != nil {
+		if *oldRespondent.Email != payload.Email {
+			checkEmailRespondent, checkEmailUsers, err := service.usersRepo.CheckEmail(payload.Email)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+				return utils.SendError(fmt.Errorf("Email Sudah Digunakan"), http.StatusBadRequest)
+			}
 		}
 	}
 

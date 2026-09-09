@@ -161,11 +161,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: templateUcapanHandler.CreateTemplateUcapan,
 		MenuKey: "template-ucapan",
 	}},
-	"/template/ucapan/update/:template_ucapan_id": {"PUT": {
+	"/template/ucapan/update/:template_ucapan_id": {"POST": {
 		Handler: templateUcapanHandler.UpdateTemplateUcapan,
 		MenuKey: "template-ucapan",
 	}},
-	"/template/ucapan/delete/:template_ucapan_id": {"DELETE": {
+	"/template/ucapan/delete/:template_ucapan_id": {"POST": {
 		Handler: templateUcapanHandler.DeleteTemplateUcapan,
 		MenuKey: "template-ucapan",
 	}},
@@ -186,7 +186,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: templateFormulirPertanyaanHandler.GetDetailTemplateFormulirPertanyaan,
 		MenuKey: "template-pertanyaan",
 	}},
-	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code": {"PUT": {
+	"/template/formulir-pertanyaan/update/:template_formulir_pertanyaan_code": {"POST": {
 		Handler: templateFormulirPertanyaanHandler.UpdateTemplateFormulirPertanyaan,
 		MenuKey: "template-pertanyaan",
 	}},
@@ -194,7 +194,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: templateFormulirPertanyaanHandler.DuplicateTemplateFormulirPertanyaan,
 		MenuKey: "template-pertanyaan",
 	}},
-	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code": {"DELETE": {
+	"/template/formulir-pertanyaan/delete/:template_formulir_pertanyaan_code": {"POST": {
 		Handler: templateFormulirPertanyaanHandler.DeleteTemplateFormulirPertanyaan,
 		MenuKey: "template-pertanyaan",
 	}},
@@ -231,11 +231,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: manajemenAlurHandler.GetDetailManajemenAlur,
 		MenuKey: "management-alur",
 	}},
-	"/manajemen-alur/update/:code": {"PUT": {
+	"/manajemen-alur/update/:code": {"POST": {
 		Handler: manajemenAlurHandler.UpdateManajemenAlur,
 		MenuKey: "management-alur",
 	}},
-	"/manajemen-alur/delete/:code": {"DELETE": {
+	"/manajemen-alur/delete/:code": {"POST": {
 		Handler: manajemenAlurHandler.DeleteManajemenAlur,
 		MenuKey: "management-alur",
 	}},
@@ -325,7 +325,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		MenuKey: "survey-kewilayahan",
 	}},
 
-	"/survey-wilayah/update-status/:survey_code": {"PUT": {
+	"/survey-wilayah/update-status/:survey_code": {"POST": {
 		Handler: surveyHandler.UpdateSurveyRespondentStatus,
 		MenuKey: "survey-kewilayahan",
 	}},
@@ -358,19 +358,19 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.SurveyResultSectionDetail,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-verify": {"PUT": {
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-verify": {"POST": {
 		Handler: surveyHandler.VerifySurveyAnswers,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-verify": {"PUT": {
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-verify": {"POST": {
 		Handler: surveyHandler.RejectSurveyAnswers,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-validate": {"PUT": {
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/reject-validate": {"POST": {
 		Handler: surveyHandler.RejectValidateSurveyAnswers,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-validate": {"PUT": {
+	"/survey-kewilayahan/survey/:survey_code/result-index/:code/approve-validate": {"POST": {
 		Handler: surveyHandler.ValidateSurveyAnswers,
 		MenuKey: "survey-kewilayahan",
 	}},
@@ -391,7 +391,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: surveyHandler.ExportExcelSurveyResultsMassal,
 		MenuKey: "survey-kewilayahan",
 	}},
-	"/survey-kewilayahan/reset-status-survey/:survey_code/wilayah/:code_wilayah": {"PUT": {
+	"/survey-kewilayahan/reset-status-survey/:survey_code/wilayah/:code_wilayah": {"POST": {
 		Handler: surveyHandler.ResetStatusToVerifySurvey,
 		MenuKey: "survey-kewilayahan",
 	}},

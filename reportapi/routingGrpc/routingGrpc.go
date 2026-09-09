@@ -195,13 +195,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/monitoring-dan-laporan/laporan/change-name/:laporan_id": {
-		"PATCH": {
+		"POST": {
 			Handler: laporanHandler.ChangeNameReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/update-cover/:laporan_id": {
-		"PUT": {
+		"POST": {
 			Handler: laporanHandler.UpdateCoverReport,
 			MenuKey: "laporan",
 		},
@@ -237,7 +237,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/monitoring-dan-laporan/laporan/:laporan_id/section/update/:section_id": {
-		"PUT": {
+		"POST": {
 			Handler: laporanHandler.UpdateSectionReport,
 			MenuKey: "laporan",
 		},
@@ -251,13 +251,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 	},
 
 	"/monitoring-dan-laporan/laporan/delete/:laporan_id": {
-		"DELETE": {
+		"POST": {
 			Handler: laporanHandler.DeleteReport,
 			MenuKey: "laporan",
 		},
 	},
 	"/monitoring-dan-laporan/laporan/:laporan_id/section/delete/:section_id": {
-		"DELETE": {
+		"POST": {
 			Handler: laporanHandler.DeleteSectionReport,
 			MenuKey: "laporan",
 		},

@@ -6,6 +6,8 @@ import (
 	"backend/surveyapi/service"
 	"context"
 	"net/url"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type SurveyHandler interface {
@@ -108,6 +110,7 @@ func (handler *surveyHandler) PreviewSurvey(ctx context.Context, req map[string]
 }
 
 func (handler *surveyHandler) SurveyBundlingSubmit(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	spew.Dump(34234324)
 	return handler.surveyService.SubmitSurveyAnswers(ctx, req, usr, param, slug)
 }
 

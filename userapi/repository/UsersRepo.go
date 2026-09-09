@@ -213,7 +213,7 @@ func (r *usersRepo) ResetPasswordUsers(id int) error {
 
 	var users models.Users
 
-	hashedPassword, err := utils.HashPassword("lacirw123")
+	hashedPassword, err := utils.HashPassword("Lacirw123!")
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (r *usersRepo) StoreUsers(data models.CreateRespondent) error {
 		return err
 	}
 
-	hashedPassword, err := utils.HashPassword("lacirw123")
+	hashedPassword, err := utils.HashPassword("Lacirw123!")
 	if err != nil {
 		tx.Rollback()
 		return err

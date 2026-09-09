@@ -142,25 +142,56 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/rw/options":        {"GET": {Handler: regionHandler.RwOptions, MenuKey: ""}},
 	"/rt/options":        {"GET": {Handler: regionHandler.RtOptions, MenuKey: ""}},
 	// Respondent
-	"/respondent":                         {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "management-responden"}},
-	"/respondent/import":                  {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "management-responden"}},
-	"/respondent/:id":                     {"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"}, "PUT": {Handler: respondentHandler.UpdateRespondent, MenuKey: "management-responden"}, "DELETE": {Handler: respondentHandler.DeleteRespondent, MenuKey: "management-responden"}},
+	"/respondent":        {"GET": {Handler: respondentHandler.GetRespondent, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.CreateRespondent, MenuKey: "management-responden"}},
+	"/respondent/import": {"GET": {Handler: respondentHandler.GetExampleImport, MenuKey: "management-responden"}, "POST": {Handler: respondentHandler.ImportRespondent, MenuKey: "management-responden"}},
+
+	"/respondent/:id": {
+		"GET": {Handler: respondentHandler.GetDetailRespondent, MenuKey: "management-responden"},
+	},
+
+	"/respondent/:id/delete": {
+		"POST": {
+			Handler: respondentHandler.DeleteRespondent,
+			MenuKey: "management-responden",
+		},
+	},
+
+	"/respondent/:id/update": {
+		"POST": {
+			Handler: respondentHandler.UpdateRespondent,
+			MenuKey: "management-responden",
+		},
+	},
+
 	"/respondent/raw/:id":                 {"GET": {Handler: respondentHandler.GetRawDetailRespondent, MenuKey: ""}},
-	"/respondent/block":                   {"PUT": {Handler: respondentHandler.BlockRespondent, MenuKey: "management-responden"}},
+	"/respondent/block":                   {"POST": {Handler: respondentHandler.BlockRespondent, MenuKey: "management-responden"}},
 	"/respondent/options":                 {"GET": {Handler: respondentHandler.GetOptionsRespondent, MenuKey: "management-responden"}},
 	"/respondent/kecamatan/:kecamatan_id": {"GET": {Handler: respondentHandler.GetRespondentByKecamatan, MenuKey: "management-responden"}},
 	"/respondent/kelurahan/:kelurahan_id": {"GET": {Handler: respondentHandler.GetRespondentByKelurahan, MenuKey: "management-responden"}},
 	"/respondent/rw/:rw_id":               {"GET": {Handler: respondentHandler.GetRespondentByRW, MenuKey: "management-responden"}},
 	"/respondent/rt/:rt_id":               {"GET": {Handler: respondentHandler.GetRespondentByRT, MenuKey: "management-responden"}},
-	"/respondent/:id/update-password":     {"PUT": {Handler: respondentHandler.UpdatePasswordRespondent, MenuKey: "management-responden"}},
+	"/respondent/:id/update-password":     {"POST": {Handler: respondentHandler.UpdatePasswordRespondent, MenuKey: "management-responden"}},
 
 	// Users
-	"/get-profile":        {"GET": {Handler: usersHandler.GetProfile, MenuKey: ""}},
-	"/update-profile":     {"PUT": {Handler: usersHandler.UpdateProfile, MenuKey: ""}},
-	"/users":              {"GET": {Handler: usersHandler.GetUsers, MenuKey: "user"}, "POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
-	"/users/export":       {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},
-	"/users/:id":          {"GET": {Handler: usersHandler.GetDetailUsers, MenuKey: "user"}, "PUT": {Handler: usersHandler.UpdateUsers, MenuKey: "user"}, "DELETE": {Handler: usersHandler.DeleteUsers, MenuKey: "user"}},
-	"/reset/password/:id": {"PUT": {Handler: usersHandler.ResetPassword, MenuKey: "user"}},
+	"/get-profile":    {"GET": {Handler: usersHandler.GetProfile, MenuKey: ""}},
+	"/update-profile": {"POST": {Handler: usersHandler.UpdateProfile, MenuKey: ""}},
+	"/users": {
+		"GET":  {Handler: usersHandler.GetUsers, MenuKey: "user"},
+		"POST": {Handler: usersHandler.CreateUsers, MenuKey: "user"}},
+	"/users/export": {"GET": {Handler: usersHandler.UserExport, MenuKey: "user"}},
+
+	"/users/:id": {
+		"GET": {Handler: usersHandler.GetDetailUsers, MenuKey: "user"},
+	},
+
+	"/users/:id/update": {
+		"POST": {Handler: usersHandler.UpdateUsers, MenuKey: "user"},
+	},
+	"/users/:id/delete": {
+		"POST": {Handler: usersHandler.DeleteUsers, MenuKey: "user"},
+	},
+
+	"/reset/password/:id": {"POST": {Handler: usersHandler.ResetPassword, MenuKey: "user"}},
 	// Users Blokir
 	"/users/blokir":     {"GET": {Handler: usersBlokirHandler.GetListdata, MenuKey: "user"}},
 	"/users/blokir/:id": {"PUT": {Handler: usersBlokirHandler.OpenBlokir, MenuKey: "user"}},

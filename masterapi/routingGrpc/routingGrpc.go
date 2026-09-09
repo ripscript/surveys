@@ -175,33 +175,33 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/manajemen-wilayah/kecamatan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKecamatan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kecamatan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKecamatan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kecamatan/detail/:kecamatan_id": {"GET": {Handler: manajemenWilayahHandler.GetKecamatanDetail, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKecamatan, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/kecamatan/update/:kecamatan_id": {"POST": {Handler: manajemenWilayahHandler.UpdateKecamatan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kecamatan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKecamatan, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKecamatan, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/kecamatan/delete/:kecamatan_id": {"POST": {Handler: manajemenWilayahHandler.DeleteKecamatan, MenuKey: "management-wilayah"}},
 
 	"/manajemen-wilayah/kelurahan/create":               {"POST": {Handler: manajemenWilayahHandler.CreateKelurahan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kelurahan/detail/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetKelurahanDetail, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateKelurahan, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/kelurahan/update/:kelurahan_id": {"POST": {Handler: manajemenWilayahHandler.UpdateKelurahan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kelurahan/list":                 {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kelurahan/list/:kecamatan_id":   {"GET": {Handler: manajemenWilayahHandler.GetListKelurahan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/kelurahan/options":              {"GET": {Handler: manajemenWilayahHandler.OptionsKelurahan, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteKelurahan, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/kelurahan/delete/:kelurahan_id": {"POST": {Handler: manajemenWilayahHandler.DeleteKelurahan, MenuKey: "management-wilayah"}},
 
 	"/manajemen-wilayah/rw/detail/:rw_id":      {"GET": {Handler: manajemenWilayahHandler.GetRwDetail, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/rw/update/:rw_id":      {"PUT": {Handler: manajemenWilayahHandler.UpdateRw, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/rw/update/:rw_id":      {"POST": {Handler: manajemenWilayahHandler.UpdateRw, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rw/list":               {"GET": {Handler: manajemenWilayahHandler.GetListRw, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rw/list/:kelurahan_id": {"GET": {Handler: manajemenWilayahHandler.GetListRwByKelurahan, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rw/create":             {"POST": {Handler: manajemenWilayahHandler.CreateRw, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rw/options":            {"GET": {Handler: manajemenWilayahHandler.OptionsRw, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/rw/delete/:rw_id":      {"DELETE": {Handler: manajemenWilayahHandler.DeleteRw, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/rw/delete/:rw_id":      {"POST": {Handler: manajemenWilayahHandler.DeleteRw, MenuKey: "management-wilayah"}},
 
 	"/manajemen-wilayah/rt/detail/:rt_id": {"GET": {Handler: manajemenWilayahHandler.GetRtDetail, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/rt/update/:rt_id": {"PUT": {Handler: manajemenWilayahHandler.UpdateRt, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/rt/update/:rt_id": {"POST": {Handler: manajemenWilayahHandler.UpdateRt, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rt/list":          {"GET": {Handler: manajemenWilayahHandler.GetListRt, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rt/list/:rw_id":   {"GET": {Handler: manajemenWilayahHandler.GetListRtByRw, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rt/create":        {"POST": {Handler: manajemenWilayahHandler.CreateRt, MenuKey: "management-wilayah"}},
 	"/manajemen-wilayah/rt/options":       {"GET": {Handler: manajemenWilayahHandler.OptionsRt, MenuKey: "management-wilayah"}},
-	"/manajemen-wilayah/rt/delete/:rt_id": {"DELETE": {Handler: manajemenWilayahHandler.DeleteRT, MenuKey: "management-wilayah"}},
+	"/manajemen-wilayah/rt/delete/:rt_id": {"POST": {Handler: manajemenWilayahHandler.DeleteRT, MenuKey: "management-wilayah"}},
 
 	"/manajemen-pejabat/create": {"POST": {
 		Handler: manajemenPejabatHandler.CreatePejabat,
@@ -211,11 +211,11 @@ var grpcMap = map[string]map[string]RouteConfig{
 		Handler: manajemenPejabatHandler.DetailPejabat,
 		MenuKey: "management-pejabat",
 	}},
-	"/manajemen-pejabat/update/:id": {"PUT": {
+	"/manajemen-pejabat/update/:id": {"POST": {
 		Handler: manajemenPejabatHandler.UpdatePejabat,
 		MenuKey: "management-pejabat",
 	}},
-	"/manajemen-pejabat/delete/:id": {"DELETE": {
+	"/manajemen-pejabat/delete/:id": {"POST": {
 		Handler: manajemenPejabatHandler.DeletePejabat,
 		MenuKey: "belum-digunakan",
 	}},
@@ -259,19 +259,19 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-cms/update-status-section/:id": {
-		"PATCH": {
+		"POST": {
 			Handler: manajemenCMSHandler.UpdateStatusSection,
 			MenuKey: "manajemen-cms",
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-cms/update-name-section/:id": {
-		"PATCH": {
+		"POST": {
 			Handler: manajemenCMSHandler.UpdateNameSection,
 			MenuKey: "manajemen-cms",
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-cms/delete-section/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: manajemenCMSHandler.DeleteSection,
 			MenuKey: "manajemen-cms",
 		},
@@ -290,13 +290,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-cms/update-section/:slug": {
-		"PATCH": {
+		"POST": {
 			Handler: manajemenCMSHandler.UpdateSectionBySlug,
 			MenuKey: "manajemen-cms",
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-cms/reorder-section/:slug": {
-		"PATCH": {
+		"POST": {
 			Handler: manajemenCMSHandler.UpdateOrderSection,
 			MenuKey: "manajemen-cms",
 		},
@@ -339,13 +339,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/artikel/update/:id": {
-		"PUT": {
+		"POST": {
 			Handler: artikelHandler.Update,
 			MenuKey: "artikel",
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/artikel/delete/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: artikelHandler.Delete,
 			MenuKey: "artikel",
 		},
@@ -378,7 +378,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/kategori/delete/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: artikelCategoryHandler.Delete,
 			MenuKey: "kategori",
 		},
@@ -390,7 +390,7 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/kategori/update/:id": {
-		"PUT": {
+		"POST": {
 			Handler: artikelCategoryHandler.Update,
 			MenuKey: "kategori",
 		},
@@ -423,13 +423,13 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/promote/delete/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: artikelPromoteHandler.Delete,
 			MenuKey: "promote",
 		},
 	},
 	"/pengaturan-aplikasi/manajemen-artikel/promote/update-status/:id": {
-		"PATCH": {
+		"POST": {
 			Handler: artikelPromoteHandler.UpdateStatus,
 			MenuKey: "promote",
 		},
