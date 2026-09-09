@@ -1,0 +1,25 @@
+FROM python:3.12-alpine
+
+WORKDIR /app/pyreportapi
+
+# Install dependency system jika diperlukan
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    libffi-dev
+
+# Copy requirements terlebih dahulu agar layer dependency bisa di-cache
+COPY ./pyreportapi/requirements.txt ./
+
+# Install Python dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY ./pyreportapi ./
+
+# Copy environment staging
+COPY ./pyreportapi/.env .env
+
+# Runtime
+CMD ["python", "main.py"]

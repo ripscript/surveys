@@ -53,3 +53,5 @@
 /wsapi/Dockerfile.dev
 
 tmp/*
+
+docker-compose.yaml

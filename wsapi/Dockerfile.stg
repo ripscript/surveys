@@ -1,0 +1,31 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+COPY ./go.mod ./
+COPY ./go.sum ./
+
+COPY ./wsapi ./wsapi
+COPY ./siccore ./siccore
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /app/wsapi
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o main.sh
+
+
+FROM alpine:latest
+
+WORKDIR /app/wsapi
+
+RUN mkdir -p /app/wsapi/logs /app/wsapi/errors
+
+COPY --from=builder /app/wsapi/main.sh .
+COPY ./wsapi/.env .env
+
+ENTRYPOINT ["./main.sh"]
