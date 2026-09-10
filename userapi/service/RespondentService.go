@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -898,8 +897,6 @@ func (service *respondentService) GeneratePassword(ctx context.Context, req map[
 		}
 		return utils.SendError(fmt.Errorf("Format payload tidak valid: %v", err), http.StatusBadRequest)
 	}
-
-	spew.Dump(payload.Password)
 
 	hashedBytes, _ := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	hashedPassword := string(hashedBytes)
