@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -186,7 +185,6 @@ func (s *dashboardService) resolveFilteredWilayah(ctx context.Context, filter pa
 		return finalRT, &response.WilayahCount{TotalRT: &totalRT, TotalRW: &totalRW, TotalKelurahan: &totalKel}, wilayahInfo, nil
 
 	case int(enums.ROLE_ADMIN), int(enums.ROLE_WALIKOTA):
-		spew.Dump("=======================")
 		// admin/walikota tidak butuh wilayah_id -- cakupan defaultnya SELURUH
 		// kota, lalu dipersempit berjenjang oleh filter yang dikirim
 		allKec, err := s.wilayahRepo.GetAllKecamatanIDs(ctx)

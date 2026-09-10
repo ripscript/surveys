@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"gorm.io/gorm"
 )
 
@@ -172,8 +171,6 @@ func (r *laporanRepo) GetListReport(respondentId int64, req request.LaporanDatat
 	defer utils.GeneralRecover()
 	var data []models.LaporanDatatable
 	var totalData int64
-
-	spew.Dump(respondentId)
 
 	db := r.dbSlave.Model(&models.Report{}).Where("respondent_id = ?", respondentId)
 

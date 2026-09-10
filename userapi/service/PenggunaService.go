@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
@@ -90,7 +89,6 @@ func (service *penggunaService) LoginV2(usr models.JwtCustomClaims, req map[stri
 	if !utils.VerifyPassword(*storedUser.Password, payload.Password) {
 		if storedUser.Email != nil {
 			if *storedUser.Email != "admin@gmail.com" {
-				spew.Dump("asdjalksjd29837483274")
 				if err := service.attemptRepo.RecordFailed(int(storedUser.ID)); err != nil {
 					return utils.SendError(err, http.StatusInternalServerError)
 				}

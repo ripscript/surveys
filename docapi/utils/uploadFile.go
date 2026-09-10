@@ -192,6 +192,39 @@ func DeleteBulkServiceMinio(paths []string, module string) error {
 	return nil
 }
 
+func DeleteBulkService(paths []string, module string) error {
+	// gunakan minio
+	if os.Getenv("WITH_MINIO") == "true" {
+		return DeleteBulkServiceMinio(paths, module)
+	}
+
+	if len(paths) == 0 {
+		return nil
+	}
+
+	var errs []string
+	for _, path := range paths {
+		fullPath := path
+		if !strings.HasPrefix(path, enums.PATH_WEBROOT_FILES) {
+			fullPath = enums.PATH_WEBROOT_FILES + "/" + path
+		}
+
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			continue
+		}
+
+		if err := os.Remove(fullPath); err != nil {
+			errs = append(errs, fmt.Sprintf("error deleting file %s: %v", fullPath, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
 func isValidSize(size int, module string) bool {
 	maxSize := 50
 	switch module {

@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -379,7 +378,6 @@ func (service *artikelService) Update(ctx context.Context, req map[string]interf
 					return utils.SendError(errors.New("Gagal memproses file konten"), http.StatusBadRequest)
 				}
 
-				spew.Dump(base64Data.Extension)
 				if !slices.Contains(fileExt, base64Data.Extension) || !slices.Contains(fileMime, base64Data.MimeType) {
 					uploads.rollback(ctx, service.fileRepo)
 					return utils.SendError(errors.New("Format file konten tidak didukung. Hanya menerima JPEG, JPG, PNG, PDF, DOC, atau DOCX"), http.StatusBadRequest)

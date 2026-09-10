@@ -26,7 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	"github.com/xuri/excelize/v2"
@@ -1616,8 +1615,6 @@ func (service *surveyService) SubmitSurveyAnswers(ctx context.Context, req map[s
 	if tx.Error != nil {
 		return utils.SendError(errors.New("Gagal memulai transaksi database"), http.StatusInternalServerError)
 	}
-
-	spew.Dump("================")
 
 	var successfullyUploadedFiles []string
 	txCommitted := false

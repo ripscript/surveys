@@ -143,7 +143,7 @@ func (service *uploadService) DeleteBulkFotoProfil(ctx context.Context, req map[
 	}
 
 	var success bool
-	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_FOTO_PROFIL)
+	err := utils.DeleteBulkService(paths, enums.MODULE_FOTO_PROFIL)
 	if err != nil {
 		return utils.SendError(err, 500)
 	}
@@ -240,7 +240,7 @@ func (service *uploadService) DeleteBulkSurveyImage(ctx context.Context, req map
 	}
 
 	var success bool
-	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_SURVEY)
+	err := utils.DeleteBulkService(paths, enums.MODULE_SURVEY)
 	if err != nil {
 		return utils.SendError(err, 500)
 	}
@@ -566,7 +566,7 @@ func (service *uploadService) DeleteBulkCMSImage(ctx context.Context, req map[st
 	}
 
 	var success bool
-	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_CMS)
+	err := utils.DeleteBulkService(paths, enums.MODULE_CMS)
 	if err != nil {
 		return utils.SendError(err, 500)
 	}
@@ -629,7 +629,7 @@ func (service *uploadService) DeleteBulkLaporanKontenImage(ctx context.Context, 
 	}
 
 	var success bool
-	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_LAPORAN_KONTEN)
+	err := utils.DeleteBulkService(paths, enums.MODULE_LAPORAN_KONTEN)
 	if err != nil {
 		return utils.SendError(err, 500)
 	}
@@ -672,6 +672,42 @@ func (service *uploadService) getFileBytesFromMinio(path string) ([]byte, string
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	var mimeType string
+	switch ext {
+	case ".png":
+		mimeType = "image/png"
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".webp":
+		mimeType = "image/webp"
+	default:
+		mimeType = http.DetectContentType(fileBytes)
+	}
+
+	return fileBytes, mimeType, nil
+}
+
+func (service *uploadService) getFileBytes(path string) ([]byte, string, error) {
+	// gunakan minio
+	if os.Getenv("WITH_MINIO") == "true" {
+		return service.getFileBytesFromMinio(path)
+	}
+
+	fullPath := path
+	if !strings.HasPrefix(path, enums.PATH_WEBROOT_FILES) {
+		fullPath = enums.PATH_WEBROOT_FILES + "/" + path
+	}
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return nil, "", errors.New("NOT FOUND")
+	}
+
+	fileBytes, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("error reading file: %v", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(fullPath))
 	var mimeType string
 	switch ext {
 	case ".png":
@@ -784,7 +820,7 @@ func (service *uploadService) DownloadAndDeleteTempLaporan(ctx context.Context, 
 
 	path := fmt.Sprintf("%s/%s/%s", enums.PATH_WEBROOT_FILES, enums.PATH_TEMP_LAPORAN, payload.Path)
 
-	fileBytes, mimeType, err := service.getFileBytesFromMinio(path)
+	fileBytes, mimeType, err := service.getFileBytes(path)
 	if err != nil {
 		if err.Error() == "NOT FOUND" {
 			return utils.SendError(errors.New("Dokumen tidak ditemukan"), http.StatusNotFound)
@@ -793,7 +829,7 @@ func (service *uploadService) DownloadAndDeleteTempLaporan(ctx context.Context, 
 	}
 
 	// Bytes sudah aman didapat, baru hapus dari Minio
-	if delErr := utils.DeleteBulkServiceMinio([]string{path}, enums.MODULE_TEMP_LAPORAN); delErr != nil {
+	if delErr := utils.DeleteBulkService([]string{path}, enums.MODULE_TEMP_LAPORAN); delErr != nil {
 		utils.LogErrors(fmt.Sprintf("Gagal hapus temp laporan %s: %v", path, delErr))
 		// tetap lanjut kirim file ke user meski delete gagal (cleanup best-effort)
 	}
@@ -855,7 +891,7 @@ func (service *uploadService) DeleteBulkArtikelKonten(ctx context.Context, req m
 	}
 
 	var success bool
-	err := utils.DeleteBulkServiceMinio(paths, enums.MODULE_ARTIKEL_KONTEN)
+	err := utils.DeleteBulkService(paths, enums.MODULE_ARTIKEL_KONTEN)
 	if err != nil {
 		return utils.SendError(err, 500)
 	}
