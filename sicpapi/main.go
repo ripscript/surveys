@@ -3,11 +3,14 @@ package main
 import (
 	"backend/sicpapi/routes"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -24,6 +27,33 @@ func main() {
 
 	// mengatur cors
 	e.Use(middleware.CORS())
+
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
+			middleware.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(20),
+				Burst:     30,
+				ExpiresIn: 3 * time.Minute,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(ctx echo.Context, err error) error {
+			return ctx.JSON(http.StatusForbidden, map[string]interface{}{
+				"success": false,
+				"message": "Terjadi kesalahan saat memproses rate limit",
+				"code":    http.StatusForbidden,
+			})
+		},
+		DenyHandler: func(ctx echo.Context, identifier string, err error) error {
+			return ctx.JSON(http.StatusTooManyRequests, map[string]interface{}{
+				"success": false,
+				"message": "Terlalu banyak request, silakan coba lagi nanti",
+				"code":    http.StatusTooManyRequests,
+			})
+		},
+	}))
 
 	routes.SetupRoutes(e)
 
