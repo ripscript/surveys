@@ -10,6 +10,7 @@ type DashboardMetric struct {
 	Category         string    `gorm:"column:category;type:varchar(50);not null" json:"category"`                   // summary | sampah | infrastruktur
 	CreatedAt        time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"column:updated_at" json:"updated_at"`
+	IsDashboard      *bool     `gorm:"column:is_dashboard;default:true" json:"is_dashboard"`
 
 	Mappings []DashboardMetricMapping `gorm:"foreignKey:DashboardMetricID" json:"mappings,omitempty"`
 }

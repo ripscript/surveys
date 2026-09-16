@@ -280,7 +280,7 @@ func PermissionSeed(db *gorm.DB) error {
 		// END:RATING ===================================================
 
 		// BEGIN:DASHBOARD BUILDER ===================================================
-		none(dashboardBuilder, public), none(dashboardBuilder, rt), none(dashboardBuilder, rw), none(dashboardBuilder, lurah), none(dashboardBuilder, camat), none(dashboardBuilder, pemkot), fullHidden(dashboardBuilder, admin), none(dashboardBuilder, surveyor), none(dashboardBuilder, walikota),
+		none(dashboardBuilder, public), none(dashboardBuilder, rt), none(dashboardBuilder, rw), none(dashboardBuilder, lurah), none(dashboardBuilder, camat), none(dashboardBuilder, pemkot), full(dashboardBuilder, admin), none(dashboardBuilder, surveyor), none(dashboardBuilder, walikota),
 		// END:DASHBOARD BUILDER ===================================================
 
 		// END:PENGATURAN APLIKASI ===================================================

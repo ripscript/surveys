@@ -280,7 +280,7 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Dashboard Builder",
+				MenuName:  "Pemetaan Metrik",
 				Key:       "dashboard-builder",
 				ParentID:  &pengaturanAplikasiID,
 				Icon:      "-",

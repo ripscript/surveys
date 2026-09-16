@@ -11,6 +11,7 @@ import (
 type FormFieldRepository interface {
 	FindByID(ctx context.Context, id int64) (*models.FormField, error)
 	AnswerOptionBelongsToField(ctx context.Context, answerOptionID, formFieldID int64) (bool, error)
+	ListAnswerOptions(ctx context.Context, formFieldID int64) ([]models.FormAnswerField, error)
 }
 
 type formFieldRepository struct {
@@ -46,4 +47,13 @@ func (r *formFieldRepository) AnswerOptionBelongsToField(ctx context.Context, an
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *formFieldRepository) ListAnswerOptions(ctx context.Context, formFieldID int64) ([]models.FormAnswerField, error) {
+	var list []models.FormAnswerField
+	err := r.dbSlave.WithContext(ctx).
+		Where("form_field_id = ?", formFieldID).
+		Order("sequence asc").
+		Find(&list).Error
+	return list, err
 }

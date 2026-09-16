@@ -11,6 +11,7 @@ type DashboardMetricResponse struct {
 	CreatedAt        time.Time                        `json:"created_at"`
 	UpdatedAt        time.Time                        `json:"updated_at"`
 	Mappings         []DashboardMetricMappingResponse `json:"mappings,omitempty"`
+	IsDashboard      *bool                            `json:"is_dashboard"`
 }
 
 type DashboardMetricMappingResponse struct {
@@ -19,6 +20,4 @@ type DashboardMetricMappingResponse struct {
 	FormID            int64  `json:"form_id"`
 	FormFieldID       int64  `json:"form_field_id"`
 	FormFieldQuestion string `json:"form_field_question,omitempty"` // enrichment, diisi service kalau di-preload
-	AnswerOptionID    *int64 `json:"answer_option_id"`
-	AnswerOptionLabel string `json:"answer_option_label,omitempty"` // enrichment
 }

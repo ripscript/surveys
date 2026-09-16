@@ -16,3 +16,13 @@ type OptionsResponse struct {
 	Options []OptionItem   `json:"options"`
 	Meta    PaginationMeta `json:"meta"`
 }
+
+type StringOptionItem struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+type StringOptionsResponse struct {
+	Options []StringOptionItem `json:"options"`
+	Meta    PaginationMeta     `json:"meta"`
+}

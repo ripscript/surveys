@@ -22,6 +22,12 @@ func Migrate(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+
+	if db.Migrator().HasColumn(&models.DashboardMetricMapping{}, "answer_option_id") {
+		if err := db.Migrator().DropColumn(&models.DashboardMetricMapping{}, "answer_option_id"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

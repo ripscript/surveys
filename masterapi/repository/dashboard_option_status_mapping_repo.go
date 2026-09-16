@@ -18,6 +18,7 @@ type DashboardOptionStatusMappingRepository interface {
 	// ListByMappingID dipakai endpoint dashboard runtime: dari 1 dashboard_metric_mapping_id,
 	// ambil semua status_key opsi yang sudah di-assign, buat resolve badge saat query field_responses
 	ListByMappingID(ctx context.Context, mappingID int64) ([]models.DashboardOptionStatusMapping, error)
+	DeleteByMappingID(ctx context.Context, mappingID int64) error
 }
 
 type dashboardOptionStatusMappingRepository struct {
@@ -77,4 +78,10 @@ func (r *dashboardOptionStatusMappingRepository) ListByMappingID(ctx context.Con
 		Where("dashboard_metric_mapping_id = ?", mappingID).
 		Find(&list).Error
 	return list, err
+}
+
+func (r *dashboardOptionStatusMappingRepository) DeleteByMappingID(ctx context.Context, mappingID int64) error {
+	return r.dbMaster.WithContext(ctx).
+		Where("dashboard_metric_mapping_id = ?", mappingID).
+		Delete(&models.DashboardOptionStatusMapping{}).Error
 }

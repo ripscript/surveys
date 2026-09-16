@@ -1,0 +1,908 @@
+[
+  {
+    "kode_kelurahan": "32.73.01.1001",
+    "kelurahan": "Sukarasa",
+    "kode_kecamatan": "32.73.01",
+    "kecamatan": "Sukasari"
+  },
+  {
+    "kode_kelurahan": "32.73.01.1002",
+    "kelurahan": "Gegerkalong",
+    "kode_kecamatan": "32.73.01",
+    "kecamatan": "Sukasari"
+  },
+  {
+    "kode_kelurahan": "32.73.01.1003",
+    "kelurahan": "Isola",
+    "kode_kecamatan": "32.73.01",
+    "kecamatan": "Sukasari"
+  },
+  {
+    "kode_kelurahan": "32.73.01.1004",
+    "kelurahan": "Sarijadi",
+    "kode_kecamatan": "32.73.01",
+    "kecamatan": "Sukasari"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1001",
+    "kelurahan": "Cipaganti",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1002",
+    "kelurahan": "Lebak Gede",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1003",
+    "kelurahan": "Sadang Serang",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1004",
+    "kelurahan": "Dago",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1005",
+    "kelurahan": "Sekeloa",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.02.1006",
+    "kelurahan": "Lebak Siliwangi",
+    "kode_kecamatan": "32.73.02",
+    "kecamatan": "Coblong"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1001",
+    "kelurahan": "Babakan Ciparay",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1002",
+    "kelurahan": "Babakan",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1003",
+    "kelurahan": "Sukahaji",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1004",
+    "kelurahan": "Margahayu Utara",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1005",
+    "kelurahan": "Margasuka",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.03.1006",
+    "kelurahan": "Cirangrang",
+    "kode_kecamatan": "32.73.03",
+    "kecamatan": "Babakan Ciparay"
+  },
+  {
+    "kode_kelurahan": "32.73.04.1001",
+    "kelurahan": "Kopo",
+    "kode_kecamatan": "32.73.04",
+    "kecamatan": "Bojongloa Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.04.1002",
+    "kelurahan": "Babakan Tarogong",
+    "kode_kecamatan": "32.73.04",
+    "kecamatan": "Bojongloa Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.04.1003",
+    "kelurahan": "Jamika",
+    "kode_kecamatan": "32.73.04",
+    "kecamatan": "Bojongloa Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.04.1004",
+    "kelurahan": "Babakan Asih",
+    "kode_kecamatan": "32.73.04",
+    "kecamatan": "Bojongloa Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.04.1005",
+    "kelurahan": "Suka Asih",
+    "kode_kecamatan": "32.73.04",
+    "kecamatan": "Bojongloa Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1001",
+    "kelurahan": "Maleber",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1002",
+    "kelurahan": "Dungus Cariang",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1003",
+    "kelurahan": "Ciroyom",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1004",
+    "kelurahan": "Kebon Jeruk",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1005",
+    "kelurahan": "Garuda",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.05.1006",
+    "kelurahan": "Campaka",
+    "kode_kecamatan": "32.73.05",
+    "kecamatan": "Andir"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1001",
+    "kelurahan": "Husein Sastranegara",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1002",
+    "kelurahan": "Arjuna",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1003",
+    "kelurahan": "Pajajaran",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1004",
+    "kelurahan": "Pasirkaliki",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1005",
+    "kelurahan": "Pamoyanan",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.06.1006",
+    "kelurahan": "Sukaraja",
+    "kode_kecamatan": "32.73.06",
+    "kecamatan": "Cicendo"
+  },
+  {
+    "kode_kelurahan": "32.73.07.1001",
+    "kelurahan": "Pasteur",
+    "kode_kecamatan": "32.73.07",
+    "kecamatan": "Sukajadi"
+  },
+  {
+    "kode_kelurahan": "32.73.07.1002",
+    "kelurahan": "Cipedes",
+    "kode_kecamatan": "32.73.07",
+    "kecamatan": "Sukajadi"
+  },
+  {
+    "kode_kelurahan": "32.73.07.1003",
+    "kelurahan": "Sukawarna",
+    "kode_kecamatan": "32.73.07",
+    "kecamatan": "Sukajadi"
+  },
+  {
+    "kode_kelurahan": "32.73.07.1004",
+    "kelurahan": "Sukagalih",
+    "kode_kecamatan": "32.73.07",
+    "kecamatan": "Sukajadi"
+  },
+  {
+    "kode_kelurahan": "32.73.07.1005",
+    "kelurahan": "Sukabungah",
+    "kode_kecamatan": "32.73.07",
+    "kecamatan": "Sukajadi"
+  },
+  {
+    "kode_kelurahan": "32.73.08.1001",
+    "kelurahan": "Hegarmanah",
+    "kode_kecamatan": "32.73.08",
+    "kecamatan": "Cidadap"
+  },
+  {
+    "kode_kelurahan": "32.73.08.1002",
+    "kelurahan": "Ciumbuleuit",
+    "kode_kecamatan": "32.73.08",
+    "kecamatan": "Cidadap"
+  },
+  {
+    "kode_kelurahan": "32.73.08.1003",
+    "kelurahan": "Ledeng",
+    "kode_kecamatan": "32.73.08",
+    "kecamatan": "Cidadap"
+  },
+  {
+    "kode_kelurahan": "32.73.09.1001",
+    "kelurahan": "Cihapit",
+    "kode_kecamatan": "32.73.09",
+    "kecamatan": "Bandung Wetan"
+  },
+  {
+    "kode_kelurahan": "32.73.09.1002",
+    "kelurahan": "Taman Sari",
+    "kode_kecamatan": "32.73.09",
+    "kecamatan": "Bandung Wetan"
+  },
+  {
+    "kode_kelurahan": "32.73.09.1003",
+    "kelurahan": "Citarum",
+    "kode_kecamatan": "32.73.09",
+    "kecamatan": "Bandung Wetan"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1001",
+    "kelurahan": "Karasak",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1002",
+    "kelurahan": "Nyengseret",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1003",
+    "kelurahan": "Karang Anyar",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1004",
+    "kelurahan": "Panjunan",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1005",
+    "kelurahan": "Cibadak",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.10.1006",
+    "kelurahan": "Pelindung Hewan",
+    "kode_kecamatan": "32.73.10",
+    "kecamatan": "Astanaanyar"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1001",
+    "kelurahan": "Cigereleng",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1002",
+    "kelurahan": "Ancol",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1003",
+    "kelurahan": "Pungkur",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1004",
+    "kelurahan": "Balong Gede",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1005",
+    "kelurahan": "Ciseureuh",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1006",
+    "kelurahan": "Ciateul",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.11.1007",
+    "kelurahan": "Pasirluyu",
+    "kode_kecamatan": "32.73.11",
+    "kecamatan": "Regol"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1001",
+    "kelurahan": "Gumuruh",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1002",
+    "kelurahan": "Maleer",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1003",
+    "kelurahan": "Cibangkong",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1004",
+    "kelurahan": "Kacapiring",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1005",
+    "kelurahan": "Kebon Waru",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1006",
+    "kelurahan": "Kebon Gedang",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1007",
+    "kelurahan": "Samoja",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.12.1008",
+    "kelurahan": "Binong",
+    "kode_kecamatan": "32.73.12",
+    "kecamatan": "Batununggal"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1001",
+    "kelurahan": "Cijagra",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1002",
+    "kelurahan": "Lingkar Selatan",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1003",
+    "kelurahan": "Burangrang",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1004",
+    "kelurahan": "Paledang",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1005",
+    "kelurahan": "Turangga",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1006",
+    "kelurahan": "Malabar",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.13.1007",
+    "kelurahan": "Cikawao",
+    "kode_kecamatan": "32.73.13",
+    "kecamatan": "Lengkong"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1001",
+    "kelurahan": "Padasuka",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1002",
+    "kelurahan": "Cikutra",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1003",
+    "kelurahan": "Cicadas",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1004",
+    "kelurahan": "Sukamaju",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1005",
+    "kelurahan": "Sukapada",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.14.1006",
+    "kelurahan": "Pasirlayung",
+    "kode_kecamatan": "32.73.14",
+    "kecamatan": "Cibeunying Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1001",
+    "kelurahan": "Cijerah",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1002",
+    "kelurahan": "Cibuntu",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1003",
+    "kelurahan": "Warung Muncang",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1004",
+    "kelurahan": "Caringin",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1005",
+    "kelurahan": "Cigondewah Kaler",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1006",
+    "kelurahan": "Gempol Sari",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1007",
+    "kelurahan": "Cigondewah Rahayu",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.15.1008",
+    "kelurahan": "Cigondewah Kidul",
+    "kode_kecamatan": "32.73.15",
+    "kecamatan": "Bandung Kulon"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1001",
+    "kelurahan": "Sukapura",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1002",
+    "kelurahan": "Kebon Jayanti",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1003",
+    "kelurahan": "Babakan Surabaya",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1004",
+    "kelurahan": "Cicaheum",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1005",
+    "kelurahan": "Babakan Sari",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.16.1006",
+    "kelurahan": "Kebon Kangkung",
+    "kode_kecamatan": "32.73.16",
+    "kecamatan": "Kiaracondong"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1001",
+    "kelurahan": "Situsaeur",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1002",
+    "kelurahan": "Kebon Lega",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1003",
+    "kelurahan": "Cibaduyut",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1004",
+    "kelurahan": "Mekar Wangi",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1005",
+    "kelurahan": "Cibaduyut Kidul",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.17.1006",
+    "kelurahan": "Cibaduyut Wetan",
+    "kode_kecamatan": "32.73.17",
+    "kecamatan": "Bojongloa Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.18.1001",
+    "kelurahan": "Cihaur Geulis",
+    "kode_kecamatan": "32.73.18",
+    "kecamatan": "Cibeunying Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.18.1002",
+    "kelurahan": "Sukaluyu",
+    "kode_kecamatan": "32.73.18",
+    "kecamatan": "Cibeunying Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.18.1003",
+    "kelurahan": "Neglasari",
+    "kode_kecamatan": "32.73.18",
+    "kecamatan": "Cibeunying Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.18.1004",
+    "kelurahan": "Cigadung",
+    "kode_kecamatan": "32.73.18",
+    "kecamatan": "Cibeunying Kaler"
+  },
+  {
+    "kode_kelurahan": "32.73.19.1001",
+    "kelurahan": "Braga",
+    "kode_kecamatan": "32.73.19",
+    "kecamatan": "Sumur Bandung"
+  },
+  {
+    "kode_kelurahan": "32.73.19.1002",
+    "kelurahan": "Merdeka",
+    "kode_kecamatan": "32.73.19",
+    "kecamatan": "Sumur Bandung"
+  },
+  {
+    "kode_kelurahan": "32.73.19.1003",
+    "kelurahan": "Kebon Pisang",
+    "kode_kecamatan": "32.73.19",
+    "kecamatan": "Sumur Bandung"
+  },
+  {
+    "kode_kelurahan": "32.73.19.1004",
+    "kelurahan": "Babakan Ciamis",
+    "kode_kecamatan": "32.73.19",
+    "kecamatan": "Sumur Bandung"
+  },
+  {
+    "kode_kelurahan": "32.73.20.1001",
+    "kelurahan": "Antapani Kulon",
+    "kode_kecamatan": "32.73.20",
+    "kecamatan": "Antapani"
+  },
+  {
+    "kode_kelurahan": "32.73.20.1004",
+    "kelurahan": "Antapani Tengah",
+    "kode_kecamatan": "32.73.20",
+    "kecamatan": "Antapani"
+  },
+  {
+    "kode_kelurahan": "32.73.20.1005",
+    "kelurahan": "Antapani Kidul",
+    "kode_kecamatan": "32.73.20",
+    "kecamatan": "Antapani"
+  },
+  {
+    "kode_kelurahan": "32.73.20.1006",
+    "kelurahan": "Antapani Wetan",
+    "kode_kecamatan": "32.73.20",
+    "kecamatan": "Antapani"
+  },
+  {
+    "kode_kelurahan": "32.73.21.1001",
+    "kelurahan": "Batununggal",
+    "kode_kecamatan": "32.73.21",
+    "kecamatan": "Bandung Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.21.1002",
+    "kelurahan": "Wates",
+    "kode_kecamatan": "32.73.21",
+    "kecamatan": "Bandung Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.21.1003",
+    "kelurahan": "Mengger",
+    "kode_kecamatan": "32.73.21",
+    "kecamatan": "Bandung Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.21.1004",
+    "kelurahan": "Kujangsari",
+    "kode_kecamatan": "32.73.21",
+    "kecamatan": "Bandung Kidul"
+  },
+  {
+    "kode_kelurahan": "32.73.22.1001",
+    "kelurahan": "Sekejati",
+    "kode_kecamatan": "32.73.22",
+    "kecamatan": "Buahbatu"
+  },
+  {
+    "kode_kelurahan": "32.73.22.1002",
+    "kelurahan": "Margasari",
+    "kode_kecamatan": "32.73.22",
+    "kecamatan": "Buahbatu"
+  },
+  {
+    "kode_kelurahan": "32.73.22.1003",
+    "kelurahan": "Cijaura",
+    "kode_kecamatan": "32.73.22",
+    "kecamatan": "Buahbatu"
+  },
+  {
+    "kode_kelurahan": "32.73.22.1004",
+    "kelurahan": "Jati Sari",
+    "kode_kecamatan": "32.73.22",
+    "kecamatan": "Buahbatu"
+  },
+  {
+    "kode_kelurahan": "32.73.23.1001",
+    "kelurahan": "Cipamokolan",
+    "kode_kecamatan": "32.73.23",
+    "kecamatan": "Rancasari"
+  },
+  {
+    "kode_kelurahan": "32.73.23.1002",
+    "kelurahan": "Derwati",
+    "kode_kecamatan": "32.73.23",
+    "kecamatan": "Rancasari"
+  },
+  {
+    "kode_kelurahan": "32.73.23.1003",
+    "kelurahan": "Manjahlega",
+    "kode_kecamatan": "32.73.23",
+    "kecamatan": "Rancasari"
+  },
+  {
+    "kode_kelurahan": "32.73.23.1004",
+    "kelurahan": "Mekar Jaya",
+    "kode_kecamatan": "32.73.23",
+    "kecamatan": "Rancasari"
+  },
+  {
+    "kode_kelurahan": "32.73.24.1001",
+    "kelurahan": "Sukamiskin",
+    "kode_kecamatan": "32.73.24",
+    "kecamatan": "Arcamanik"
+  },
+  {
+    "kode_kelurahan": "32.73.24.1002",
+    "kelurahan": "Cisaranten Bina Harapan",
+    "kode_kecamatan": "32.73.24",
+    "kecamatan": "Arcamanik"
+  },
+  {
+    "kode_kelurahan": "32.73.24.1003",
+    "kelurahan": "Cisaranten Kulon",
+    "kode_kecamatan": "32.73.24",
+    "kecamatan": "Arcamanik"
+  },
+  {
+    "kode_kelurahan": "32.73.24.1004",
+    "kelurahan": "Cisaranten Endah",
+    "kode_kecamatan": "32.73.24",
+    "kecamatan": "Arcamanik"
+  },
+  {
+    "kode_kelurahan": "32.73.25.1001",
+    "kelurahan": "Palasari",
+    "kode_kecamatan": "32.73.25",
+    "kecamatan": "Cibiru"
+  },
+  {
+    "kode_kelurahan": "32.73.25.1002",
+    "kelurahan": "Cipadung",
+    "kode_kecamatan": "32.73.25",
+    "kecamatan": "Cibiru"
+  },
+  {
+    "kode_kelurahan": "32.73.25.1003",
+    "kelurahan": "Pasir Biru",
+    "kode_kecamatan": "32.73.25",
+    "kecamatan": "Cibiru"
+  },
+  {
+    "kode_kelurahan": "32.73.25.1004",
+    "kelurahan": "Cisurupan",
+    "kode_kecamatan": "32.73.25",
+    "kecamatan": "Cibiru"
+  },
+  {
+    "kode_kelurahan": "32.73.26.1003",
+    "kelurahan": "Pasir Endah",
+    "kode_kecamatan": "32.73.26",
+    "kecamatan": "Ujungberung"
+  },
+  {
+    "kode_kelurahan": "32.73.26.1004",
+    "kelurahan": "Cigending",
+    "kode_kecamatan": "32.73.26",
+    "kecamatan": "Ujungberung"
+  },
+  {
+    "kode_kelurahan": "32.73.26.1005",
+    "kelurahan": "Pasirwangi",
+    "kode_kecamatan": "32.73.26",
+    "kecamatan": "Ujungberung"
+  },
+  {
+    "kode_kelurahan": "32.73.26.1006",
+    "kelurahan": "Pasirjati",
+    "kode_kecamatan": "32.73.26",
+    "kecamatan": "Ujungberung"
+  },
+  {
+    "kode_kelurahan": "32.73.26.1007",
+    "kelurahan": "Pasanggrahan",
+    "kode_kecamatan": "32.73.26",
+    "kecamatan": "Ujungberung"
+  },
+  {
+    "kode_kelurahan": "32.73.27.1001",
+    "kelurahan": "Cimincrang",
+    "kode_kecamatan": "32.73.27",
+    "kecamatan": "Gedebage"
+  },
+  {
+    "kode_kelurahan": "32.73.27.1002",
+    "kelurahan": "Cisaranten Kidul",
+    "kode_kecamatan": "32.73.27",
+    "kecamatan": "Gedebage"
+  },
+  {
+    "kode_kelurahan": "32.73.27.1003",
+    "kelurahan": "Rancabolang",
+    "kode_kecamatan": "32.73.27",
+    "kecamatan": "Gedebage"
+  },
+  {
+    "kode_kelurahan": "32.73.27.1004",
+    "kelurahan": "Rancanumpang",
+    "kode_kecamatan": "32.73.27",
+    "kecamatan": "Gedebage"
+  },
+  {
+    "kode_kelurahan": "32.73.28.1001",
+    "kelurahan": "Cipadung Kulon",
+    "kode_kecamatan": "32.73.28",
+    "kecamatan": "Panyileukan"
+  },
+  {
+    "kode_kelurahan": "32.73.28.1002",
+    "kelurahan": "Cipadung Kidul",
+    "kode_kecamatan": "32.73.28",
+    "kecamatan": "Panyileukan"
+  },
+  {
+    "kode_kelurahan": "32.73.28.1003",
+    "kelurahan": "Cipadung Wetan",
+    "kode_kecamatan": "32.73.28",
+    "kecamatan": "Panyileukan"
+  },
+  {
+    "kode_kelurahan": "32.73.28.1004",
+    "kelurahan": "Mekar Mulya",
+    "kode_kecamatan": "32.73.28",
+    "kecamatan": "Panyileukan"
+  },
+  {
+    "kode_kelurahan": "32.73.29.1001",
+    "kelurahan": "Cisaranten Wetan",
+    "kode_kecamatan": "32.73.29",
+    "kecamatan": "Cinambo"
+  },
+  {
+    "kode_kelurahan": "32.73.29.1002",
+    "kelurahan": "Pakemitan",
+    "kode_kecamatan": "32.73.29",
+    "kecamatan": "Cinambo"
+  },
+  {
+    "kode_kelurahan": "32.73.29.1003",
+    "kelurahan": "Sukamulya",
+    "kode_kecamatan": "32.73.29",
+    "kecamatan": "Cinambo"
+  },
+  {
+    "kode_kelurahan": "32.73.29.1004",
+    "kelurahan": "Babakan Penghulu",
+    "kode_kecamatan": "32.73.29",
+    "kecamatan": "Cinambo"
+  },
+  {
+    "kode_kelurahan": "32.73.30.1001",
+    "kelurahan": "Jatihandap",
+    "kode_kecamatan": "32.73.30",
+    "kecamatan": "Mandalajati"
+  },
+  {
+    "kode_kelurahan": "32.73.30.1002",
+    "kelurahan": "Karang Pamulang",
+    "kode_kecamatan": "32.73.30",
+    "kecamatan": "Mandalajati"
+  },
+  {
+    "kode_kelurahan": "32.73.30.1003",
+    "kelurahan": "Pasir Impun",
+    "kode_kecamatan": "32.73.30",
+    "kecamatan": "Mandalajati"
+  },
+  {
+    "kode_kelurahan": "32.73.30.1004",
+    "kelurahan": "Sindang Jaya",
+    "kode_kecamatan": "32.73.30",
+    "kecamatan": "Mandalajati"
+  }
+]

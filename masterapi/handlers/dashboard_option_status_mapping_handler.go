@@ -10,6 +10,8 @@ import (
 
 type DashboardOptionStatusMappingHandler interface {
 	BulkAssign(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetOptionsByMapping(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	Sync(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardOptionStatusMappingHandler struct {
@@ -26,4 +28,12 @@ func NewDashboardOptionStatusMappingHandler(
 
 func (handler *dashboardOptionStatusMappingHandler) BulkAssign(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.dashboardOptionStatusMappingService.BulkAssign(ctx, req, usr, param, slug)
+}
+
+func (handler *dashboardOptionStatusMappingHandler) GetOptionsByMapping(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.dashboardOptionStatusMappingService.GetOptionsByMapping(ctx, req, usr, param, slug)
+}
+
+func (handler *dashboardOptionStatusMappingHandler) Sync(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.dashboardOptionStatusMappingService.Sync(ctx, req, usr, param, slug)
 }

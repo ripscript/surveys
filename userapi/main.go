@@ -54,7 +54,6 @@ func main() {
 		}
 		log.Println("Seeder berhasil")
 	} else {
-
 		port := os.Getenv("PORT")
 		if port == "" {
 			port = "8081"

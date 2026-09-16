@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"backend/masterapi/models"
+	"backend/masterapi/utils"
 
 	"gorm.io/gorm"
 )
@@ -73,6 +74,7 @@ func DashboardMetricSeed(db *gorm.DB) error {
 		existing.Label = metric.Label
 		existing.ExpectedTemplate = metric.ExpectedTemplate
 		existing.Category = metric.Category
+		existing.IsDashboard = utils.BoolToPointer(true)
 		if err := db.Save(&existing).Error; err != nil {
 			return err
 		}

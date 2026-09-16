@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"backend/masterapi/models"
+	"backend/masterapi/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -61,4 +62,47 @@ func getKecamatan(db *gorm.DB, kecamatanName string) (*models.KecamatanModel, er
 	}
 
 	return &kecamatan, nil
+}
+
+func WilayahKecamatanGeoJSONSeedV2(db *gorm.DB) error {
+	filePath := "assets/BatasWilayahKotaBandung/kecamatan.geojson"
+	jsonFile, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Fatalf("Gagal membaca file JSON: %v", err)
+	}
+
+	var geoData models.GeoJSONV2
+	if err := json.Unmarshal(jsonFile, &geoData); err != nil {
+		log.Fatalf("Gagal unmarshal JSON: %v", err)
+	}
+
+	// itter := 0
+
+	kecamatanPrefixes := []string{"Kecamatan", "Kec."}
+
+	for _, feature := range geoData.Features {
+		// itter++
+		// spew.Dump(feature)
+		nama := utils.TrimPrefixes(feature.Properties.Kecamatan, kecamatanPrefixes...)
+		kecamatan, err := getKecamatan(db, nama)
+		if err != nil {
+			log.Printf("Error mengecek kecamatan %s: %v", nama, err)
+			continue
+		}
+
+		if kecamatan != nil {
+			err := db.Model(&kecamatan).Update("geo_name", nama).Error
+			if err != nil {
+				log.Printf("Gagal update GeoJSON untuk %s: %v", nama, err)
+			} else {
+				fmt.Printf("[BERHASIL UPDATE] Kecamatan: %s\n", nama)
+			}
+		} else {
+			fmt.Printf("[BELUM ADA] Kecamatan: %s. Perlu ditambahkan!\n", nama)
+		}
+	}
+
+	// fmt.Println(itter)
+
+	return nil
 }

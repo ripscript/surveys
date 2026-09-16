@@ -80,12 +80,14 @@ var (
 	)
 	dashboardMetricService service.DashboardMetricService = service.NewDashboardMetricService(
 		dashboardMetricRepo,
+		dashboardMetricMappingRepo,
 	)
 	dashboardMetricMappingService service.DashboardMetricMappingService = service.NewDashboardMetricMappingService(
 		dashboardMetricRepo,
 		dashboardMetricMappingRepo,
 		formRepo,
 		formFieldRepo,
+		dashboardOptionStatusMappingRepo,
 	)
 	dashboardOptionStatusMappingService service.DashboardOptionStatusMappingService = service.NewDashboardOptionStatusMappingService(
 		dashboardOptionStatusMappingRepo,
@@ -445,6 +447,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 	// END::MANAJEMEN ARTIKEL ===============================
 
 	// BEGIN:DASHBOARD BUILDER ==================================
+	"/pengaturan-aplikasi/dashboard-builder/metrics/list": {
+		"GET": {
+			Handler: dashboardMetricHandler.List,
+			MenuKey: "dashboard-builder",
+		},
+	},
 	"/pengaturan-aplikasi/dashboard-builder/metrics/create": {
 		"POST": {
 			Handler: dashboardMetricHandler.Create,
@@ -458,14 +466,20 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/dashboard-builder/metrics/update/:id": {
-		"PUT": {
+		"POST": {
 			Handler: dashboardMetricHandler.Update,
 			MenuKey: "dashboard-builder",
 		},
 	},
 	"/pengaturan-aplikasi/dashboard-builder/metrics/delete/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: dashboardMetricHandler.Delete,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/metrics/options": {
+		"GET": {
+			Handler: dashboardMetricHandler.GetCategoryOptions,
 			MenuKey: "dashboard-builder",
 		},
 	},
@@ -477,21 +491,39 @@ var grpcMap = map[string]map[string]RouteConfig{
 		},
 	},
 	"/pengaturan-aplikasi/dashboard-builder/mapping/delete/:id": {
-		"DELETE": {
+		"POST": {
 			Handler: dashboardMetricMappingHandler.Delete,
 			MenuKey: "dashboard-builder",
 		},
 	},
 	"/pengaturan-aplikasi/dashboard-builder/mapping/update/:id": {
-		"PATCH": {
+		"POST": {
 			Handler: dashboardMetricMappingHandler.Update,
 			MenuKey: "dashboard-builder",
 		},
 	},
+	"/pengaturan-aplikasi/dashboard-builder/mapping/detail/:id": {
+		"GET": {
+			Handler: dashboardMetricMappingHandler.Detail,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/mapping/list": {
+		"GET": {
+			Handler: dashboardMetricMappingHandler.List,
+			MenuKey: "dashboard-builder",
+		},
+	},
+	"/pengaturan-aplikasi/dashboard-builder/mapping/:id/options": {
+		"GET": {
+			Handler: dashboardOptionStatusMappingHandler.GetOptionsByMapping,
+			MenuKey: "dashboard-builder",
+		},
+	},
 
-	"/pengaturan-aplikasi/dashboard-builder/option-mapping/bulk-assign": {
+	"/pengaturan-aplikasi/dashboard-builder/mapping/option-sync": {
 		"POST": {
-			Handler: dashboardOptionStatusMappingHandler.BulkAssign,
+			Handler: dashboardOptionStatusMappingHandler.Sync,
 			MenuKey: "dashboard-builder",
 		},
 	},
