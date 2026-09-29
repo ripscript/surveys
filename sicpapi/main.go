@@ -25,6 +25,10 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+		ContentTypeNosniff: "nosniff",
+	}))
+
 	// mengatur cors
 	e.Use(middleware.CORS())
 
