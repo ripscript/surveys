@@ -1,8 +1,6 @@
 package models
 
-import (
-	"time"
-)
+import "time"
 
 type DashboardMetricMapping struct {
 	ID                int64     `gorm:"column:id;primaryKey" json:"id"`
@@ -12,9 +10,10 @@ type DashboardMetricMapping struct {
 	CreatedAt         time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt         time.Time `gorm:"column:updated_at" json:"updated_at"`
 
-	DashboardMetric *DashboardMetric `gorm:"foreignKey:DashboardMetricID" json:"dashboard_metric,omitempty"`
-	Form            *Form            `gorm:"foreignKey:ID;references:FormID" json:"form,omitempty"`
-	FormField       *FormField       `gorm:"foreignKey:ID;references:FormFieldID" json:"form_field,omitempty"`
+	// foreignKey/references diperbaiki eksplisit sesuai catatan KT
+	DashboardMetric *DashboardMetric `gorm:"foreignKey:DashboardMetricID;references:ID" json:"dashboard_metric,omitempty"`
+	Form            *Form            `gorm:"foreignKey:FormID;references:ID" json:"form,omitempty"`
+	FormField       *FormField       `gorm:"foreignKey:FormFieldID;references:ID" json:"form_field,omitempty"`
 }
 
 func (DashboardMetricMapping) TableName() string {

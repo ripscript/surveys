@@ -401,24 +401,46 @@ func SetupRoutes(e *echo.Echo) {
 	e.GET("/rating/get-old-rating", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	// END::RATING ==========================
 
+	// BEGIN::MANAJEMEN METRIK ==========================
+	manajemenMetrikGroup := pengaturanAplikasi.Group("/manajemen-metrik")
+
+	// BEGIN::DAFTAR METRIK ==========================
+	daftarMetrikGroup := manajemenMetrikGroup.Group("/daftar-metrik")
+	daftarMetrikGroup.POST("/metrik", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.POST("/metrik/:id/update", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("/metrik/:id/detail", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.POST("/metrik/:id/delete", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("/metrik/category-options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("/metrik/:id/statuses", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	daftarMetrikGroup.GET("/metrik/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+
+	// BEGIN::PEMETAAN METRIK ==========================
+	pemetaanMetrikGroup := manajemenMetrikGroup.Group("/pemetaan-metrik")
+	pemetaanMetrikGroup.GET("/survey-list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	pemetaanMetrikGroup.GET("/survey/:survey_code/detail", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	pemetaanMetrikGroup.POST("/survey/:survey_code/save-mapping", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// END::MANAJEMEN METRIK ==========================
+
 	// BEGIN::DASHBOARD BUILDER ==========================
-	dashboardBuilder := pengaturanAplikasi.Group("/dashboard-builder")
-	dashboardBuilder.GET("/metrics/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/metrics/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.GET("/metrics/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/metrics/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/metrics/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.GET("/metrics/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder := pengaturanAplikasi.Group("/dashboard-builder")
+	// dashboardBuilder.GET("/metrics/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/metrics/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/metrics/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/metrics/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/metrics/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/metrics/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
-	dashboardBuilder.GET("/mapping/list/:metric_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/mapping/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/mapping/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/mapping/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.GET("/mapping/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.GET("/mapping/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/mapping/list/:metric_id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/mapping/create", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/mapping/delete/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/mapping/update/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/mapping/detail/:id", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/mapping/list", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 
-	dashboardBuilder.GET("/mapping/:id/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
-	dashboardBuilder.POST("/mapping/option-sync", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.GET("/mapping/:id/options", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
+	// dashboardBuilder.POST("/mapping/option-sync", func(c echo.Context) error { return HandleFunc(c, masterapiService) })
 	// END::DASHBOARD BUILDER ==========================
 
 	// END::PENGATURAN APLIKASI ==========================

@@ -79,7 +79,7 @@ type SurveyRepo interface {
 	GetSurveyorsBySurveyId(surveyId int64) ([]models.SurveySurveyor, error)
 	ResetSurveyRespondentStatus(ctx context.Context, surveyID int64, wilayahColumn string, wilayahID int64) error
 
-	GetRejectedQuestionsGrouped(ctx context.Context, respondentID int64, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error)
+	GetRejectedQuestionsGrouped(ctx context.Context, respondent models.Respondent, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error)
 
 	GetSurveyIsDoneBulkRT(ctx context.Context, surveyId int64, rtIds []int64) (map[int64]bool, error)
 
@@ -1630,7 +1630,7 @@ func (repository *surveyRepo) ResetSurveyRespondentStatus(ctx context.Context, s
 	return err
 }
 
-func (repository *surveyRepo) GetRejectedQuestionsGrouped(ctx context.Context, respondentID int64, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error) {
+func (repository *surveyRepo) GetRejectedQuestionsGrouped(ctx context.Context, respondent models.Respondent, filterSurveyID *int64) ([]response.RejectedSurveyResponse, error) {
 	defer utils.GeneralRecover()
 
 	var rawResults []response.RawRejectedQuestion
@@ -1648,9 +1648,35 @@ func (repository *surveyRepo) GetRejectedQuestionsGrouped(ctx context.Context, r
 		Joins("JOIN form_fields ff ON ff.id = flag.form_field_id").
 		Joins("JOIN survey_respondents sr ON sr.id = flag.survey_respondent_id").
 		Joins("JOIN surveys s ON s.id = sr.survey_id").
-		Where("sr.respondent_id = ?", respondentID).
 		Where("flag.is_revisied = ?", "true").
 		Order("s.id ASC, flag.created_at ASC")
+
+	switch int(*respondent.RoleId) {
+	case int(enums.ROLE_RT):
+		query = query.
+			Where("sr.respondent_id = ?", respondent.ID).
+			Where("sr.status_approval = ?", "revisi_rt")
+
+	case int(enums.ROLE_RW):
+		if respondent.RWId == nil {
+			return []response.RejectedSurveyResponse{}, nil
+		}
+
+		rtRespondentIDs, err := repository.GetRespondentIDsByRW(ctx, *respondent.RWId)
+		if err != nil {
+			return nil, err
+		}
+		if len(rtRespondentIDs) == 0 {
+			return []response.RejectedSurveyResponse{}, nil
+		}
+
+		query = query.
+			Where("sr.respondent_id IN (?)", rtRespondentIDs).
+			Where("sr.status_approval = ?", "revisi_rw")
+
+	default:
+		return []response.RejectedSurveyResponse{}, nil
+	}
 
 	if filterSurveyID != nil {
 		query = query.Where("s.id = ?", *filterSurveyID)
@@ -1691,6 +1717,16 @@ func (repository *surveyRepo) GetRejectedQuestionsGrouped(ctx context.Context, r
 	}
 
 	return groupedData, nil
+}
+
+func (repository *surveyRepo) GetRespondentIDsByRW(ctx context.Context, rwID int64) ([]int64, error) {
+	var ids []int64
+	err := repository.dbSlave.WithContext(ctx).
+		Model(&models.Respondent{}).
+		Where("rw_id = ?", rwID).
+		Where("role_id = ?", int(enums.ROLE_RT)).
+		Pluck("id", &ids).Error
+	return ids, err
 }
 
 func (repository *surveyRepo) GetSurveyIsDoneBulkRT(ctx context.Context, surveyId int64, rtIds []int64) (map[int64]bool, error) {

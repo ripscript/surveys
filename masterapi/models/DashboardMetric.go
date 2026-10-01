@@ -8,10 +8,11 @@ type DashboardMetric struct {
 	Label            string    `gorm:"column:label;type:varchar(191);not null" json:"label"`
 	ExpectedTemplate string    `gorm:"column:expected_template;type:varchar(20);not null" json:"expected_template"` // number | multiple-choices | long-answer | image-template | maps
 	Category         string    `gorm:"column:category;type:varchar(50);not null" json:"category"`                   // summary | sampah | infrastruktur
+	IsLocked         bool      `gorm:"column:is_locked;not null;default:false" json:"is_locked"`
 	CreatedAt        time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt        time.Time `gorm:"column:updated_at" json:"updated_at"`
-	IsDashboard      *bool     `gorm:"column:is_dashboard;default:true" json:"is_dashboard"`
 
+	Statuses []DashboardMetricStatus  `gorm:"foreignKey:DashboardMetricID" json:"statuses,omitempty"`
 	Mappings []DashboardMetricMapping `gorm:"foreignKey:DashboardMetricID" json:"mappings,omitempty"`
 }
 

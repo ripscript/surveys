@@ -55,23 +55,28 @@ func (Role) TableName() string {
 }
 
 type MenuIDs struct {
-	Template              int
-	ManajemenAlur         int
-	Survey                int
-	Beranda               int
-	Pengaturan            int
-	Laporan               int
-	Monitoring            int
-	Admin                 int
-	FormulirPertanyaan    int
-	Ucapan                int
-	Surveys               int
-	Hasil                 int
-	ManajemenPengguna     int
-	ManajemenWilayah      int
-	ManajemenCMS          int
-	ManajemenArtikel      int
-	Rating                int
+	Template           int
+	ManajemenAlur      int
+	Survey             int
+	Beranda            int
+	Pengaturan         int
+	Laporan            int
+	Monitoring         int
+	Admin              int
+	FormulirPertanyaan int
+	Ucapan             int
+	Surveys            int
+	Hasil              int
+	ManajemenPengguna  int
+	ManajemenWilayah   int
+	ManajemenCMS       int
+	ManajemenArtikel   int
+	Rating             int
+
+	ManajemenMetrik int
+	DaftarMetrik    int
+	PemetaanMetrik  int
+
 	Statistik             int
 	AktifitasSurvey       int
 	ProfilSaya            int
@@ -95,7 +100,7 @@ type MenuIDs struct {
 	DashboardUtama        int
 	DashboardWilayah      int
 	DashboardRT           int
-	DashboardBuilder      int
+	RiwayatDataDSS        int
 }
 
 type RoleIDs struct {

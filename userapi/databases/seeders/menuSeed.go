@@ -243,6 +243,17 @@ func MenuSeed(db *gorm.DB) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			{
+				MenuName:  "Riwayat Data DSS",
+				Key:       "riwayat-data-dss",
+				ParentID:  &monitoringDanLaporanID,
+				Icon:      "-",
+				SortOrder: 4,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 			// END: MONITORING DAN LAPORAN =======================================
 
 			// BEGIN: PENGATURAN APLIKASI =======================================
@@ -280,8 +291,8 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			{
-				MenuName:  "Pemetaan Metrik",
-				Key:       "dashboard-builder",
+				MenuName:  "Manajemen Metrik",
+				Key:       "manajemen-metrik",
 				ParentID:  &pengaturanAplikasiID,
 				Icon:      "-",
 				SortOrder: 4,
@@ -343,6 +354,7 @@ func MenuSeed(db *gorm.DB) error {
 		manajemenWilayahID := int(childMenuIDMap["manage-wilayah"])
 		manajemenArtikelID := int(childMenuIDMap["management-artikel"])
 		masterDataID := int(childMenuIDMap["master-data"])
+		manajemenMetrikID := int(childMenuIDMap["manajemen-metrik"])
 
 		// Create Grandchild
 		GrindChildMenus := []models.Menu{
@@ -467,6 +479,31 @@ func MenuSeed(db *gorm.DB) error {
 				UpdatedAt: now,
 			},
 			// END: MANAJEMEN ARTIKEL =======================================
+
+			// BEGIN: MANAJEMEN METRIK =======================================
+			{
+				MenuName:  "Daftar Metrik",
+				Key:       "daftar-metrik",
+				ParentID:  &manajemenMetrikID,
+				Icon:      "-",
+				SortOrder: 1,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				MenuName:  "Pemetaan Metrik",
+				Key:       "pemetaan-metrik",
+				ParentID:  &manajemenMetrikID,
+				Icon:      "-",
+				SortOrder: 2,
+				CreatedBy: 0,
+				UpdatedBy: 0,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			// END: MANAJEMEN METRIK =======================================
 		}
 
 		if err := upsertMenus(tx, GrindChildMenus); err != nil {

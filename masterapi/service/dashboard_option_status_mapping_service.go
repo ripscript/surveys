@@ -100,7 +100,7 @@ func (service *dashboardOptionStatusMappingService) BulkAssign(ctx context.Conte
 		toInsert = append(toInsert, models.DashboardOptionStatusMapping{
 			DashboardMetricMappingID: payload.DashboardMetricMappingID,
 			AnswerOptionID:           item.AnswerOptionID,
-			StatusKey:                item.StatusKey,
+			// StatusKey:                item.StatusKey,
 		})
 	}
 
@@ -113,7 +113,7 @@ func (service *dashboardOptionStatusMappingService) BulkAssign(ctx context.Conte
 		result = append(result, response.DashboardOptionStatusMappingResponse{
 			DashboardMetricMappingID: m.DashboardMetricMappingID,
 			AnswerOptionID:           m.AnswerOptionID,
-			StatusKey:                m.StatusKey,
+			// StatusKey:                m.StatusKey,
 		})
 	}
 
@@ -156,16 +156,16 @@ func (service *dashboardOptionStatusMappingService) Update(ctx context.Context, 
 		return utils.SendError(errors.New("status mapping tidak ditemukan"), http.StatusNotFound)
 	}
 
-	m.StatusKey = payload.StatusKey
-	if err := service.statusRepo.Update(ctx, m); err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
-	}
+	// m.StatusKey = payload.StatusKey
+	// if err := service.statusRepo.Update(ctx, m); err != nil {
+	// 	return utils.SendError(errors.New("Terjadi kesalahan pada server, silahkan coba lagi nanti"), http.StatusInternalServerError)
+	// }
 
 	return utils.SendData(response.DashboardOptionStatusMappingResponse{
 		ID:                       m.ID,
 		DashboardMetricMappingID: m.DashboardMetricMappingID,
 		AnswerOptionID:           m.AnswerOptionID,
-		StatusKey:                m.StatusKey,
+		// StatusKey:                m.StatusKey,
 	}, "Berhasil memperbarui status mapping")
 }
 
@@ -216,7 +216,7 @@ func (service *dashboardOptionStatusMappingService) ListByMapping(ctx context.Co
 			ID:                       m.ID,
 			DashboardMetricMappingID: m.DashboardMetricMappingID,
 			AnswerOptionID:           m.AnswerOptionID,
-			StatusKey:                m.StatusKey,
+			// StatusKey:                m.StatusKey,
 		})
 	}
 
@@ -278,9 +278,9 @@ func (service *dashboardOptionStatusMappingService) GetOptionsByMapping(ctx cont
 		}
 		if assigned, ok := existingByOption[int64(opt.ID)]; ok {
 			id := assigned.ID
-			key := assigned.StatusKey
+			// key := assigned.StatusKey
 			item.DashboardOptionStatusID = &id
-			item.StatusKey = &key
+			// item.StatusKey = &key
 		}
 		options = append(options, item)
 	}
@@ -353,21 +353,21 @@ func (service *dashboardOptionStatusMappingService) Sync(ctx context.Context, re
 	var toUpdate []models.DashboardOptionStatusMapping
 	keepOptionIDs := make(map[int64]bool, len(payload.Assignments))
 
-	for _, item := range payload.Assignments {
-		keepOptionIDs[item.AnswerOptionID] = true
-		if row, ok := existingByOption[item.AnswerOptionID]; ok {
-			if row.StatusKey != item.StatusKey {
-				row.StatusKey = item.StatusKey
-				toUpdate = append(toUpdate, row)
-			}
-		} else {
-			toInsert = append(toInsert, models.DashboardOptionStatusMapping{
-				DashboardMetricMappingID: payload.DashboardMetricMappingID,
-				AnswerOptionID:           item.AnswerOptionID,
-				StatusKey:                item.StatusKey,
-			})
-		}
-	}
+	// for _, item := range payload.Assignments {
+	// 	keepOptionIDs[item.AnswerOptionID] = true
+	// 	if row, ok := existingByOption[item.AnswerOptionID]; ok {
+	// 		if row.StatusKey != item.StatusKey {
+	// 			row.StatusKey = item.StatusKey
+	// 			toUpdate = append(toUpdate, row)
+	// 		}
+	// 	} else {
+	// 		toInsert = append(toInsert, models.DashboardOptionStatusMapping{
+	// 			DashboardMetricMappingID: payload.DashboardMetricMappingID,
+	// 			AnswerOptionID:           item.AnswerOptionID,
+	// 			StatusKey:                item.StatusKey,
+	// 		})
+	// 	}
+	// }
 
 	// opsi yang sebelumnya punya status tapi tidak lagi dikirim FE -> dianggap ingin dihapus
 	var toDeleteIDs []int64
@@ -403,7 +403,7 @@ func (service *dashboardOptionStatusMappingService) Sync(ctx context.Context, re
 			ID:                       m.ID,
 			DashboardMetricMappingID: m.DashboardMetricMappingID,
 			AnswerOptionID:           m.AnswerOptionID,
-			StatusKey:                m.StatusKey,
+			// StatusKey:                m.StatusKey,
 		})
 	}
 

@@ -46,6 +46,7 @@ type ManajemenAlurRepo interface {
 	GetFormAnswerFieldsByQuestionIDs(ids []int) ([]models.FormAnswerField, error)
 
 	GetFlowDetailById(id int64) (*models.FlowDetail, error)
+	GetRevisedFieldIDsBySurveyRespondentID(surveyRespondentID int64) (map[int64]bool, error)
 }
 
 type manajemenAlurRepo struct {
@@ -651,4 +652,22 @@ func (repository *manajemenAlurRepo) GetFlowDetailById(id int64) (*models.FlowDe
 	var detail models.FlowDetail
 	err := repository.dbSlave.Where("id = ?", id).First(&detail).Error
 	return &detail, err
+}
+
+func (repository *manajemenAlurRepo) GetRevisedFieldIDsBySurveyRespondentID(surveyRespondentID int64) (map[int64]bool, error) {
+	var fieldIDs []int64
+	err := repository.dbSlave.
+		Table("flagging_edit_pertanyaan_surveys").
+		Where("survey_respondent_id = ?", surveyRespondentID).
+		Where("is_revisied = ?", "true").
+		Pluck("form_field_id", &fieldIDs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int64]bool, len(fieldIDs))
+	for _, id := range fieldIDs {
+		result[id] = true
+	}
+	return result, nil
 }

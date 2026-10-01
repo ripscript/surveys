@@ -3104,6 +3104,11 @@ func (service *surveyService) SurveyResultSectionDetail(ctx context.Context, req
 		}
 	}
 
+	revisedFieldIDs, errRev := service.manajemenAlurRepo.GetRevisedFieldIDsBySurveyRespondentID(int64(surveyRespondent.ID))
+	if errRev != nil {
+		revisedFieldIDs = map[int64]bool{}
+	}
+
 	var formFieldIDs []int
 	tempIDTracker := make(map[int]bool)
 
@@ -3200,6 +3205,7 @@ func (service *surveyService) SurveyResultSectionDetail(ctx context.Context, req
 			IsRequired: raw.IsRequired,
 			Options:    nodeOptions,
 			Answer:     finalAnswer,
+			IsRevisi:   revisedFieldIDs[int64(raw.FormFieldId)],
 		}
 
 		if idx, exists := nodeIndexMap[nodeKey]; exists {
@@ -3789,6 +3795,25 @@ func (service *surveyService) RejectSurveyAnswers(ctx context.Context, req map[s
 func (service *surveyService) RejectValidateSurveyAnswers(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
+	var payload payloads.RejectAllSurveyAnswersPayload
+
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	err = json.Unmarshal(jsonBytes, &payload)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	var validate = validator.New()
+	err = validate.Struct(payload)
+	if err != nil {
+		for _, valErr := range err.(validator.ValidationErrors) {
+			return utils.SendError(errors.New(utils.TranslateError(valErr)), http.StatusBadRequest)
+		}
+	}
+
 	hd := hashids.NewData()
 	hd.Salt = os.Getenv("HASHID_SALT")
 	hd.MinLength = 24
@@ -3865,9 +3890,23 @@ func (service *surveyService) RejectValidateSurveyAnswers(ctx context.Context, r
 	}
 
 	errTx := service.surveyRepo.RunInTransaction(func(txRepo repository.SurveyRepo) error {
+		var flags []models.FlaggingEditPertanyaanSurvey
+
+		for _, qID := range payload.FlaggedQuestionIDs {
+			flags = append(flags, models.FlaggingEditPertanyaanSurvey{
+				SurveyRespondentID: int64(surveyRespondent.ID),
+				FormFieldID:        int64(qID),
+				IsRevisied:         "true",
+			})
+		}
+
 		err := txRepo.UpdateRespondentApprovalStatus(ctx, int64(surveyRespondent.ID), 2, "revisi_rw", "false")
 		if err != nil {
 			return err
+		}
+
+		if errFlag := txRepo.ClearAndCreateFlaggingEdit(ctx, surveyRespondent.ID, flags); errFlag != nil {
+			return errFlag
 		}
 
 		var roleNameUserLogin string
@@ -5204,12 +5243,24 @@ func (service *surveyService) ResetStatusToVerifySurvey(ctx context.Context, req
 func (service *surveyService) GetAllRejectedQuestions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	respondentID := usr.RespondentID
-	if respondentID == 0 {
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
-	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, respondentID, nil)
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin.RoleId != nil {
+		if *respondentLogin.RoleId != int64(enums.ROLE_RT) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+		}
+	} else {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, *respondentLogin, nil)
 	if err != nil {
 		return utils.SendError(errors.New("Gagal mengambil data pertanyaan reject"), http.StatusInternalServerError)
 	}
@@ -5220,8 +5271,20 @@ func (service *surveyService) GetAllRejectedQuestions(ctx context.Context, req m
 func (service *surveyService) GetRejectedQuestionsBySurveyCode(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	respondentID := usr.RespondentID
-	if respondentID == 0 {
+	respondentLogin, err := service.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+	}
+
+	if respondentLogin.RoleId != nil {
+		if *respondentLogin.RoleId != int64(enums.ROLE_RT) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
+		}
+	} else {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
@@ -5245,7 +5308,7 @@ func (service *surveyService) GetRejectedQuestionsBySurveyCode(ctx context.Conte
 
 	surveyID := int64(decoded[0])
 
-	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, respondentID, &surveyID)
+	data, err := service.surveyRepo.GetRejectedQuestionsGrouped(ctx, *respondentLogin, &surveyID)
 	if err != nil {
 		return utils.SendError(errors.New("Gagal mengambil data pertanyaan reject"), http.StatusInternalServerError)
 	}

@@ -248,7 +248,7 @@ func (s *dashboardService) resolveFilteredWilayah(ctx context.Context, filter pa
 	}
 }
 
-func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+func (s *dashboardService) GetSummaryOld(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
 	wilayah_level, _ := strconv.Atoi(param.Get("wilayah_level"))
@@ -350,6 +350,131 @@ func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interf
 	}
 
 	return utils.SendData(resp, "")
+}
+
+func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	wilayahLevel, _ := strconv.Atoi(param.Get("wilayah_level"))
+	periodStartRaw := param.Get("period_start")
+	periodEndRaw := param.Get("period_end")
+
+	// Default: kalau period tidak dikirim, pakai bulan berjalan (1 tanggal
+	// awal bulan s/d hari ini). Sengaja di-default, BUKAN dibiarkan
+	// zero-value, karena zero-value start > end bikin query
+	// GetLatestMetricsByCategory selalu kosong tanpa error apapun.
+	now := time.Now()
+	periodeStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	periodeEnd := now
+
+	if (periodStartRaw == "") != (periodEndRaw == "") {
+		return utils.SendError(errors.New("period_start dan period_end harus diisi bersamaan"), http.StatusBadRequest)
+	}
+	if periodStartRaw != "" {
+		v, err := time.Parse("2006-01-02", periodStartRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_start tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeStart = v
+	}
+	if periodEndRaw != "" {
+		v, err := time.Parse("2006-01-02", periodEndRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_end tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeEnd = v
+	}
+	if periodeEnd.Before(periodeStart) {
+		return utils.SendError(errors.New("period_end tidak boleh sebelum period_start"), http.StatusBadRequest)
+	}
+
+	filter := payloads.DashboardFilter{
+		WilayahLevel: wilayahLevel,
+		WilayahID:    utils.ParseInt64QueryParamPointer(param.Get("wilayah_id")),
+		PeriodStart:  periodeStart,
+		PeriodEnd:    periodeEnd,
+		RTIds:        utils.ParseInt64SliceQueryParam(param.Get("rt_ids")),
+		RWIds:        utils.ParseInt64SliceQueryParam(param.Get("rw_ids")),
+		KelurahanIds: utils.ParseInt64SliceQueryParam(param.Get("kelurahan_ids")),
+		KecamatanIds: utils.ParseInt64SliceQueryParam(param.Get("kecamatan_ids")),
+	}
+
+	var validate = validator.New()
+	if err := validate.Struct(filter); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			return utils.SendError(errors.New(utils.TranslateError(err)), http.StatusBadRequest)
+		}
+	}
+
+	respondentLogin, err := s.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mendapatkan data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Data respondent tidak ditemukan"), http.StatusNotFound)
+	}
+	if respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
+	}
+
+	// ADMIN/WALIKOTA boleh query wilayah_level manapun — sesuai desain RBAC
+	// yang sudah disepakati. Role lain (RT/RW/Kelurahan/Kecamatan) hanya
+	// boleh query level yang sesuai dengan role mereka sendiri; ownership
+	// terhadap wilayah_id spesifik divalidasi di resolveFilteredWilayah.
+	role := int(*respondentLogin.RoleId)
+	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && wilayahLevel != role {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+	}
+
+	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	if len(rtIDs) == 0 {
+		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+	}
+
+	metricCatalog, err := s.metricRepo.List(ctx, "summary")
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	currentByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	prevStart := filter.PeriodStart.AddDate(-1, 0, 0)
+	prevEnd := filter.PeriodEnd.AddDate(-1, 0, 0)
+	prevByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", prevStart, prevEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	metrics := make(map[string]response.DashboardMetricValue, len(metricCatalog))
+	for _, mc := range metricCatalog {
+		var sum, prevSum int64
+		for _, rtID := range rtIDs {
+			sum += currentByRT[rtID][mc.MetricKey]
+			prevSum += prevByRT[rtID][mc.MetricKey]
+		}
+		metrics[mc.MetricKey] = response.DashboardMetricValue{
+			Label:         mc.Label,
+			CurrentValue:  sum,
+			PreviousValue: prevSum,
+			Delta:         sum - prevSum,
+		}
+	}
+
+	resp := response.DashboardSummaryResponse{
+		WilayahLevel: filter.WilayahLevel,
+		WilayahInfo:  wilayahInfo,
+		WilayahCount: wilayahCount,
+		DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+		Metrics:      metrics,
+	}
+
+	return utils.SendData(resp, "Berhasil mengambil data summary dashboard")
 }
 
 func (s *dashboardService) GetSampah(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

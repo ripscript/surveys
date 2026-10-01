@@ -17,15 +17,40 @@ type DashboardMetricMappingRepository interface {
 	Update(ctx context.Context, m *models.DashboardMetricMapping) error
 	Delete(ctx context.Context, id int64) error
 	FindByID(ctx context.Context, id int64) (*models.DashboardMetricMapping, error)
-	// FindByMetricAndForm dipakai untuk cek constraint UNIQUE(dashboard_metric_id, form_id) sebelum insert
 	FindByMetricAndForm(ctx context.Context, metricID, formID int64) (*models.DashboardMetricMapping, error)
-	// ListByFormAndCategory adalah query utama yang dipakai endpoint dashboard runtime nanti
 	ListByFormAndCategory(ctx context.Context, formID int64, category string) ([]models.DashboardMetricMapping, error)
 
 	GetList(ctx context.Context, req payloads.DatatablePayload, formCode string, dashboardMetricID int64) ([]MappingListRow, int64, error)
 	FindDetailByID(ctx context.Context, id int64) (*models.DashboardMetricMapping, error)
 	CountOptionStatusByMappingID(ctx context.Context, mappingID int64) (int64, error)
 	CountByMetricID(ctx context.Context, metricID int64) (int64, error)
+
+	GetFlowDetailById(ctx context.Context, flowId int64) (*FlowDetailLite, error)
+	GetSurveyQuestionsForMapping(ctx context.Context, flowDetailID int64) ([]MappingSurveyRawRow, error)
+	SaveSurveyMapping(ctx context.Context, formID int64, questions []payloads.SaveMappingSurveyQuestionPayload) error
+}
+
+type FlowDetailLite struct {
+	ID       int64
+	Name     string
+	Code     string
+	FormID   int64
+	FormCode string
+}
+
+type MappingSurveyRawRow struct {
+	FormFieldID       int64
+	Question          string
+	Description       string
+	Template          string
+	Sequence          int
+	SectionID         *int64
+	SectionName       *string
+	DashboardMetricID *int64
+	MetricKey         *string
+	AnswerOptionID    *int64
+	AnswerLabel       *string
+	StatusID          *int64
 }
 
 type dashboardMetricMappingRepository struct {
@@ -207,4 +232,102 @@ func (r *dashboardMetricMappingRepository) CountByMetricID(ctx context.Context, 
 		Where("dashboard_metric_id = ?", metricID).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *dashboardMetricMappingRepository) GetFlowDetailById(ctx context.Context, flowId int64) (*FlowDetailLite, error) {
+	var row FlowDetailLite
+	err := r.dbSlave.WithContext(ctx).
+		Table("flow_details").
+		Select(`
+			flow_details.id,
+			flow_details.name,
+			flow_details.code,
+			flow_details.form_id,
+			forms.code AS form_code
+		`).
+		Joins("JOIN forms ON forms.id = flow_details.form_id").
+		Where("flow_details.id = ?", flowId).
+		First(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+func (r *dashboardMetricMappingRepository) GetSurveyQuestionsForMapping(ctx context.Context, flowDetailID int64) ([]MappingSurveyRawRow, error) {
+	var rows []MappingSurveyRawRow
+
+	err := r.dbSlave.WithContext(ctx).
+		Table("(?) AS uniq_ff", r.dbSlave.
+			Table("flow_fields").
+			Select("MIN(flow_fields.id) AS flow_field_id").
+			Where("flow_fields.flow_detail_id = ?", flowDetailID).
+			Group("flow_fields.form_field_id"),
+		).
+		Joins("JOIN flow_fields ON flow_fields.id = uniq_ff.flow_field_id").
+		Select(`
+			flow_fields.form_field_id,
+			form_fields.question,
+			form_fields.deskripsi AS description,
+			form_fields.template,
+			flow_fields.sequence,
+			flow_fields.section_id,
+			flow__sections.name AS section_name,
+			dmm.dashboard_metric_id,
+			dm.metric_key,
+			faf.id AS answer_option_id,
+			faf.option AS answer_label,
+			dosm.dashboard_metric_status_id AS status_id
+		`).
+		Joins("JOIN form_fields ON form_fields.id = flow_fields.form_field_id").
+		Joins("LEFT JOIN flow__sections ON flow__sections.id = flow_fields.section_id").
+		Joins("LEFT JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = form_fields.id").
+		Joins("LEFT JOIN dashboard_metrics dm ON dm.id = dmm.dashboard_metric_id").
+		Joins("LEFT JOIN form_answer_fields faf ON faf.form_field_id = form_fields.id").
+		Joins(`LEFT JOIN dashboard_option_status_mappings dosm
+			ON dosm.answer_option_id = faf.id
+			AND dosm.dashboard_metric_mapping_id = dmm.id`).
+		Order("flow_fields.sequence ASC, flow_fields.form_field_id ASC, faf.sequence ASC, faf.id ASC").
+		Find(&rows).Error
+
+	return rows, err
+}
+
+func (r *dashboardMetricMappingRepository) SaveSurveyMapping(ctx context.Context, formID int64, questions []payloads.SaveMappingSurveyQuestionPayload) error {
+	return r.dbMaster.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Where("form_id = ?", formID).
+			Delete(&models.DashboardMetricMapping{}).Error; err != nil {
+			return err
+		}
+
+		for _, q := range questions {
+			mapping := models.DashboardMetricMapping{
+				DashboardMetricID: *q.DashboardMetricID,
+				FormID:            formID,
+				FormFieldID:       q.FormFieldID,
+			}
+			if err := tx.Create(&mapping).Error; err != nil {
+				return err
+			}
+
+			if len(q.Options) == 0 {
+				continue
+			}
+
+			optionMappings := make([]models.DashboardOptionStatusMapping, 0, len(q.Options))
+			for _, opt := range q.Options {
+				optionMappings = append(optionMappings, models.DashboardOptionStatusMapping{
+					DashboardMetricMappingID: mapping.ID,
+					AnswerOptionID:           opt.AnswerOptionID,
+					DashboardMetricStatusID:  *opt.DashboardMetricStatusID,
+				})
+			}
+			if err := tx.Create(&optionMappings).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }

@@ -14,7 +14,7 @@ func PermissionSeed(db *gorm.DB) error {
 	var menuKeys = []string{
 		"template", "management-alur", "master-data", "beranda", "user", "laporan", "monitoring",
 		"admin", "template-pertanyaan", "template-ucapan", "management-pengguna", "manage-wilayah",
-		"manajemen-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "dashboard-builder", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt",
+		"manajemen-cms", "management-artikel", "rating", "statistik", "aktifitas-survey", "management-responden", "management-user", "management-wilayah", "management-pejabat", "artikel", "promote", "kategori", "list-survey", "survey-kewilayahan", "pengelola-survey", "hasil-survey", "monitoring-dan-laporan", "pengaturan-aplikasi", "dashboard", "dashboard-utama", "dashboard-wilayah", "dashboard-rt", "manajemen-metrik", "daftar-metrik", "pemetaan-metrik", "riwayat-data-dss",
 	}
 	menuMap, err := GetMenuIDMap(db, menuKeys)
 	if err != nil {
@@ -87,11 +87,16 @@ func PermissionSeed(db *gorm.DB) error {
 		ManajemenWilayah   = menuIDs.ManajemenWilayah
 		ManajemenResponden = menuIDs.ManajemenResponden
 		// Surveys            = menuIDs.Surveys
-		category          = menuIDs.Kategori
-		ListSurvey        = menuIDs.ListSurvey
-		promote           = menuIDs.Promote
-		manajemenArtkel   = menuIDs.ManajemenArtikel
-		rating            = menuIDs.Rating
+		category        = menuIDs.Kategori
+		ListSurvey      = menuIDs.ListSurvey
+		promote         = menuIDs.Promote
+		manajemenArtkel = menuIDs.ManajemenArtikel
+		rating          = menuIDs.Rating
+
+		manajemenMetrik = menuIDs.ManajemenMetrik
+		daftarMetrik    = menuIDs.DaftarMetrik
+		pemetaanMetrik  = menuIDs.PemetaanMetrik
+
 		artikel           = menuIDs.Artikel
 		pejabat           = menuIDs.ManajemenPejabat
 		mUser             = menuIDs.ManajemenUser
@@ -104,6 +109,7 @@ func PermissionSeed(db *gorm.DB) error {
 		Statistik            = menuIDs.Statistik
 		AktifitasSurvey      = menuIDs.AktifitasSurvey
 		Laporan              = menuIDs.Laporan
+		RiwayatDataDSS       = menuIDs.RiwayatDataDSS
 
 		PengaturanAplikasi = menuIDs.PengaturanAplikasi
 		ManajemenCMS       = menuIDs.ManajemenCMS
@@ -112,8 +118,6 @@ func PermissionSeed(db *gorm.DB) error {
 		DashboardUtama   = menuIDs.DashboardUtama
 		DashboardWilayah = menuIDs.DashboardWilayah
 		DashboardRT      = menuIDs.DashboardRT
-
-		dashboardBuilder = menuIDs.DashboardBuilder
 
 		public   = roleIDs.Public
 		rt       = roleIDs.Rt
@@ -243,6 +247,9 @@ func PermissionSeed(db *gorm.DB) error {
 
 		// BEGIN:LAPORAN ===================================================
 		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), full(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
+
+		// BEGIN:HISTORI DATA DSS ===================================================
+		none(RiwayatDataDSS, public), none(RiwayatDataDSS, rt), none(RiwayatDataDSS, rw), none(RiwayatDataDSS, lurah), none(RiwayatDataDSS, camat), none(RiwayatDataDSS, pemkot), full(RiwayatDataDSS, admin), none(RiwayatDataDSS, surveyor), none(RiwayatDataDSS, walikota),
 		// END:MONITORING DAN LAPORAN ===================================================
 
 		// Survey Kewilayahan
@@ -279,9 +286,15 @@ func PermissionSeed(db *gorm.DB) error {
 		none(rating, public), none(rating, rt), none(rating, rw), none(rating, lurah), none(rating, camat), none(rating, pemkot), full(rating, admin), none(rating, surveyor), full(rating, walikota),
 		// END:RATING ===================================================
 
-		// BEGIN:DASHBOARD BUILDER ===================================================
-		none(dashboardBuilder, public), none(dashboardBuilder, rt), none(dashboardBuilder, rw), none(dashboardBuilder, lurah), none(dashboardBuilder, camat), none(dashboardBuilder, pemkot), full(dashboardBuilder, admin), none(dashboardBuilder, surveyor), none(dashboardBuilder, walikota),
-		// END:DASHBOARD BUILDER ===================================================
+		// BEGIN:MANAJEMEN METRIK ===================================================
+		none(manajemenMetrik, public), none(manajemenMetrik, rt), none(manajemenMetrik, rw), none(manajemenMetrik, lurah), none(manajemenMetrik, camat), none(manajemenMetrik, pemkot), full(manajemenMetrik, admin), none(manajemenMetrik, surveyor), none(manajemenMetrik, walikota),
+
+		// BEGIN:DAFTAR METRIK ===================================================
+		none(daftarMetrik, public), none(daftarMetrik, rt), none(daftarMetrik, rw), none(daftarMetrik, lurah), none(daftarMetrik, camat), none(daftarMetrik, pemkot), full(daftarMetrik, admin), none(daftarMetrik, surveyor), none(daftarMetrik, walikota),
+
+		// BEGIN:PEMETAAN METRIK ===================================================
+		none(pemetaanMetrik, public), none(pemetaanMetrik, rt), none(pemetaanMetrik, rw), none(pemetaanMetrik, lurah), none(pemetaanMetrik, camat), none(pemetaanMetrik, pemkot), full(pemetaanMetrik, admin), none(pemetaanMetrik, surveyor), none(pemetaanMetrik, walikota),
+		// END:MANAJEMEN METRIK ===================================================
 
 		// END:PENGATURAN APLIKASI ===================================================
 	}
@@ -362,13 +375,18 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		FormulirPertanyaan: m["template-pertanyaan"],
 		Ucapan:             m["template-ucapan"],
 		// Surveys:            m["survey"],
-		Hasil:                 m["hasil-survey"],
-		ListSurvey:            m["list-survey"],
-		ManajemenPengguna:     m["management-pengguna"],
-		ManajemenWilayah:      m["manage-wilayah"],
-		ManajemenCMS:          m["manajemen-cms"],
-		ManajemenArtikel:      m["management-artikel"],
-		Rating:                m["rating"],
+		Hasil:             m["hasil-survey"],
+		ListSurvey:        m["list-survey"],
+		ManajemenPengguna: m["management-pengguna"],
+		ManajemenWilayah:  m["manage-wilayah"],
+		ManajemenCMS:      m["manajemen-cms"],
+		ManajemenArtikel:  m["management-artikel"],
+		Rating:            m["rating"],
+
+		ManajemenMetrik: m["manajemen-metrik"],
+		DaftarMetrik:    m["daftar-metrik"],
+		PemetaanMetrik:  m["pemetaan-metrik"],
+
 		AktifitasSurvey:       m["aktifitas-survey"],
 		ManajemenResponden:    m["management-responden"],
 		ManajemenUser:         m["management-user"],
@@ -377,7 +395,6 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		Artikel:               m["artikel"],
 		Promote:               m["promote"],
 		Kategori:              m["kategori"],
-		DashboardBuilder:      m["dashboard-builder"],
 		MasterData:            m["master-data"],
 		SurveyKewilayahan:     m["survey-kewilayahan"],
 		PengelolaSurvey:       m["pengelola-survey"],
@@ -385,6 +402,7 @@ func MapToStruct(m map[string]int) models.MenuIDs {
 		MonitoringDanLaporan: m["monitoring-dan-laporan"],
 		Statistik:            m["statistik"],
 		Laporan:              m["laporan"],
+		RiwayatDataDSS:       m["riwayat-data-dss"],
 		PengaturanAplikasi:   m["pengaturan-aplikasi"],
 
 		Dashboard:        m["dashboard"],

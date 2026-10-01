@@ -33,20 +33,22 @@ var (
 )
 
 var (
-	manajemenWilayahRepo             repository.ManajemenWilayahRepo                   = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
-	manajemenPenggunaRepo            repository.ManajemenPenggunaRepo                  = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
-	manajemenArtikelRepo             repository.ManajemenArtikelRepo                   = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
-	manajemenPejabatRepo             repository.ManajemenPejabatRepo                   = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
-	manajamenCMSRepo                 repository.ManajemenCMSRepo                       = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
-	fileRepo                         repository.FileRepo                               = repository.NewFileRepo(dbSlave, dbMaster)
-	artikelCategoryRepo              repository.ArtikelCategoryRepository              = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
-	artikelRepo                      repository.ArtikelRepository                      = repository.NewArtikelRepository(dbSlave, dbMaster)
-	artikelPromoteRepo               repository.ArtikelPromoteRepository               = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
-	dashboardMetricRepo              repository.DashboardMetricRepository              = repository.NewDashboardMetricRepository(dbMaster, dbSlave)
-	dashboardMetricMappingRepo       repository.DashboardMetricMappingRepository       = repository.NewDashboardMetricMappingRepository(dbMaster, dbSlave)
-	formRepo                         repository.FormRepository                         = repository.NewFormRepository(dbSlave)
-	formFieldRepo                    repository.FormFieldRepository                    = repository.NewFormFieldRepository(dbSlave)
-	dashboardOptionStatusMappingRepo repository.DashboardOptionStatusMappingRepository = repository.NewDashboardOptionStatusMappingRepository(dbMaster, dbSlave)
+	manajemenWilayahRepo  repository.ManajemenWilayahRepo      = repository.NewManajemenWilayahRepo(dbSlave, dbMaster)
+	manajemenPenggunaRepo repository.ManajemenPenggunaRepo     = repository.NewManajemenPenggunaRepo(dbSlave, dbMaster)
+	manajemenArtikelRepo  repository.ManajemenArtikelRepo      = repository.NewManajemenArtikelRepo(dbSlave, dbMaster)
+	manajemenPejabatRepo  repository.ManajemenPejabatRepo      = repository.NewManajemenPejabatRepo(dbSlave, dbMaster)
+	manajamenCMSRepo      repository.ManajemenCMSRepo          = repository.NewManajemenCMSRepo(dbSlave, dbMaster)
+	fileRepo              repository.FileRepo                  = repository.NewFileRepo(dbSlave, dbMaster)
+	artikelCategoryRepo   repository.ArtikelCategoryRepository = repository.NewArtikelCategoryRepository(dbSlave, dbMaster)
+	artikelRepo           repository.ArtikelRepository         = repository.NewArtikelRepository(dbSlave, dbMaster)
+	artikelPromoteRepo    repository.ArtikelPromoteRepository  = repository.NewArtikelPromoteRepository(dbSlave, dbMaster)
+	formRepo              repository.FormRepository            = repository.NewFormRepository(dbSlave)
+	formFieldRepo         repository.FormFieldRepository       = repository.NewFormFieldRepository(dbSlave)
+
+	dashboardMetricRepo        repository.DashboardMetricRepository        = repository.NewDashboardMetricRepository(dbMaster, dbSlave)
+	dashboardMetricStatusRepo  repository.DashboardMetricStatusRepository  = repository.NewDashboardMetricStatusRepository(dbSlave)
+	dashboardMetricMappingRepo repository.DashboardMetricMappingRepository = repository.NewDashboardMetricMappingRepository(dbMaster, dbSlave)
+	surveyRepo                 repository.SurveyRepo                       = repository.NewSurveyRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -78,21 +80,17 @@ var (
 		artikelRepo,
 		artikelPromoteRepo,
 	)
+
 	dashboardMetricService service.DashboardMetricService = service.NewDashboardMetricService(
+		dbMaster,
 		dashboardMetricRepo,
+		dashboardMetricStatusRepo,
 		dashboardMetricMappingRepo,
 	)
-	dashboardMetricMappingService service.DashboardMetricMappingService = service.NewDashboardMetricMappingService(
-		dashboardMetricRepo,
+
+	dashboardMetricMappingSurveyService service.DashboardMetricMappingSurveyService = service.NewDashboardMetricMappingSurveyService(
 		dashboardMetricMappingRepo,
-		formRepo,
-		formFieldRepo,
-		dashboardOptionStatusMappingRepo,
-	)
-	dashboardOptionStatusMappingService service.DashboardOptionStatusMappingService = service.NewDashboardOptionStatusMappingService(
-		dashboardOptionStatusMappingRepo,
-		dashboardMetricMappingRepo,
-		formFieldRepo,
+		surveyRepo,
 	)
 )
 
@@ -121,14 +119,12 @@ var (
 	artikelPromoteHandler handlers.ArtikelPromoteHandler = handlers.NewArtikelPromoteHandler(
 		artikelPromoteService,
 	)
+
 	dashboardMetricHandler handlers.DashboardMetricHandler = handlers.NewDashboardMetricHandler(
 		dashboardMetricService,
 	)
-	dashboardMetricMappingHandler handlers.DashboardMetricMappingHandler = handlers.NewDashboardMetricMappingHandler(
-		dashboardMetricMappingService,
-	)
-	dashboardOptionStatusMappingHandler handlers.DashboardOptionStatusMappingHandler = handlers.NewDashboardOptionStatusMappingHandler(
-		dashboardOptionStatusMappingService,
+	dashboardMetricMappingSurveyHandler handlers.DashboardMetricMappingSurveyHandler = handlers.NewDashboardMetricMappingSurveyHandler(
+		dashboardMetricMappingSurveyService,
 	)
 )
 
@@ -446,87 +442,154 @@ var grpcMap = map[string]map[string]RouteConfig{
 
 	// END::MANAJEMEN ARTIKEL ===============================
 
-	// BEGIN:DASHBOARD BUILDER ==================================
-	"/pengaturan-aplikasi/dashboard-builder/metrics/list": {
-		"GET": {
-			Handler: dashboardMetricHandler.List,
-			MenuKey: "dashboard-builder",
-		},
-	},
-	"/pengaturan-aplikasi/dashboard-builder/metrics/create": {
+	// BEGIN:MANAJEMEN METRIK ==================================
+
+	// BEGIN:DAFTAR METRIK ==================================
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik": {
 		"POST": {
 			Handler: dashboardMetricHandler.Create,
-			MenuKey: "dashboard-builder",
+			MenuKey: "daftar-metrik",
 		},
 	},
-	"/pengaturan-aplikasi/dashboard-builder/metrics/detail/:id": {
-		"GET": {
-			Handler: dashboardMetricHandler.Detail,
-			MenuKey: "dashboard-builder",
-		},
-	},
-	"/pengaturan-aplikasi/dashboard-builder/metrics/update/:id": {
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik/:id/update": {
 		"POST": {
 			Handler: dashboardMetricHandler.Update,
-			MenuKey: "dashboard-builder",
+			MenuKey: "daftar-metrik",
 		},
 	},
-	"/pengaturan-aplikasi/dashboard-builder/metrics/delete/:id": {
-		"POST": {
-			Handler: dashboardMetricHandler.Delete,
-			MenuKey: "dashboard-builder",
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik": {
+		"GET": {
+			Handler: dashboardMetricHandler.GetList,
+			MenuKey: "daftar-metrik",
 		},
 	},
-	"/pengaturan-aplikasi/dashboard-builder/metrics/options": {
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik/:id/detail": {
+		"GET": {
+			Handler: dashboardMetricHandler.Detail,
+			MenuKey: "daftar-metrik",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik/category-options": {
 		"GET": {
 			Handler: dashboardMetricHandler.GetCategoryOptions,
-			MenuKey: "dashboard-builder",
+			MenuKey: "daftar-metrik",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik/:id/statuses": {
+		"GET": {
+			Handler: dashboardMetricHandler.GetStatuses,
+			MenuKey: "daftar-metrik",
+		},
+	},
+	"/pengaturan-aplikasi/manajemen-metrik/daftar-metrik/metrik/options": {
+		"GET": {
+			Handler: dashboardMetricHandler.GetMetricOptions,
+			MenuKey: "daftar-metrik",
 		},
 	},
 
-	"/pengaturan-aplikasi/dashboard-builder/mapping/create": {
-		"POST": {
-			Handler: dashboardMetricMappingHandler.Create,
-			MenuKey: "dashboard-builder",
-		},
-	},
-	"/pengaturan-aplikasi/dashboard-builder/mapping/delete/:id": {
-		"POST": {
-			Handler: dashboardMetricMappingHandler.Delete,
-			MenuKey: "dashboard-builder",
-		},
-	},
-	"/pengaturan-aplikasi/dashboard-builder/mapping/update/:id": {
-		"POST": {
-			Handler: dashboardMetricMappingHandler.Update,
-			MenuKey: "dashboard-builder",
-		},
-	},
-	"/pengaturan-aplikasi/dashboard-builder/mapping/detail/:id": {
+	// BEGIN:PEMETAAN METRIK ==================================
+	"/pengaturan-aplikasi/manajemen-metrik/pemetaan-metrik/survey-list": {
 		"GET": {
-			Handler: dashboardMetricMappingHandler.Detail,
-			MenuKey: "dashboard-builder",
+			Handler: dashboardMetricHandler.GetPemetaanMetrikSurveyList,
+			MenuKey: "pemetaan-metrik",
 		},
 	},
-	"/pengaturan-aplikasi/dashboard-builder/mapping/list": {
+	"/pengaturan-aplikasi/manajemen-metrik/pemetaan-metrik/survey/:survey_code/detail": {
 		"GET": {
-			Handler: dashboardMetricMappingHandler.List,
-			MenuKey: "dashboard-builder",
+			Handler: dashboardMetricMappingSurveyHandler.GetMappingSurvey,
+			MenuKey: "pemetaan-metrik",
 		},
 	},
-	"/pengaturan-aplikasi/dashboard-builder/mapping/:id/options": {
-		"GET": {
-			Handler: dashboardOptionStatusMappingHandler.GetOptionsByMapping,
-			MenuKey: "dashboard-builder",
+	"/pengaturan-aplikasi/manajemen-metrik/pemetaan-metrik/survey/:survey_code/save-mapping": {
+		"POST": {
+			Handler: dashboardMetricMappingSurveyHandler.SaveMappingSurvey,
+			MenuKey: "pemetaan-metrik",
 		},
 	},
+	// END:MANAJEMEN METRIK ==================================
 
-	"/pengaturan-aplikasi/dashboard-builder/mapping/option-sync": {
-		"POST": {
-			Handler: dashboardOptionStatusMappingHandler.Sync,
-			MenuKey: "dashboard-builder",
-		},
-	},
+	// BEGIN:DASHBOARD BUILDER ==================================
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/list": {
+	// 	"GET": {
+	// 		Handler: dashboardMetricHandler.List,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/create": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricHandler.Create,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/detail/:id": {
+	// 	"GET": {
+	// 		Handler: dashboardMetricHandler.Detail,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/update/:id": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricHandler.Update,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/delete/:id": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricHandler.Delete,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/metrics/options": {
+	// 	"GET": {
+	// 		Handler: dashboardMetricHandler.GetCategoryOptions,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/create": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricMappingHandler.Create,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/delete/:id": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricMappingHandler.Delete,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/update/:id": {
+	// 	"POST": {
+	// 		Handler: dashboardMetricMappingHandler.Update,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/detail/:id": {
+	// 	"GET": {
+	// 		Handler: dashboardMetricMappingHandler.Detail,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/list": {
+	// 	"GET": {
+	// 		Handler: dashboardMetricMappingHandler.List,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/:id/options": {
+	// 	"GET": {
+	// 		Handler: dashboardOptionStatusMappingHandler.GetOptionsByMapping,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
+
+	// "/pengaturan-aplikasi/dashboard-builder/mapping/option-sync": {
+	// 	"POST": {
+	// 		Handler: dashboardOptionStatusMappingHandler.Sync,
+	// 		MenuKey: "dashboard-builder",
+	// 	},
+	// },
 	// END:DASHBOARD BUILDER ==================================
 	// END::PENGATURAN APLIKASI ===============================
 }

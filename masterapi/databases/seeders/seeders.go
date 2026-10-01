@@ -16,7 +16,7 @@ func Seed(db *gorm.DB) error {
 	fmt.Println("END SEEDING CMS SECTION ============================")
 
 	fmt.Println("BEGIN SEEDING METRICS MAPPING ============================")
-	if err := DashboardMetricSeed(db); err != nil {
+	if err := SeedDashboardMetrics(db); err != nil {
 		fmt.Println("Error seeding DashboardMetric:", err)
 	}
 	fmt.Println("END SEEDING METRICS MAPPING ============================")

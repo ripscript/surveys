@@ -612,6 +612,9 @@ func TranslateError(err validator.FieldError) string {
 	case "duplicate_question_id":
 		return fmt.Sprintf("Ditemukan ID pertanyaan duplikat pada %s. ID ini sudah digunakan sebelumnya pada urutan (sequence) ke-%s.", field, err.Param())
 
+	case "metric_key_format":
+		return fmt.Sprintf("%s hanya boleh berisi huruf kecil, angka, dan underscore, tanpa spasi (contoh: jumlah_warga).", field)
+
 	// Default fallback
 	default:
 		return fmt.Sprintf("%s tidak valid pada validasi '%s'.", field, err.Tag())
