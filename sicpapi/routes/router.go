@@ -450,6 +450,7 @@ func SetupRoutes(e *echo.Echo) {
 	dashboardGroup.GET("/summary", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/sarana-pengelolaan-sampah", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/card-infrastruktur", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/card-penerangan-jalan", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/stunting-vs-rtlh", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/trend", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/comparison", func(c echo.Context) error { return HandleFunc(c, reportapiService) })

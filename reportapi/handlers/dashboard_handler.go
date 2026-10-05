@@ -16,6 +16,8 @@ type DashboardHandler interface {
 	GetDashboardTrend(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDashboardComparison(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetHeatMap(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetDashboardPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardHandler struct {
@@ -38,6 +40,10 @@ func (handler *dashboardHandler) GetDashboardSaranaPengelolaanSampah(ctx context
 
 func (handler *dashboardHandler) GetDashboardCardInfrastruktur(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.dashboardService.GetInfrastruktur(ctx, req, usr, param, slug)
+}
+
+func (handler *dashboardHandler) GetDashboardPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return handler.dashboardService.GetPeneranganJalan(ctx, req, usr, param, slug)
 }
 
 func (handler *dashboardHandler) GetDashboardStuntingVsRTLH(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

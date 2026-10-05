@@ -138,7 +138,6 @@ func (r *dashboardSummaryRepository) GetLatestMetricsByCategory(
 		JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
 		WHERE resp.rt_id IN (?)
 			AND dm.category = ?
-			AND s.status = 'finished'
 			AND sr.status_approval = 'validated_lurah'
 			AND fr.created_at BETWEEN ? AND ?
 		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC
@@ -246,7 +245,6 @@ func (r *dashboardSummaryRepository) GetMonthlyMetricSums(ctx context.Context, r
 			JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
 			WHERE %s
 				AND dm.metric_key = ?
-				AND s.status = 'finished'
 				AND sr.status_approval = 'validated_lurah'
 				AND fr.created_at BETWEEN ? AND ?
 			ORDER BY resp.rt_id, date_trunc('month', fr.created_at), fr.created_at DESC

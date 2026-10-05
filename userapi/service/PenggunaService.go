@@ -101,6 +101,17 @@ func (service *penggunaService) LoginV2(usr models.JwtCustomClaims, req map[stri
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
+	// Password sudah benar. Baru cek status jabatan untuk role non-direct.
+	if !utils.IsDirectRole(respondent.RoleID) {
+		aktif, err := service.respondentRepo.IsJabatanActive(respondent.ID)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if !aktif {
+			return utils.SendError(errors.New("jabatan Anda tidak aktif atau masa jabatan telah berakhir"), http.StatusForbidden)
+		}
+	}
+
 	requestEmail := resolveIdentity(respondent)
 
 	permMap, err := service.buildPermissionMap(respondent.RoleID)

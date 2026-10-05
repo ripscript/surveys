@@ -44,7 +44,7 @@ type SurveyResultQuestionDetail struct {
 	IsRequired bool                     `json:"is_required"`
 	Options    []SurveyResultOptionItem `json:"options"`
 	Answer     interface{}              `json:"answer"`
-	IsRevisi   bool                     `json:"is_revisi"`
+	IsRevisi   *bool                    `json:"is_revisi"`
 }
 
 // Kebutuhan untuk data reject ==============

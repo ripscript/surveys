@@ -34,6 +34,7 @@ type PreviewAlurSurveyQuestionDetail struct {
 	ExpectedImageCount *int                          `json:"expected_image_count"`
 	Options            []PreviewAlurSurveyOptionItem `json:"options"`
 	Answer             interface{}                   `json:"answer"`
+	IsRevisi           bool                          `json:"is_revisi"`
 }
 
 type PreviewAlurSurveyOptionItem struct {

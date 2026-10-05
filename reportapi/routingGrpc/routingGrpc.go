@@ -313,6 +313,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "dashboard-utama",
 		},
 	},
+	"/dashboard/card-penerangan-jalan": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardPeneranganJalan,
+			MenuKey: "dashboard-utama",
+		},
+	},
 	"/dashboard/stunting-vs-rtlh": {
 		"GET": {
 			Handler: dashboardHandler.GetDashboardStuntingVsRTLH,

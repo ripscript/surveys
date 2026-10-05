@@ -35,6 +35,7 @@ type SurveyRepo interface {
 
 	BeginTransaction() *gorm.DB
 	CreateSurveyRespondent(tx *gorm.DB, surveyRespondent models.SurveyRespondent) (*models.SurveyRespondent, error)
+	SaveSurveyRespondent(tx *gorm.DB, surveyRespondent *models.SurveyRespondent) error
 	BulkInsertFieldResponses(ctx context.Context, tx *gorm.DB, fieldResponses []models.FieldResponse) error
 	CheckRespondentEligibility(ctx context.Context, tx *gorm.DB, surveyID int64, respondent *models.Respondent) (bool, error)
 	GetAnswersByResponseID(formResponseID int64) ([]models.FieldResponse, error)
@@ -410,7 +411,6 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 				rwId = *respondentLogin.RWId
 			}
 
-			// [FIX] dibungkus (...) supaya precedence AND/OR tidak bocor ke Where lain
 			db = db.Where(`(
 				EXISTS (
 					SELECT 1 FROM survey_wilayahs 
@@ -426,7 +426,6 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
 			)`, kecId, kelId, rwId)
 
 			if *respondentLogin.RoleId == int64(enums.ROLE_RT) {
-				// [FIX] dibungkus (...) — ini klausa kritikal yang sebelumnya bisa "dilewati" oleh OR di search
 				db = db.Where(`(
                     NOT EXISTS (
                         SELECT 1 FROM survey_respondents 
@@ -439,7 +438,7 @@ func (repository *surveyRepo) GetListSurveyWilayah(userLogin models.JwtCustomCla
                         AND survey_respondents.respondent_id = ?
                         AND (
                             survey_respondents.status != 2 
-                            OR (survey_respondents.status = 2 AND survey_respondents.status_approval = 'validated_lurah')
+                            OR (survey_respondents.status = 2 AND survey_respondents.status_approval IN ('validated_lurah', 'revisi_rt'))
                         )
                     )
                 )`, respondentLogin.ID, respondentLogin.ID)
@@ -659,6 +658,19 @@ func (repository *surveyRepo) CreateSurveyRespondent(tx *gorm.DB, surveyResponde
 		return nil, err
 	}
 	return &surveyRespondent, nil
+}
+
+func (repository *surveyRepo) SaveSurveyRespondent(tx *gorm.DB, surveyRespondent *models.SurveyRespondent) error {
+	defer utils.GeneralRecover()
+	if tx == nil {
+		tx = repository.dbMaster
+	}
+
+	err := tx.Save(surveyRespondent).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (repository *surveyRepo) BulkInsertFieldResponses(ctx context.Context, tx *gorm.DB, fieldResponses []models.FieldResponse) error {

@@ -146,7 +146,7 @@ func (s *seedAnswerService) SeedSurveyAnswer(ctx context.Context, req map[string
 			"section_code": sectionCode,
 		}
 
-		resp, err := s.surveyService.SubmitSurveyAnswers(ctx, reqMap, fakeUsr, url.Values{}, slugMap)
+		resp, err := s.surveyService.SubmitSurveyAnswersSeed(ctx, reqMap, fakeUsr, url.Values{}, slugMap)
 		if err != nil {
 			sectionErrors = append(sectionErrors, fmt.Sprintf("section %d: %v", sectionID, err))
 			continue

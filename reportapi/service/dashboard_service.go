@@ -10,6 +10,7 @@ import (
 	"backend/siccore/pb"
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -27,6 +28,7 @@ type DashboardService interface {
 	GetTrend(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetComparison(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetHeatmap(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardService struct {
@@ -1306,6 +1308,127 @@ func (s *dashboardService) GetHeatmap(ctx context.Context, req map[string]interf
 	resp := response.DashboardHeatmapResponse{
 		WilayahLevel: filter.WilayahLevel,
 		WilayahInfo:  wilayahInfo,
+		DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+		Items:        items,
+	}
+
+	return utils.SendData(resp, "")
+}
+
+type PeneranganJalanCardDefinition struct {
+	Label          string
+	TotalMetricKey string
+	RusakMetricKey string
+}
+
+var peneranganJalanCardDefinitions = []PeneranganJalanCardDefinition{
+	{Label: "Penerangan Jalan Umum (PJU)", TotalMetricKey: "pju_total", RusakMetricKey: "pju_rusak"},
+	{Label: "Penerangan Jalan Gang (PJG)", TotalMetricKey: "pjg_total", RusakMetricKey: "pjg_rusak"},
+	{Label: "Penerangan Jalan Lingkungan (PJL)", TotalMetricKey: "pjl_total", RusakMetricKey: "pjl_rusak"},
+}
+
+func (s *dashboardService) GetPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	wilayah_level, _ := strconv.Atoi(param.Get("wilayah_level"))
+	period_start := param.Get("period_start")
+	period_end := param.Get("period_end")
+
+	var periodeStart, periodeEnd time.Time
+	if period_start != "" {
+		v, err := time.Parse("2006-01-02", period_start)
+		if err != nil {
+			return utils.SendError(errors.New("format period_start tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeStart = v
+	}
+	if period_end != "" {
+		v, err := time.Parse("2006-01-02", period_end)
+		if err != nil {
+			return utils.SendError(errors.New("format period_end tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeEnd = v
+	}
+
+	filter := payloads.DashboardFilter{
+		WilayahLevel: wilayah_level,
+		WilayahID:    utils.ParseInt64QueryParamPointer(param.Get("wilayah_id")),
+		PeriodStart:  periodeStart,
+		PeriodEnd:    periodeEnd,
+		RTIds:        utils.ParseInt64SliceQueryParam(param.Get("rt_ids")),
+		RWIds:        utils.ParseInt64SliceQueryParam(param.Get("rw_ids")),
+		KelurahanIds: utils.ParseInt64SliceQueryParam(param.Get("kelurahan_ids")),
+		KecamatanIds: utils.ParseInt64SliceQueryParam(param.Get("kecamatan_ids")),
+	}
+
+	var validate = validator.New()
+	if err := validate.Struct(filter); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			return utils.SendError(errors.New(utils.TranslateError(err)), http.StatusBadRequest)
+		}
+	}
+
+	respondentLogin, err := s.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mendapatkan data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Data respondent tidak ditemukan"), http.StatusNotFound)
+	}
+
+	if respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
+	}
+
+	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+	}
+
+	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	if len(rtIDs) == 0 {
+		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+	}
+
+	numberByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "infrastruktur", filter.PeriodStart, filter.PeriodEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	items := make([]response.PeneranganJalanItem, 0, len(peneranganJalanCardDefinitions))
+	for _, def := range peneranganJalanCardDefinitions {
+		var total, rusak int64
+		for _, rtID := range rtIDs {
+			total += numberByRT[rtID][def.TotalMetricKey]
+			rusak += numberByRT[rtID][def.RusakMetricKey]
+		}
+
+		baik := total - rusak
+		if baik < 0 {
+			baik = 0 // jaga-jaga kalau data rusak > total (data tidak konsisten), jangan sampai negatif
+		}
+
+		var persenBerfungsi float64
+		if total > 0 {
+			persenBerfungsi = math.Round((float64(baik)/float64(total))*10000) / 100 // 2 desimal
+		}
+
+		items = append(items, response.PeneranganJalanItem{
+			Label:           def.Label,
+			Total:           total,
+			Baik:            baik,
+			Rusak:           rusak,
+			PersenBerfungsi: persenBerfungsi,
+		})
+	}
+
+	resp := response.DashboardPeneranganJalanResponse{
+		WilayahLevel: filter.WilayahLevel,
+		WilayahInfo:  wilayahInfo,
+		WilayahCount: wilayahCount,
 		DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
 		Items:        items,
 	}

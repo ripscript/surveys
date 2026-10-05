@@ -20,22 +20,6 @@ type metricSeed struct {
 	Statuses []statusSeed
 }
 
-// SeedDashboardMetrics: seeder untuk metrik dashboard yang SUDAH dipakai
-// production dashboard (legacy, hardcode). Semua di-mark IsLocked=true
-// karena dashboard masih bergantung pada metric_key ini secara statis —
-// tidak boleh terhapus/ter-nonaktifkan lewat menu Manajemen Metrik.
-//
-// Sync behavior:
-//   - metric_key yang ADA di code tapi BELUM ada di DB -> di-insert (+statuses)
-//   - metric_key yang SUDAH ada di DB -> TIDAK di-overwrite (field manual via
-//     menu Manajemen Metrik tetap aman), tapi statuses-nya tetap di-sync
-//   - metric_key yang ADA di DB tapi TIDAK ADA lagi di code -> dihapus,
-//     KECUALI masih direferensikan oleh dashboard_metric_mappings (FK block),
-//     dalam hal ini di-skip + warning, bukan error
-//   - ID yang sudah ada TIDAK PERNAH diubah — sync ini cuma insert/delete,
-//     tidak pernah delete-lalu-recreate baris yang masih ada di code
-//
-// Idempotent: aman dijalankan berkali-kali (misal tiap deploy).
 func SeedDashboardMetrics(dbMaster *gorm.DB) error {
 	ctx := context.Background()
 
@@ -72,6 +56,15 @@ func SeedDashboardMetrics(dbMaster *gorm.DB) error {
 		{DashboardMetric: models.DashboardMetric{MetricKey: "septic_tarik_pribadi", Label: "Septic Tarik Pribadi", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
 
 		{DashboardMetric: models.DashboardMetric{MetricKey: "mck_umum", Label: "MCK Umum", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pju_total", Label: "Total Penerangan Jalan Umum", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pju_rusak", Label: "Penerangan Jalan Umum Rusak/Perlu Perbaikan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pjl_total", Label: "Total Penerangan Jalan Lingkungan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pjl_rusak", Label: "Penerangan Jalan Lingkungan Rusak/Perlu Perbaikan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pjg_total", Label: "Total Penerangan Jalan Gang", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+		{DashboardMetric: models.DashboardMetric{MetricKey: "pjg_rusak", Label: "Penerangan Jalan Gang Rusak/Perlu Perbaikan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
 	}
 
 	return dbMaster.Transaction(func(tx *gorm.DB) error {

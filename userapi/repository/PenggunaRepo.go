@@ -146,6 +146,9 @@ func (r *penggunaRepo) FindRespondentByRole(payload payloads.LoginPayload) (*mod
 var (
 	ErrRespondentNotFound = errors.New("respondent not found")
 	ErrJabatanNotActive   = errors.New("jabatan tidak aktif")
+
+	ErrJabatanTidakAktif   = errors.New("jabatan tidak aktif")
+	ErrPeriodeJabatanHabis = errors.New("periode jabatan telah berakhir")
 )
 
 func (r *penggunaRepo) GetRespondentHasJabatanActive(payload payloads.LoginPayload) (*models.Respondent, string, error) {

@@ -728,13 +728,6 @@ func (r *respondentRepo) FindByRole(payload payloads.LoginPayload) (*models.Resp
 
 	query := r.buildCriteriaQuery(payload)
 
-	if !isDirectLoginRole(payload.Role) {
-		query = query.
-			Joins("JOIN pejabat__wilayahs pw ON pw.id_responden = respondents.id").
-			Where("pw.status_jabat = ?", 1).
-			Where("pw.periode_akhir IS NULL OR pw.periode_akhir >= ?", time.Now())
-	}
-
 	err := query.First(&respondent).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

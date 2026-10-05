@@ -47,6 +47,7 @@ type ManajemenAlurRepo interface {
 
 	GetFlowDetailById(id int64) (*models.FlowDetail, error)
 	GetRevisedFieldIDsBySurveyRespondentID(surveyRespondentID int64) (map[int64]bool, error)
+	GetFlaggingStatusBySurveyRespondentID(surveyRespondentID int64) (map[int64]bool, bool, error)
 }
 
 type manajemenAlurRepo struct {
@@ -670,4 +671,28 @@ func (repository *manajemenAlurRepo) GetRevisedFieldIDsBySurveyRespondentID(surv
 		result[id] = true
 	}
 	return result, nil
+}
+
+func (repository *manajemenAlurRepo) GetFlaggingStatusBySurveyRespondentID(surveyRespondentID int64) (map[int64]bool, bool, error) {
+	type flagRow struct {
+		FormFieldID int64
+		IsRevisied  bool
+	}
+	var rows []flagRow
+
+	err := repository.dbSlave.
+		Table("flagging_edit_pertanyaan_surveys").
+		Select("form_field_id, is_revisied::boolean AS is_revisied").
+		Where("survey_respondent_id = ?", surveyRespondentID).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, false, err
+	}
+
+	statusMap := make(map[int64]bool, len(rows))
+	for _, r := range rows {
+		statusMap[r.FormFieldID] = r.IsRevisied
+	}
+
+	return statusMap, len(rows) > 0, nil
 }
