@@ -5088,6 +5088,17 @@ func (service *surveyService) ExportExcelSurveyResultsPerRT(ctx context.Context,
 		return utils.SendError(errors.New("Gagal memuat struktur pertanyaan"), http.StatusInternalServerError)
 	}
 
+	uniqueNodes := make([]models.RawNodeData, 0, len(rawNodes))
+	seenFieldIDs := make(map[int]bool, len(rawNodes))
+	for _, node := range rawNodes {
+		if seenFieldIDs[node.FormFieldId] {
+			continue
+		}
+		seenFieldIDs[node.FormFieldId] = true
+		uniqueNodes = append(uniqueNodes, node)
+	}
+	rawNodes = uniqueNodes
+
 	var blueprintFieldIDs []int
 	for _, node := range rawNodes {
 		blueprintFieldIDs = append(blueprintFieldIDs, node.FormFieldId)
@@ -5349,6 +5360,16 @@ func (service *surveyService) ExportExcelSurveyResultsMassal(ctx context.Context
 	if err != nil {
 		return utils.SendError(errors.New("Gagal memuat struktur pertanyaan"), http.StatusInternalServerError)
 	}
+	uniqueNodes := make([]models.RawNodeData, 0, len(rawNodes))
+	seenFieldIDs := make(map[int]bool, len(rawNodes))
+	for _, node := range rawNodes {
+		if seenFieldIDs[node.FormFieldId] {
+			continue
+		}
+		seenFieldIDs[node.FormFieldId] = true
+		uniqueNodes = append(uniqueNodes, node)
+	}
+	rawNodes = uniqueNodes
 
 	var blueprintFieldIDs []int
 	for _, node := range rawNodes {

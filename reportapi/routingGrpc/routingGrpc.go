@@ -301,6 +301,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "dashboard-utama",
 		},
 	},
+	"/dashboard/summary-compare": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardSummaryCompare,
+			MenuKey: "dashboard-utama",
+		},
+	},
 	"/dashboard/sarana-pengelolaan-sampah": {
 		"GET": {
 			Handler: dashboardHandler.GetDashboardSaranaPengelolaanSampah,
@@ -328,6 +334,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 	"/dashboard/trend": {
 		"GET": {
 			Handler: dashboardHandler.GetDashboardTrend,
+			MenuKey: "dashboard-utama",
+		},
+	},
+	"/dashboard/trend-compare": {
+		"GET": {
+			Handler: dashboardHandler.GetDashboardTrendCompare,
 			MenuKey: "dashboard-utama",
 		},
 	},

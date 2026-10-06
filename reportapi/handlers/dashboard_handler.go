@@ -18,6 +18,8 @@ type DashboardHandler interface {
 	GetHeatMap(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetDashboardPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetDashboardTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	GetDashboardSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardHandler struct {
@@ -60,4 +62,12 @@ func (handler *dashboardHandler) GetDashboardComparison(ctx context.Context, req
 
 func (handler *dashboardHandler) GetHeatMap(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return handler.dashboardService.GetHeatmap(ctx, req, usr, param, slug)
+}
+
+func (h *dashboardHandler) GetDashboardTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return h.dashboardService.GetTrendCompare(ctx, req, usr, param, slug)
+}
+
+func (h *dashboardHandler) GetDashboardSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return h.dashboardService.GetSummaryCompare(ctx, req, usr, param, slug)
 }

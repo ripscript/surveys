@@ -61,7 +61,7 @@ func (handler *respondentHandler) UpdateRespondent(ctx context.Context, req map[
 }
 
 func (handler *respondentHandler) GetExampleImport(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
-	return handler.respondentService.GetExampleImport()
+	return handler.respondentService.GetExampleImport(ctx)
 }
 
 func (handler *respondentHandler) ImportRespondent(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {

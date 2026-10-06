@@ -7,12 +7,12 @@ import (
 	"backend/userapi/repository"
 	"backend/userapi/response"
 	"backend/userapi/utils"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -33,7 +33,7 @@ type RespondentService interface {
 	GetDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	DeleteRespondent(usr models.JwtCustomClaims, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	UpdateRespondent(usr models.JwtCustomClaims, slug map[string]interface{}, req map[string]interface{}) (*pb.ProxyResponse, error)
-	GetExampleImport() (*pb.ProxyResponse, error)
+	GetExampleImport(ctx context.Context) (*pb.ProxyResponse, error)
 	ImportRespondent(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 	GetRawDetailRespondent(slug map[string]interface{}) (*pb.ProxyResponse, error)
 	SurveyorOption(param url.Values) (*pb.ProxyResponse, error)
@@ -52,21 +52,24 @@ type RespondentService interface {
 }
 
 type respondentService struct {
-	respondentRepo   repository.RespondentRepo
-	usersRepo        repository.UsersRepo
-	loginAttemptRepo repository.LoginAttemptRepository
+	respondentRepo     repository.RespondentRepo
+	usersRepo          repository.UsersRepo
+	loginAttemptRepo   repository.LoginAttemptRepository
+	templateImportRepo repository.TemplateImportRepo
 }
 
 func NewRespondentService(
 	respondentRepo repository.RespondentRepo,
 	usersRepo repository.UsersRepo,
 	loginAttemptRepo repository.LoginAttemptRepository,
+	templateImportRepo repository.TemplateImportRepo,
 
 ) RespondentService {
 	return &respondentService{
 		respondentRepo,
 		usersRepo,
 		loginAttemptRepo,
+		templateImportRepo,
 	}
 }
 
@@ -332,18 +335,18 @@ func (service *respondentService) UpdateRespondent(usr models.JwtCustomClaims, s
 	return utils.SendData("Data Berhasil Diperbarui")
 }
 
-func (service *respondentService) GetExampleImport() (*pb.ProxyResponse, error) {
-	defer utils.GeneralRecover()
+// func (service *respondentService) GetExampleImport() (*pb.ProxyResponse, error) {
+// 	defer utils.GeneralRecover()
 
-	filePath := "./storage/template/Template_Import_Responden.xlsx"
-	fileBytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return utils.SendError(err, http.StatusNotFound)
-	}
+// 	filePath := "./storage/template/Template_Import_Responden.xlsx"
+// 	fileBytes, err := ioutil.ReadFile(filePath)
+// 	if err != nil {
+// 		return utils.SendError(err, http.StatusNotFound)
+// 	}
 
-	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
-}
+// 	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+// 	return utils.SetResponseData(fileBytes, true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+// }
 
 func (service *respondentService) ImportRespondent(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
@@ -902,4 +905,203 @@ func (service *respondentService) GeneratePassword(ctx context.Context, req map[
 	hashedPassword := string(hashedBytes)
 
 	return utils.SendData(map[string]interface{}{"hashed_password": hashedPassword}, "Generate password success")
+}
+
+func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// --- ambil master data ---
+	roles, err := service.templateImportRepo.GetRolesForTemplate(ctx)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat data role"), http.StatusInternalServerError)
+	}
+	kecamatans, err := service.templateImportRepo.GetKecamatansForTemplate(ctx)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat data kecamatan"), http.StatusInternalServerError)
+	}
+	kelurahans, err := service.templateImportRepo.GetKelurahansForTemplate(ctx)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat data kelurahan"), http.StatusInternalServerError)
+	}
+	rws, err := service.templateImportRepo.GetRwsForTemplate(ctx)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat data RW"), http.StatusInternalServerError)
+	}
+	rts, err := service.templateImportRepo.GetRtsForTemplate(ctx)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal memuat data RT"), http.StatusInternalServerError)
+	}
+
+	const (
+		sheetInput  = "Data Responden"
+		sheetMaster = "MASTER"
+		dataRowFrom = 3    // baris pertama input user
+		dataRowTo   = 2000 // batas baris yang diberi validasi dropdown
+	)
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	f.SetSheetName("Sheet1", sheetInput)
+	masterIdx, _ := f.NewSheet(sheetMaster)
+
+	// ============ STYLES ============
+	styleHeader, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#15406a"}, Pattern: 1},
+		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+	})
+	styleHint, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Italic: true, Color: "999999", Size: 10},
+		Alignment: &excelize.Alignment{Vertical: "center", WrapText: true},
+	})
+	styleMasterHeader, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+	})
+
+	// ============ SHEET MASTER ============
+	// Layout kolom master:
+	//   A: Role (format "name" saja -> importer map ke id)
+	//   C: Kecamatan (format "ID - Nama")
+	//   E..: tiap kecamatan punya 1 kolom berisi daftar kelurahan ("ID - Nama")
+	//        -> dijadikan named range KEC_<kecID> untuk cascading
+	//   setelah blok kelurahan: referensi RW & RT (lihat saja)
+
+	// --- Role (kolom A) ---
+	f.SetCellValue(sheetMaster, "A1", "ROLE")
+	f.SetCellStyle(sheetMaster, "A1", "A1", styleMasterHeader)
+	for i, role := range roles {
+		f.SetCellValue(sheetMaster, fmt.Sprintf("A%d", i+2), role.Name)
+	}
+	roleRef := fmt.Sprintf("'%s'!$A$2:$A$%d", sheetMaster, len(roles)+1)
+
+	// --- Kecamatan (kolom C) ---
+	f.SetCellValue(sheetMaster, "C1", "KECAMATAN")
+	f.SetCellStyle(sheetMaster, "C1", "C1", styleMasterHeader)
+	for i, kec := range kecamatans {
+		f.SetCellValue(sheetMaster, fmt.Sprintf("C%d", i+2), fmt.Sprintf("%d - %s", kec.ID, kec.Name))
+	}
+	kecRef := fmt.Sprintf("'%s'!$C$2:$C$%d", sheetMaster, len(kecamatans)+1)
+
+	// --- Kelurahan per kecamatan (mulai kolom E), + named range KEC_<id> ---
+	// kelurahan dikelompokkan by kecamatan_id
+	kelByKec := make(map[int64][]repository.TemplateKelurahanRow)
+	for _, kel := range kelurahans {
+		kelByKec[kel.KecamatanID] = append(kelByKec[kel.KecamatanID], kel)
+	}
+
+	colNum := 5 // kolom E
+	for _, kec := range kecamatans {
+		colName, _ := excelize.ColumnNumberToName(colNum)
+		// header kolom = id kecamatan (untuk jejak), isi = daftar kelurahan
+		f.SetCellValue(sheetMaster, fmt.Sprintf("%s1", colName), fmt.Sprintf("KEC_%d", kec.ID))
+		f.SetCellStyle(sheetMaster, fmt.Sprintf("%s1", colName), fmt.Sprintf("%s1", colName), styleMasterHeader)
+
+		list := kelByKec[kec.ID]
+		for i, kel := range list {
+			f.SetCellValue(sheetMaster, fmt.Sprintf("%s%d", colName, i+2), fmt.Sprintf("%d - %s", kel.ID, kel.Name))
+		}
+
+		// buat named range KEC_<id> menunjuk daftar kelurahan di kolom ini.
+		// kalau kecamatan tidak punya kelurahan, lewati agar range tidak invalid.
+		if len(list) > 0 {
+			rangeRef := fmt.Sprintf("'%s'!$%s$2:$%s$%d", sheetMaster, colName, colName, len(list)+1)
+			_ = f.SetDefinedName(&excelize.DefinedName{
+				Name:     fmt.Sprintf("KEC_%d", kec.ID),
+				RefersTo: rangeRef,
+				Scope:    "Workbook",
+			})
+		}
+		colNum++
+	}
+
+	// --- Referensi RW & RT (lihat saja), diletakkan jauh di kanan ---
+	rwColNum := colNum + 1
+	rwCol, _ := excelize.ColumnNumberToName(rwColNum)
+	f.SetCellValue(sheetMaster, fmt.Sprintf("%s1", rwCol), "REFERENSI RW (ID - Nama | Kelurahan ID)")
+	f.SetCellStyle(sheetMaster, fmt.Sprintf("%s1", rwCol), fmt.Sprintf("%s1", rwCol), styleMasterHeader)
+	for i, rw := range rws {
+		f.SetCellValue(sheetMaster, fmt.Sprintf("%s%d", rwCol, i+2),
+			fmt.Sprintf("%d - %s | kel:%d", rw.ID, rw.Name, rw.KelurahanID))
+	}
+
+	rtColNum := rwColNum + 1
+	rtCol, _ := excelize.ColumnNumberToName(rtColNum)
+	f.SetCellValue(sheetMaster, fmt.Sprintf("%s1", rtCol), "REFERENSI RT (ID - Nama | RW ID)")
+	f.SetCellStyle(sheetMaster, fmt.Sprintf("%s1", rtCol), fmt.Sprintf("%s1", rtCol), styleMasterHeader)
+	for i, rt := range rts {
+		f.SetCellValue(sheetMaster, fmt.Sprintf("%s%d", rtCol, i+2),
+			fmt.Sprintf("%d - %s | rw:%d", rt.ID, rt.Name, rt.RwID))
+	}
+
+	// sembunyikan sheet master
+	_ = f.SetSheetVisible(sheetMaster, false)
+
+	// ============ SHEET INPUT ============
+	headers := []string{
+		"NIK", "NAMA RESPONDEN", "TEMPAT LAHIR", "TANGGAL LAHIR (YYYY-MM-DD)",
+		"NOMOR TELEPON", "EMAIL", "ALAMAT LENGKAP", "ROLE",
+		"KECAMATAN", "KELURAHAN", "RW (ID)", "RT (ID)",
+	}
+	hints := []string{
+		"Wajib", "Wajib", "Opsional", "Wajib, format 2026-01-31",
+		"Wajib", "Wajib", "Opsional", "Wajib, pilih dari dropdown",
+		"Isi jika role Kecamatan ke bawah", "Isi jika role Kelurahan ke bawah",
+		"Isi ID RW jika role RW ke bawah", "Isi ID RT jika role RT",
+	}
+
+	for i, hname := range headers {
+		colName, _ := excelize.ColumnNumberToName(i + 1)
+		f.SetCellValue(sheetInput, fmt.Sprintf("%s1", colName), hname)
+		f.SetCellStyle(sheetInput, fmt.Sprintf("%s1", colName), fmt.Sprintf("%s1", colName), styleHeader)
+		f.SetCellValue(sheetInput, fmt.Sprintf("%s2", colName), hints[i])
+		f.SetCellStyle(sheetInput, fmt.Sprintf("%s2", colName), fmt.Sprintf("%s2", colName), styleHint)
+		f.SetColWidth(sheetInput, colName, colName, 22)
+	}
+
+	// paksa kolom TANGGAL LAHIR (kolom D) jadi teks agar "2026-01-31" tidak
+	// otomatis dikonversi Excel jadi serial date / format lain.
+	styleText, _ := f.NewStyle(&excelize.Style{NumFmt: 49}) // 49 = @ (Text)
+	f.SetColStyle(sheetInput, "D", styleText)
+
+	// --- Data Validation: ROLE (kolom H) ---
+	dvRole := excelize.NewDataValidation(true)
+	dvRole.Sqref = fmt.Sprintf("H%d:H%d", dataRowFrom, dataRowTo)
+	dvRole.SetSqrefDropList(roleRef) // sumber dari named-less range di sheet MASTER
+	_ = f.AddDataValidation(sheetInput, dvRole)
+
+	// --- Data Validation: KECAMATAN (kolom I) ---
+	dvKec := excelize.NewDataValidation(true)
+	dvKec.Sqref = fmt.Sprintf("I%d:I%d", dataRowFrom, dataRowTo)
+	dvKec.SetSqrefDropList(kecRef)
+	_ = f.AddDataValidation(sheetInput, dvKec)
+
+	// --- Data Validation: KELURAHAN (kolom J) — cascading via INDIRECT ---
+	// kunci = ID kecamatan yang diambil dari kolom I baris yang sama.
+	// Nilai di kolom I berformat "11 - Dago", jadi kita ambil angka sebelum " - ".
+	// formula: =INDIRECT("KEC_" & TRIM(LEFT(I3, FIND(" - ", I3)-1)))
+	for row := dataRowFrom; row <= dataRowTo; row++ {
+		dvKel := excelize.NewDataValidation(true)
+		dvKel.Sqref = fmt.Sprintf("J%d:J%d", row, row)
+		formula := fmt.Sprintf(`=INDIRECT("KEC_" & TRIM(LEFT(I%d, FIND(" - ", I%d)-1)))`, row, row)
+		dvKel.SetSqrefDropList(formula)
+		if err := f.AddDataValidation(sheetInput, dvKel); err != nil {
+			// kalau satu baris gagal, jangan gagalkan seluruh file
+			continue
+		}
+	}
+
+	f.SetActiveSheet(0)
+
+	var buffer bytes.Buffer
+	if err := f.Write(&buffer); err != nil {
+		return utils.SendError(errors.New("Gagal menyusun file template"), http.StatusInternalServerError)
+	}
+
+	// pakai masterIdx hanya agar linter tidak protes bila tak terpakai di cabang lain
+	_ = masterIdx
+
+	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	return utils.SetResponseData(buffer.Bytes(), true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
 }

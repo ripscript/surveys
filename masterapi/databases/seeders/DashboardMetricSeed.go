@@ -51,7 +51,7 @@ func SeedDashboardMetrics(dbMaster *gorm.DB) error {
 
 		{DashboardMetric: models.DashboardMetric{MetricKey: "jalanan_lingkungan_total", Label: "Jalanan Lingkungan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
 		{DashboardMetric: models.DashboardMetric{MetricKey: "jalanan_lingkungan_rusak", Label: "Jalanan Lingkungan Rusak/Perlu Perbaikan", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
-		{DashboardMetric: models.DashboardMetric{MetricKey: "rumah_tidak_layak_infrastruktur", Label: "Rumah Tidak Layak", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
+		// {DashboardMetric: models.DashboardMetric{MetricKey: "rumah_tidak_layak_infrastruktur", Label: "Rumah Tidak Layak", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
 
 		{DashboardMetric: models.DashboardMetric{MetricKey: "septic_tarik_pribadi", Label: "Septic Tarik Pribadi", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},
 

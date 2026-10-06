@@ -29,6 +29,10 @@ type DashboardService interface {
 	GetComparison(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetHeatmap(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardService struct {
@@ -601,7 +605,7 @@ var infraCardDefinitions = []struct {
 }{
 	{"Jalanan Umum", "jalanan_umum_total"},
 	{"Jalanan Lingkungan", "jalanan_lingkungan_total"},
-	{"Rumah Tidak Layak", "rumah_tidak_layak_infrastruktur"},
+	{"Rumah Tidak Layak", "rumah_tidak_layak"},
 	{"Septic Tarik Pribadi", "septic_tarik_pribadi"},
 	{"MCK Umum", "mck_umum"},
 }
@@ -672,7 +676,12 @@ func (s *dashboardService) GetInfrastruktur(ctx context.Context, req map[string]
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
-	numberByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "infrastruktur", filter.PeriodStart, filter.PeriodEnd)
+	infraKeys := make([]string, 0, len(infraCardDefinitions))
+	for _, def := range infraCardDefinitions {
+		infraKeys = append(infraKeys, def.NumberMetricKey)
+	}
+
+	numberByRT, err := s.summaryRepo.GetLatestMetricsByKeys(ctx, rtIDs, infraKeys, filter.PeriodStart, filter.PeriodEnd)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
@@ -683,13 +692,10 @@ func (s *dashboardService) GetInfrastruktur(ctx context.Context, req map[string]
 		for _, rtID := range rtIDs {
 			sum += numberByRT[rtID][def.NumberMetricKey]
 		}
-
-		item := response.InfrastrukturItem{
+		items = append(items, response.InfrastrukturItem{
 			Label: def.Label,
 			Value: sum,
-		}
-
-		items = append(items, item)
+		})
 	}
 
 	resp := response.DashboardInfrastrukturResponse{
@@ -1393,7 +1399,11 @@ func (s *dashboardService) GetPeneranganJalan(ctx context.Context, req map[strin
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
-	numberByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "infrastruktur", filter.PeriodStart, filter.PeriodEnd)
+	pjKeys := make([]string, 0, len(peneranganJalanCardDefinitions)*2)
+	for _, def := range peneranganJalanCardDefinitions {
+		pjKeys = append(pjKeys, def.TotalMetricKey, def.RusakMetricKey)
+	}
+	numberByRT, err := s.summaryRepo.GetLatestMetricsByKeys(ctx, rtIDs, pjKeys, filter.PeriodStart, filter.PeriodEnd)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
@@ -1434,4 +1444,360 @@ func (s *dashboardService) GetPeneranganJalan(ctx context.Context, req map[strin
 	}
 
 	return utils.SendData(resp, "")
+}
+
+func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	wilayah_level, _ := strconv.Atoi(param.Get("wilayah_level"))
+	metricKey := param.Get("metric_key")
+	if metricKey == "" {
+		metricKey = "total_stunting"
+	}
+
+	period_start := param.Get("period_start")
+	period_end := param.Get("period_end")
+	if period_end == "" {
+		return utils.SendError(errors.New("period_end wajib diisi"), http.StatusBadRequest)
+	}
+	referenceDate, err := time.Parse("2006-01-02", period_end)
+	if err != nil {
+		return utils.SendError(errors.New("format period_end tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+	}
+
+	var periodeStart, periodeEnd time.Time
+	if period_start != "" {
+		v, err := time.Parse("2006-01-02", period_start)
+		if err != nil {
+			return utils.SendError(errors.New("format period_start tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeStart = v
+	}
+	periodeEnd = referenceDate
+
+	filter := payloads.DashboardFilter{
+		WilayahLevel: wilayah_level,
+		WilayahID:    utils.ParseInt64QueryParamPointer(param.Get("wilayah_id")),
+		PeriodStart:  periodeStart,
+		PeriodEnd:    periodeEnd,
+		RTIds:        utils.ParseInt64SliceQueryParam(param.Get("rt_ids")),
+		RWIds:        utils.ParseInt64SliceQueryParam(param.Get("rw_ids")),
+		KelurahanIds: utils.ParseInt64SliceQueryParam(param.Get("kelurahan_ids")),
+		KecamatanIds: utils.ParseInt64SliceQueryParam(param.Get("kecamatan_ids")),
+	}
+
+	var validate = validator.New()
+	if err := validate.Struct(filter); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			return utils.SendError(errors.New(utils.TranslateError(err)), http.StatusBadRequest)
+		}
+	}
+
+	respondentLogin, err := s.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mendapatkan data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Data respondent tidak ditemukan"), http.StatusNotFound)
+	}
+	if respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
+	}
+	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+	}
+	if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
+	}
+
+	metric, err := s.metricRepo.FindByMetricKey(ctx, metricKey)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+	if metric == nil {
+		return utils.SendError(errors.New("metric_key tidak dikenali"), http.StatusBadRequest)
+	}
+
+	rtIDs, _, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+
+	isAdminOrWalikota := filter.WilayahLevel == int(enums.ROLE_ADMIN) || filter.WilayahLevel == int(enums.ROLE_WALIKOTA)
+	if !isAdminOrWalikota && len(rtIDs) == 0 {
+		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+	}
+
+	// window 6 bulan terakhir dari period_end (sama seperti GetTrend lama)
+	windowStart := time.Date(referenceDate.Year(), referenceDate.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -5, 0)
+	windowEnd := time.Date(referenceDate.Year(), referenceDate.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0).Add(-time.Second)
+
+	// Daftar survey untuk opsi dropdown & default, MURNI dari surveys.id DESC
+	// (tidak peduli ada data atau tidak). Ambil semua untuk opsi dropdown.
+	surveyOpts, err := s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	latestSurveyID := int64(0)
+	if len(surveyOpts) > 0 {
+		latestSurveyID = surveyOpts[0].SurveyID // id terbesar = terbaru
+	}
+
+	// Tentukan survey yang jadi garis.
+	requestedSurveyIDs := utils.ParseInt64SliceQueryParam(param.Get("survey_ids"))
+
+	var selectedSurveyIDs []int64
+	seen := make(map[int64]bool)
+	addSurvey := func(id int64) {
+		if id != 0 && !seen[id] {
+			selectedSurveyIDs = append(selectedSurveyIDs, id)
+			seen[id] = true
+		}
+	}
+
+	if len(requestedSurveyIDs) > 0 {
+		// garis-1 selalu survey terbaru (fixed), lalu survey pilihan user.
+		// TIDAK divalidasi harus "punya data" -- kalau kosong tampil 0 saja.
+		addSurvey(latestSurveyID)
+		for _, id := range requestedSurveyIDs {
+			addSurvey(id)
+		}
+	} else {
+		// default: 2 survey terbaru (id terbesar & terbesar kedua)
+		for i := 0; i < len(surveyOpts) && i < 2; i++ {
+			addSurvey(surveyOpts[i].SurveyID)
+		}
+	}
+
+	// label sumbu-X bersama
+	monthLabels := make([]string, 6)
+	monthKeys := make([]string, 6)
+	for i := 0; i < 6; i++ {
+		m := windowStart.AddDate(0, i, 0)
+		monthLabels[i] = indoMonths[int(m.Month())-1] + " " + strconv.Itoa(m.Year())
+		monthKeys[i] = m.Format("2006-01")
+	}
+
+	// Ambil nama survey terpilih (robust walau datanya 0 di semua bulan).
+	surveyNames, err := s.summaryRepo.GetSurveyNamesByIDs(ctx, selectedSurveyIDs)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// Ambil data bulanan per survey (boleh kosong -> map kosong, nanti jadi 0).
+	rows, err := s.summaryRepo.GetMonthlyMetricSumsBySurvey(ctx, rtIDs, selectedSurveyIDs, metricKey, windowStart, windowEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	bySurvey := make(map[int64]map[string]int64, len(selectedSurveyIDs))
+	for _, r := range rows {
+		if bySurvey[r.SurveyID] == nil {
+			bySurvey[r.SurveyID] = make(map[string]int64)
+		}
+		bySurvey[r.SurveyID][r.MonthBucket.Format("2006-01")] = r.Total
+	}
+
+	// Build series. Setiap survey terpilih SELALU dibuatkan garis, walau 0 semua.
+	series := make([]response.TrendSurveySeries, 0, len(selectedSurveyIDs))
+	for _, sid := range selectedSurveyIDs {
+		points := make([]response.TrendComparePoint, 6)
+		for i := 0; i < 6; i++ {
+			var val int64
+			if m := bySurvey[sid]; m != nil {
+				val = m[monthKeys[i]]
+			}
+			points[i] = response.TrendComparePoint{
+				MonthLabel: monthLabels[i],
+				Value:      val, // default 0
+			}
+		}
+		series = append(series, response.TrendSurveySeries{
+			SurveyID:   sid,
+			SurveyName: surveyNames[sid], // "" kalau tidak ketemu, tetap aman
+			IsLatest:   sid == latestSurveyID,
+			Points:     points,
+		})
+	}
+
+	resp := response.DashboardTrendCompareResponse{
+		WilayahLevel: filter.WilayahLevel,
+		WilayahInfo:  wilayahInfo,
+		DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+		MetricKey:    metric.MetricKey,
+		Label:        metric.Label,
+		MonthLabels:  monthLabels,
+		Series:       series,
+	}
+
+	return utils.SendData(resp, "")
+}
+
+func (s *dashboardService) GetSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	wilayahLevel, _ := strconv.Atoi(param.Get("wilayah_level"))
+	periodStartRaw := param.Get("period_start")
+	periodEndRaw := param.Get("period_end")
+
+	now := time.Now()
+	periodeStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	periodeEnd := now
+
+	if (periodStartRaw == "") != (periodEndRaw == "") {
+		return utils.SendError(errors.New("period_start dan period_end harus diisi bersamaan"), http.StatusBadRequest)
+	}
+	if periodStartRaw != "" {
+		v, err := time.Parse("2006-01-02", periodStartRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_start tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeStart = v
+	}
+	if periodEndRaw != "" {
+		v, err := time.Parse("2006-01-02", periodEndRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_end tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeEnd = v
+	}
+	if periodeEnd.Before(periodeStart) {
+		return utils.SendError(errors.New("period_end tidak boleh sebelum period_start"), http.StatusBadRequest)
+	}
+
+	filter := payloads.DashboardFilter{
+		WilayahLevel: wilayahLevel,
+		WilayahID:    utils.ParseInt64QueryParamPointer(param.Get("wilayah_id")),
+		PeriodStart:  periodeStart,
+		PeriodEnd:    periodeEnd,
+		RTIds:        utils.ParseInt64SliceQueryParam(param.Get("rt_ids")),
+		RWIds:        utils.ParseInt64SliceQueryParam(param.Get("rw_ids")),
+		KelurahanIds: utils.ParseInt64SliceQueryParam(param.Get("kelurahan_ids")),
+		KecamatanIds: utils.ParseInt64SliceQueryParam(param.Get("kecamatan_ids")),
+	}
+
+	var validate = validator.New()
+	if err := validate.Struct(filter); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			return utils.SendError(errors.New(utils.TranslateError(err)), http.StatusBadRequest)
+		}
+	}
+
+	respondentLogin, err := s.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mendapatkan data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Data respondent tidak ditemukan"), http.StatusNotFound)
+	}
+	if respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
+	}
+
+	role := int(*respondentLogin.RoleId)
+	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && wilayahLevel != role {
+		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+	}
+
+	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+	if err != nil {
+		return utils.SendError(err, http.StatusBadRequest)
+	}
+	if len(rtIDs) == 0 {
+		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+	}
+
+	metricCatalog, err := s.metricRepo.List(ctx, "summary")
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// daftar survey (id DESC) untuk opsi dropdown & default
+	surveyOpts, err := s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+	latestSurveyID := int64(0)
+	if len(surveyOpts) > 0 {
+		latestSurveyID = surveyOpts[0].SurveyID
+	}
+
+	// tentukan survey yang jadi bar (terbaru fixed + pilihan / default 2 terbaru)
+	requestedSurveyIDs := utils.ParseInt64SliceQueryParam(param.Get("survey_ids"))
+	var selectedSurveyIDs []int64
+	seen := make(map[int64]bool)
+	addSurvey := func(id int64) {
+		if id != 0 && !seen[id] {
+			selectedSurveyIDs = append(selectedSurveyIDs, id)
+			seen[id] = true
+		}
+	}
+	if len(requestedSurveyIDs) > 0 {
+		addSurvey(latestSurveyID)
+		for _, id := range requestedSurveyIDs {
+			addSurvey(id)
+		}
+	} else {
+		for i := 0; i < len(surveyOpts) && i < 2; i++ {
+			addSurvey(surveyOpts[i].SurveyID)
+		}
+	}
+
+	surveyNames, err := s.summaryRepo.GetSurveyNamesByIDs(ctx, selectedSurveyIDs)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// data per survey -> rt -> metric
+	perSurvey, err := s.summaryRepo.GetMetricSumsByCategoryPerSurvey(ctx, rtIDs, selectedSurveyIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// series (urutan = selectedSurveyIDs)
+	series := make([]response.SummaryCompareSeries, 0, len(selectedSurveyIDs))
+	for _, sid := range selectedSurveyIDs {
+		series = append(series, response.SummaryCompareSeries{
+			SurveyID:   sid,
+			SurveyName: surveyNames[sid],
+			IsLatest:   sid == latestSurveyID,
+		})
+	}
+
+	// items (per metrik), nilai tiap survey selaras urutan series
+	items := make([]response.SummaryCompareItem, 0, len(metricCatalog))
+	for _, mc := range metricCatalog {
+		values := make([]response.SummaryCompareMetricValue, 0, len(selectedSurveyIDs))
+		for _, sid := range selectedSurveyIDs {
+			var sum int64
+			if byRT := perSurvey[sid]; byRT != nil {
+				for _, rtID := range rtIDs {
+					if m := byRT[rtID]; m != nil {
+						sum += m[mc.MetricKey]
+					}
+				}
+			}
+			values = append(values, response.SummaryCompareMetricValue{
+				SurveyID: sid,
+				Value:    sum, // default 0
+			})
+		}
+		items = append(items, response.SummaryCompareItem{
+			MetricKey: mc.MetricKey,
+			Label:     mc.Label,
+			Values:    values,
+		})
+	}
+
+	resp := response.DashboardSummaryCompareResponse{
+		WilayahLevel: filter.WilayahLevel,
+		WilayahInfo:  wilayahInfo,
+		WilayahCount: wilayahCount,
+		DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+		Series:       series,
+		Items:        items,
+	}
+
+	return utils.SendData(resp, "Berhasil mengambil data perbandingan survei")
 }
