@@ -88,7 +88,7 @@ func (r *templateImportRepo) GetRwsForTemplate(ctx context.Context) ([]TemplateR
 		Table("data__rws").
 		Select("id, nama_rw AS name, kelurahan_id").
 		Where("deleted_at IS NULL").
-		Order("kelurahan_id ASC, nama_rw ASC").
+		Order("CAST(nama_rw AS INTEGER) ASC").
 		Scan(&rows).Error
 	return rows, err
 }
@@ -99,7 +99,7 @@ func (r *templateImportRepo) GetRtsForTemplate(ctx context.Context) ([]TemplateR
 		Table("data__rts").
 		Select("id, nama_rt AS name, rw_id").
 		Where("deleted_at IS NULL").
-		Order("rw_id ASC, nama_rt ASC").
+		Order("CAST(nama_rt AS INTEGER) ASC").
 		Scan(&rows).Error
 	return rows, err
 }
