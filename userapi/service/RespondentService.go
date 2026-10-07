@@ -49,6 +49,7 @@ type RespondentService interface {
 
 	RespondentOptions(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GeneratePassword(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+	ImportRespondentV2(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type respondentService struct {
@@ -56,6 +57,7 @@ type respondentService struct {
 	usersRepo          repository.UsersRepo
 	loginAttemptRepo   repository.LoginAttemptRepository
 	templateImportRepo repository.TemplateImportRepo
+	importRepo         repository.RespondentImportRepo
 }
 
 func NewRespondentService(
@@ -63,6 +65,7 @@ func NewRespondentService(
 	usersRepo repository.UsersRepo,
 	loginAttemptRepo repository.LoginAttemptRepository,
 	templateImportRepo repository.TemplateImportRepo,
+	importRepo repository.RespondentImportRepo,
 
 ) RespondentService {
 	return &respondentService{
@@ -70,6 +73,7 @@ func NewRespondentService(
 		usersRepo,
 		loginAttemptRepo,
 		templateImportRepo,
+		importRepo,
 	}
 }
 
@@ -910,7 +914,6 @@ func (service *respondentService) GeneratePassword(ctx context.Context, req map[
 func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.ProxyResponse, error) {
 	defer utils.GeneralRecover()
 
-	// --- ambil master data ---
 	roles, err := service.templateImportRepo.GetRolesForTemplate(ctx)
 	if err != nil {
 		return utils.SendError(errors.New("Gagal memuat data role"), http.StatusInternalServerError)
@@ -934,17 +937,16 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 
 	const (
 		sheetInput  = "Data Responden"
-		sheetMaster = "MASTER" // hidden, sumber dropdown
+		sheetMaster = "MASTER"
 		sheetRefRW  = "Daftar RW"
 		sheetRefRT  = "Daftar RT"
-		dataRowFrom = 3   // baris pertama input user
-		dataRowTo   = 500 // batas baris yang diberi validasi dropdown
+		dataRowFrom = 3
+		dataRowTo   = 500
 	)
 
 	f := excelize.NewFile()
 	defer f.Close()
 
-	// Sheet1 -> jadi sheet input. Lalu buat 3 sheet tambahan.
 	if err := f.SetSheetName("Sheet1", sheetInput); err != nil {
 		return utils.SendError(errors.New("Gagal menyiapkan sheet input"), http.StatusInternalServerError)
 	}
@@ -958,7 +960,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		return utils.SendError(errors.New("Gagal menyiapkan sheet referensi RT"), http.StatusInternalServerError)
 	}
 
-	// ============ STYLES ============
 	styleHeader, _ := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
 		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#15406a"}, Pattern: 1},
@@ -974,7 +975,7 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 	})
 	styleRefHeader, _ := f.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#2e7d32"}, Pattern: 1},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#15406a"}, Pattern: 1},
 		Border:    []excelize.Border{{Type: "left", Color: "000000", Style: 1}, {Type: "top", Color: "000000", Style: 1}, {Type: "bottom", Color: "000000", Style: 1}, {Type: "right", Color: "000000", Style: 1}},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 	})
@@ -999,10 +1000,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		rwNameByID[rw.ID] = rw.Name
 	}
 
-	// ============ SHEET MASTER (hidden) — sumber dropdown ============
-	// helper: bangun referensi range absolut 1 kolom; kembalikan ("", false)
-	// kalau list kosong agar TIDAK membuat data-validation dengan range invalid
-	// (mis. $A$2:$A$1) yang bikin file corrupt.
 	buildColRef := func(col string, count int) (string, bool) {
 		if count <= 0 {
 			return "", false
@@ -1010,7 +1007,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		return fmt.Sprintf("'%s'!$%s$2:$%s$%d", sheetMaster, col, col, count+1), true
 	}
 
-	// Role (kolom A) -> dropdown nama role saja
 	f.SetCellValue(sheetMaster, "A1", "ROLE")
 	f.SetCellStyle(sheetMaster, "A1", "A1", styleMasterHeader)
 	for i, role := range roles {
@@ -1018,7 +1014,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 	}
 	roleRef, hasRole := buildColRef("A", len(roles))
 
-	// Kecamatan (kolom C) -> "ID - Nama"
 	f.SetCellValue(sheetMaster, "C1", "KECAMATAN")
 	f.SetCellStyle(sheetMaster, "C1", "C1", styleMasterHeader)
 	for i, kec := range kecamatans {
@@ -1026,8 +1021,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 	}
 	kecRef, hasKec := buildColRef("C", len(kecamatans))
 
-	// Kelurahan (kolom D) -> LIST PENUH "ID - Nama"
-	// (bukan cascading; validasi kecamatan<->kelurahan di importer backend)
 	f.SetCellValue(sheetMaster, "D1", "KELURAHAN")
 	f.SetCellStyle(sheetMaster, "D1", "D1", styleMasterHeader)
 	for i, kel := range kelurahans {
@@ -1037,7 +1030,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 
 	_ = f.SetSheetVisible(sheetMaster, false)
 
-	// ============ SHEET "Daftar RW" (terlihat, berfilter) ============
 	rwHeaders := []string{"NAMA RW", "KELURAHAN", "KECAMATAN", "(ID RW - internal)"}
 	for i, hname := range rwHeaders {
 		colName, _ := excelize.ColumnNumberToName(i + 1)
@@ -1047,7 +1039,7 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 	for i, rw := range rws {
 		row := i + 2
 		kel := kelInfoByID[rw.KelurahanID]
-		f.SetCellValue(sheetRefRW, fmt.Sprintf("A%d", row), rw.Name) // nama (angka)
+		f.SetCellValue(sheetRefRW, fmt.Sprintf("A%d", row), rw.Name)
 		f.SetCellValue(sheetRefRW, fmt.Sprintf("B%d", row), kel.Name)
 		f.SetCellValue(sheetRefRW, fmt.Sprintf("C%d", row), kecNameByID[kel.KecamatanID])
 		f.SetCellValue(sheetRefRW, fmt.Sprintf("D%d", row), rw.ID)
@@ -1057,7 +1049,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		_ = f.AutoFilter(sheetRefRW, fmt.Sprintf("A1:D%d", len(rws)+1), []excelize.AutoFilterOptions{})
 	}
 
-	// ============ SHEET "Daftar RT" (terlihat, berfilter) ============
 	rtHeaders := []string{"NAMA RT", "RW", "KELURAHAN", "(ID RT - internal)"}
 	for i, hname := range rtHeaders {
 		colName, _ := excelize.ColumnNumberToName(i + 1)
@@ -1067,7 +1058,7 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 	for i, rt := range rts {
 		row := i + 2
 		kelID := kelIDByRwID[rt.RwID]
-		f.SetCellValue(sheetRefRT, fmt.Sprintf("A%d", row), rt.Name) // nama (angka)
+		f.SetCellValue(sheetRefRT, fmt.Sprintf("A%d", row), rt.Name)
 		f.SetCellValue(sheetRefRT, fmt.Sprintf("B%d", row), rwNameByID[rt.RwID])
 		f.SetCellValue(sheetRefRT, fmt.Sprintf("C%d", row), kelInfoByID[kelID].Name)
 		f.SetCellValue(sheetRefRT, fmt.Sprintf("D%d", row), rt.ID)
@@ -1077,9 +1068,8 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		_ = f.AutoFilter(sheetRefRT, fmt.Sprintf("A1:D%d", len(rts)+1), []excelize.AutoFilterOptions{})
 	}
 
-	// ============ SHEET INPUT ============
 	headers := []string{
-		"NIK", "NAMA RESPONDEN", "TEMPAT LAHIR", "TANGGAL LAHIR (YYYY-MM-DD)",
+		"NIK", "NAMA RESPONDEN", "TEMPAT LAHIR", "TANGGAL LAHIR",
 		"NOMOR TELEPON", "EMAIL", "ALAMAT LENGKAP", "ROLE",
 		"KECAMATAN", "KELURAHAN", "RW", "RT",
 	}
@@ -1099,17 +1089,16 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		f.SetColWidth(sheetInput, colName, colName, 22)
 	}
 
-	// Kolom teks agar nilai tidak dikonversi Excel:
-	//  D = TANGGAL LAHIR ("2026-01-31")
-	//  K = RW (angka, "05" jangan jadi "5")
-	//  L = RT (angka)
 	styleText, _ := f.NewStyle(&excelize.Style{NumFmt: 49}) // 49 = @ (Text)
-	f.SetColStyle(sheetInput, "D", styleText)
-	f.SetColStyle(sheetInput, "K", styleText)
-	f.SetColStyle(sheetInput, "L", styleText)
+	for _, col := range []string{"A", "E", "K", "L"} {
+		rng := fmt.Sprintf("%s%d:%s%d", col, dataRowFrom, col, dataRowTo)
+		_ = f.SetCellStyle(sheetInput, rng, rng, styleText)
+	}
 
-	// addListValidation: SATU data-validation (dropdown) per kolom.
-	// SetSqrefDropList TIDAK return error & hanya terima reference range.
+	styleDateText, _ := f.NewStyle(&excelize.Style{NumFmt: 49})
+	dateRng := fmt.Sprintf("D%d:D%d", dataRowFrom, dataRowTo)
+	_ = f.SetCellStyle(sheetInput, dateRng, dateRng, styleDateText)
+
 	addListValidation := func(col, source string) error {
 		dv := excelize.NewDataValidation(true)
 		dv.Sqref = fmt.Sprintf("%s%d:%s%d", col, dataRowFrom, col, dataRowTo)
@@ -1133,7 +1122,6 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 		}
 	}
 
-	// pastikan sheet input yang aktif saat dibuka
 	if idx, errIdx := f.GetSheetIndex(sheetInput); errIdx == nil {
 		f.SetActiveSheet(idx)
 	}
@@ -1145,4 +1133,376 @@ func (service *respondentService) GetExampleImport(ctx context.Context) (*pb.Pro
 
 	mimeType := "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 	return utils.SetResponseData(buffer.Bytes(), true, "Data File,"+mimeType, http.StatusOK, nil, ""), nil
+}
+
+func (s *respondentService) ImportRespondentV2(usr models.JwtCustomClaims, req map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	var file, fileExtension string
+	if req["file"] != nil {
+		file = req["file"].(string)
+	} else {
+		return utils.SendError(fmt.Errorf("File Tidak Boleh Kosong"), http.StatusBadRequest)
+	}
+	if req["file_extension"] != nil {
+		fileExtension = req["file_extension"].(string)
+	}
+	if fileExtension != "xlsx" && fileExtension != ".xlsx" {
+		return utils.SendError(fmt.Errorf("Format File Tidak Valid, gunakan .xlsx"), http.StatusBadRequest)
+	}
+
+	rows, err := s.readRowsFromTemplate(file)
+	if err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+	if len(rows) == 0 {
+		return utils.SendError(fmt.Errorf("Tidak ada data untuk diimport"), http.StatusBadRequest)
+	}
+
+	tx := s.importRepo.BeginTx()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, dataResult := range rows {
+		rowNo, _ := dataResult["rowNumber"].(int)
+
+		payload := payloads.ImportRespondents{}
+		if err := utils.DynamicBind(dataResult, &payload); err != nil {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusInternalServerError)
+		}
+
+		// --- Validasi wajib ---
+		if payload.NIK == "" || payload.Name == "" || payload.Email == "" ||
+			payload.PhoneNumber == "" || payload.Role == "" {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: NIK, Nama, Email, Nomor Telepon, dan Role wajib diisi", rowNo), http.StatusBadRequest)
+		}
+
+		if !isValidNIK(payload.NIK) {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: NIK '%s' tidak valid, harus 16 digit angka. Pastikan kolom NIK di Excel berformat Teks", rowNo, payload.NIK), http.StatusBadRequest)
+		}
+
+		data := models.CreateRespondents{}
+		if err := utils.DynamicBind(payload, &data); err != nil {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusInternalServerError)
+		}
+
+		// --- Normalisasi tanggal lahir ---
+		if payload.TanggalLahir != "" {
+			normalized, err := normalizeDate(payload.TanggalLahir)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusBadRequest)
+			}
+			data.TanggalLahir = normalized // field string "YYYY-MM-DD" di models.CreateRespondents
+		}
+
+		// --- Validasi duplikasi (sama persis dengan CreateRespondent lama) ---
+		checkEmailRespondent, checkEmailUsers, err := s.usersRepo.CheckEmail(data.Email)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if checkEmailRespondent != 0 || checkEmailUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: email %s sudah digunakan", rowNo, data.Email), http.StatusBadRequest)
+		}
+
+		checkNikRespondent, checkNikUsers, err := s.usersRepo.CheckNik(data.NIK)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if checkNikRespondent != 0 || checkNikUsers != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: NIK %s sudah digunakan", rowNo, data.NIK), http.StatusBadRequest)
+		}
+
+		checkPhone, err := s.usersRepo.CheckPhoneNumber(data.PhoneNumber)
+		if err != nil {
+			tx.Rollback()
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		if checkPhone != 0 {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: nomor telepon %s sudah digunakan", rowNo, data.PhoneNumber), http.StatusBadRequest)
+		}
+
+		data.CreatedAt = utils.TimeNow()
+		data.UpdatedAt = utils.TimeNow()
+		data.BlkId = 1
+
+		// --- Resolusi wilayah ---
+		// Template menulis Kecamatan & Kelurahan dalam format "ID - Nama".
+		// Jika gagal diparse sebagai ID, fallback ke lookup by nama.
+		if payload.Kecamatan != "" {
+			kecID, err := s.resolveKecamatan(payload.Kecamatan)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusBadRequest)
+			}
+			data.Kecamatan = &kecID
+		}
+		if payload.Kelurahan != "" {
+			kecCtx := 0
+			if data.Kecamatan != nil {
+				kecCtx = *data.Kecamatan
+			}
+			kelID, err := s.resolveKelurahan(payload.Kelurahan, kecCtx)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusBadRequest)
+			}
+			data.Kelurahan = &kelID
+		}
+
+		// RW & RT di template berupa NAMA (angka), resolve ke ID berdasarkan konteks.
+		if payload.RW != "" {
+			if data.Kelurahan == nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RW diisi tetapi Kelurahan kosong", rowNo), http.StatusBadRequest)
+			}
+
+			rwId, err := strconv.ParseUint(payload.RW, 10, 64)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RW '%s' harus berupa angka", rowNo, payload.RW), http.StatusBadRequest)
+			}
+
+			rwID, err := s.importRepo.GetRwIDByIDAndKelurahan(rwId, *data.Kelurahan)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RW '%s' tidak ditemukan pada kelurahan tsb", rowNo, payload.RW), http.StatusBadRequest)
+			}
+			data.RW = &rwID
+		}
+		if payload.RT != "" {
+			if data.RW == nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RT diisi tetapi RW kosong", rowNo), http.StatusBadRequest)
+			}
+
+			rtId, err := strconv.ParseUint(payload.RT, 10, 64)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RT '%s' harus berupa angka", rowNo, payload.RT), http.StatusBadRequest)
+			}
+
+			rtID, err := s.importRepo.GetRtIDByIDAndRw(rtId, *data.RW)
+			if err != nil {
+				tx.Rollback()
+				return utils.SendError(fmt.Errorf("Baris %d: RT '%s' tidak ditemukan pada RW tsb", rowNo, payload.RT), http.StatusBadRequest)
+			}
+			data.RT = &rtID
+		}
+
+		// --- Tentukan role dari wilayah terendah yang terisi ---
+		data.RoleID = resolveRole(payload.Role, data.RT, data.RW, data.Kelurahan, data.Kecamatan)
+
+		if err := s.importRepo.StoreRespondentWithUser(tx, data); err != nil {
+			tx.Rollback()
+			return utils.SendError(fmt.Errorf("Baris %d: %w", rowNo, err), http.StatusInternalServerError)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	if err := utils.SaveLogActivities("User", "respondent", "POST", int(usr.ID), string(usr.Name), "-", "Melakukan Import Data Responden (V2)"); err != nil {
+		return utils.SendError(err, http.StatusInternalServerError)
+	}
+
+	return utils.SendData(fmt.Sprintf("%d data responden berhasil diimport", len(rows)))
+}
+
+func (s *respondentService) readRowsFromTemplate(file string) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+
+	fileBytes, err := base64.StdEncoding.DecodeString(file)
+	if err != nil {
+		return result, fmt.Errorf("Gagal membaca file: %w", err)
+	}
+
+	tempFile := "temp_import_v2.xlsx"
+	if err := os.WriteFile(tempFile, fileBytes, 0644); err != nil {
+		return result, err
+	}
+	defer os.Remove(tempFile)
+
+	f, err := excelize.OpenFile(tempFile)
+	if err != nil {
+		return result, fmt.Errorf("File Excel tidak valid: %w", err)
+	}
+	defer f.Close()
+
+	sheetName := "Data Responden"
+	found := false
+	for _, sh := range f.GetSheetList() {
+		if sh == sheetName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		sheetName = f.GetSheetName(0)
+	}
+
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		return result, err
+	}
+
+	for i, row := range rows {
+		if i < 2 { // lewati header (0) & hint (1)
+			continue
+		}
+		if strings.TrimSpace(strings.Join(row, "")) == "" {
+			continue
+		}
+
+		excelRow := i + 1
+
+		// NIK (A) & TANGGAL LAHIR (D) dibaca RAW agar presisi/serial tidak hilang.
+		rawNIK, _ := f.GetCellValue(sheetName, fmt.Sprintf("A%d", excelRow), excelize.Options{RawCellValue: true})
+		rawDate, _ := f.GetCellValue(sheetName, fmt.Sprintf("D%d", excelRow), excelize.Options{RawCellValue: true})
+
+		data := map[string]interface{}{
+			"rowNumber":      excelRow,
+			"nik":            strings.TrimSpace(rawNIK),
+			"name":           strings.TrimSpace(colAt(row, 1)),
+			"place_of_birth": strings.TrimSpace(colAt(row, 2)),
+			"date_of_birth":  strings.TrimSpace(rawDate),
+			"phone_number":   strings.TrimSpace(colAt(row, 4)),
+			"email":          strings.TrimSpace(colAt(row, 5)),
+			"address":        strings.TrimSpace(colAt(row, 6)),
+			"roleString":     strings.TrimSpace(colAt(row, 7)),
+			"kecamatan":      strings.TrimSpace(colAt(row, 8)),
+			"kelurahan":      strings.TrimSpace(colAt(row, 9)),
+			"rw":             strings.TrimSpace(colAt(row, 10)),
+			"rt":             strings.TrimSpace(colAt(row, 11)),
+		}
+		result = append(result, data)
+	}
+
+	return result, nil
+}
+
+func colAt(row []string, index int) string {
+	if len(row) > index {
+		return row[index]
+	}
+	return ""
+}
+
+// resolveKecamatan menerima "ID - Nama" atau nama polos.
+func (s *respondentService) resolveKecamatan(cell string) (int, error) {
+	if id, ok := parseIDPrefix(cell); ok {
+		return id, nil
+	}
+	return s.importRepo.GetKecamatanIDByName(cell)
+}
+
+// resolveKelurahan menerima "ID - Nama" atau nama polos (opsional difilter kecamatan).
+func (s *respondentService) resolveKelurahan(cell string, kecamatanID int) (int, error) {
+	if id, ok := parseIDPrefix(cell); ok {
+		return id, nil
+	}
+	return s.importRepo.GetKelurahanIDByName(cell, kecamatanID)
+}
+
+// parseIDPrefix mengambil ID dari "ID - Nama" (mis. "12 - Coblong"),
+// atau dari sel yang isinya murni angka.
+func parseIDPrefix(cell string) (int, bool) {
+	cell = strings.TrimSpace(cell)
+	if cell == "" {
+		return 0, false
+	}
+	part := cell
+	if idx := strings.Index(cell, "-"); idx != -1 {
+		part = strings.TrimSpace(cell[:idx])
+	}
+	id, err := strconv.Atoi(part)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
+}
+
+// resolveRole: utamakan wilayah terendah yang terisi (konsisten dgn CreateRespondent),
+// fallback ke nama role dari dropdown.
+func resolveRole(roleName string, rt, rw, kelurahan, kecamatan *int) int {
+	switch {
+	case rt != nil:
+		return 2 // RT
+	case rw != nil:
+		return 3 // RW
+	case kelurahan != nil:
+		return 4 // Lurah
+	case kecamatan != nil:
+		return 5 // Camat
+	}
+	switch strings.ToLower(strings.TrimSpace(roleName)) {
+	case "rt":
+		return 2
+	case "rw":
+		return 3
+	case "lurah", "kelurahan":
+		return 4
+	case "camat", "kecamatan":
+		return 5
+	default:
+		return 5
+	}
+}
+
+func normalizeDate(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+
+	// 1) Serial number Excel (paling andal, dari RawCellValue sel tanggal).
+	if serial, err := strconv.ParseFloat(raw, 64); err == nil {
+		if t, err := excelize.ExcelDateToTime(serial, false); err == nil {
+			return t.Format("2006-01-02"), nil
+		}
+	}
+
+	// 2) Fallback untuk sel bertipe teks.
+	layouts := []string{
+		"2006-01-02", // ISO (target)
+		"01-02-06",   // mm-dd-yy  <-- pola render internal excelize ("01-31-26")
+		"02/01/2006", // dd/mm/yyyy (locale ID)
+		"2/1/2006",
+		"02-01-2006",
+		"2-1-2006",
+	}
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.Format("2006-01-02"), nil
+		}
+	}
+
+	return "", fmt.Errorf("format tanggal '%s' tidak dikenali, gunakan YYYY-MM-DD", raw)
+}
+
+func isValidNIK(nik string) bool {
+	nik = strings.TrimSpace(nik)
+	if len(nik) != 16 {
+		return false
+	}
+	for _, c := range nik {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }

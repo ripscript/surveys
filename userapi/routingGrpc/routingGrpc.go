@@ -34,17 +34,18 @@ var (
 )
 
 var (
-	txManager          transaction.TxManager             = transaction.NewTxManager(dbMaster)
-	penggunaRepo       repository.PenggunaRepo           = repository.NewPenggunaRepo(dbSlave, dbMaster)
-	regionRepo         repository.RegionRepo             = repository.NewRegionRepo(dbSlave, dbMaster)
-	respondentRepo     repository.RespondentRepo         = repository.NewRespondentRepo(dbSlave, dbMaster)
-	usersRepo          repository.UsersRepo              = repository.NewUsersRepo(dbSlave, dbMaster)
-	usersBlokirRepo    repository.UsersBlokirRepo        = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
-	loginAttemptRepo   repository.LoginAttemptRepository = repository.NewloginAttemptRepository(dbSlave, dbMaster)
-	permissionRepo     repository.PermissionRepository   = repository.NewPermissionRepository(dbSlave, dbMaster)
-	fileRepo           repository.FileRepo               = repository.NewFileRepo(dbSlave, dbMaster)
-	wilayahRepo        repository.WilayahRepo            = repository.NewWilayahRepo(dbSlave, dbMaster)
-	templateImportRepo repository.TemplateImportRepo     = repository.NewTemplateImportRepo(dbSlave)
+	txManager            transaction.TxManager             = transaction.NewTxManager(dbMaster)
+	penggunaRepo         repository.PenggunaRepo           = repository.NewPenggunaRepo(dbSlave, dbMaster)
+	regionRepo           repository.RegionRepo             = repository.NewRegionRepo(dbSlave, dbMaster)
+	respondentRepo       repository.RespondentRepo         = repository.NewRespondentRepo(dbSlave, dbMaster)
+	usersRepo            repository.UsersRepo              = repository.NewUsersRepo(dbSlave, dbMaster)
+	usersBlokirRepo      repository.UsersBlokirRepo        = repository.NewUsersBlokirRepo(dbSlave, dbMaster)
+	loginAttemptRepo     repository.LoginAttemptRepository = repository.NewloginAttemptRepository(dbSlave, dbMaster)
+	permissionRepo       repository.PermissionRepository   = repository.NewPermissionRepository(dbSlave, dbMaster)
+	fileRepo             repository.FileRepo               = repository.NewFileRepo(dbSlave, dbMaster)
+	wilayahRepo          repository.WilayahRepo            = repository.NewWilayahRepo(dbSlave, dbMaster)
+	templateImportRepo   repository.TemplateImportRepo     = repository.NewTemplateImportRepo(dbSlave)
+	respondentImportRepo repository.RespondentImportRepo   = repository.NewRespondentImportRepo(dbSlave, dbMaster)
 )
 
 var (
@@ -63,6 +64,7 @@ var (
 		usersRepo,
 		loginAttemptRepo,
 		templateImportRepo,
+		respondentImportRepo,
 	)
 	usersService service.UsersService = service.NewUsersService(
 		usersRepo,
