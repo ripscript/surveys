@@ -1,0 +1,30 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+COPY ./go.mod ./
+COPY ./go.sum ./
+
+COPY ./sicpapi ./sicpapi
+COPY ./siccore ./siccore
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /app/sicpapi
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o main.sh
+
+FROM alpine:latest
+
+WORKDIR /app/sicpapi
+
+RUN mkdir -p /app/sicpapi/logs /app/sicpapi/errors
+
+COPY --from=builder /app/sicpapi/main.sh .
+COPY ./sicpapi/.env.prod .env
+
+ENTRYPOINT ["./main.sh"]

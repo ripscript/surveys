@@ -1,0 +1,31 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+COPY ./go.mod ./
+COPY ./go.sum ./
+
+COPY ./userapi ./userapi
+COPY ./siccore ./siccore
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /app/userapi
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o main.sh
+
+
+FROM alpine:latest
+
+WORKDIR /app/userapi
+
+RUN mkdir -p /app/userapi/logs /app/userapi/errors
+
+COPY --from=builder /app/userapi/main.sh .
+COPY ./userapi/.env .env
+
+ENTRYPOINT ["./main.sh"]
