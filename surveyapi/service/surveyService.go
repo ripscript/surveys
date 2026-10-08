@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-playground/validator/v10"
 	"github.com/speps/go-hashids/v2"
 	"github.com/xuri/excelize/v2"
@@ -2004,6 +2005,7 @@ func (service *surveyService) SubmitSurveyAnswersSeed(ctx context.Context, req m
 
 	respondentLogin, err := service.userRepo.GetRespondentById(ctx, respondentId)
 	if err != nil {
+		spew.Dump(err)
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 	}
 
