@@ -1,0 +1,31 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+COPY ./go.mod ./
+COPY ./go.sum ./
+
+COPY ./docapi ./docapi
+COPY ./siccore ./siccore
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /app/docapi
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o main.sh
+
+
+FROM alpine:latest
+
+WORKDIR /app/docapi
+
+RUN mkdir -p /app/docapi/logs /app/docapi/errors
+
+COPY --from=builder /app/docapi/main.sh .
+COPY ./docapi/.env.prod .env
+
+ENTRYPOINT ["./main.sh"]

@@ -1,0 +1,31 @@
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+COPY ./go.mod ./
+COPY ./go.sum ./
+
+COPY ./masterapi ./masterapi
+COPY ./siccore ./siccore
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+WORKDIR /app/masterapi
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o main.sh
+
+
+FROM alpine:latest
+
+WORKDIR /app/masterapi
+
+RUN mkdir -p /app/masterapi/logs /app/masterapi/errors
+
+COPY --from=builder /app/masterapi/main.sh .
+COPY ./masterapi/.env.prod .env
+
+ENTRYPOINT ["./main.sh"]
