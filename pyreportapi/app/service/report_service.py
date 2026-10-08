@@ -9,7 +9,7 @@ import jinja2
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 import numpy as np
-from scipy.interpolate import make_interp_spline
+from scipy.interpolate import make_interp_spline, PchipInterpolator
 from matplotlib.patheffects import withStroke
 from matplotlib.patches import FancyBboxPatch, Rectangle, Patch
 from matplotlib.lines import Line2D
@@ -476,16 +476,52 @@ def _add_bar_shadow(ax, bars, orientation="vertical"):
 
 
 def _smooth_curve(x_vals, y_vals):
-    """Smoothing spline halus untuk line chart, hanya jika titik cukup (>=4)."""
+    """
+    Smoothing curve untuk line chart (hanya jika titik >=4).
+    Pakai PCHIP (shape-preserving): melengkung halus TAPI tidak overshoot —
+    puncak kurva tidak pernah melebihi nilai titik tertinggi. Mencegah kurva
+    melambung liar sehingga sumbu tidak ikut meledak.
+    """
     x_vals = np.asarray(x_vals, dtype=float)
     y_vals = np.asarray(y_vals, dtype=float)
     if len(x_vals) >= 4:
         x_new = np.linspace(x_vals.min(), x_vals.max(), 300)
-        spline = make_interp_spline(x_vals, y_vals, k=3)
-        y_new = np.clip(spline(x_new), 0, None)
+        interp = PchipInterpolator(x_vals, y_vals)
+        y_new = np.clip(interp(x_new), 0, None)
         return x_new, y_new
     return x_vals, y_vals
 
+def _nice_axis_limit(data_max: float, series_peak: float = None) -> float:
+    """
+    Hitung batas atas sumbu yang 'enak dilihat' untuk bar & line chart.
+
+    - Proporsional terhadap nilai data (bukan floor absolut), jadi data kecil
+      (mis. 74) tetap mengisi grafik, data besar (mis. 888) tetap muat.
+    - `series_peak` dipakai untuk line chart: puncak kurva spline bisa
+      overshoot di atas nilai data asli, jadi limit harus >= puncak itu
+      supaya lambungan line tidak terpotong.
+    - Hasil akhir dibulatkan ke atas ke angka 'cantik' (1/2/5 x 10^n)
+      supaya gridline & tick rapi.
+    """
+    # dasar perhitungan: ambil yang paling tinggi antara max data & puncak overshoot
+    peak = max(data_max, series_peak or 0)
+
+    # kasus semua nol / data kosong -> kasih skala minimal biar sumbu tidak 0..0
+    if peak <= 0:
+        return 10.0
+
+    # beri ruang di atas puncak: 15% headroom proporsional
+    target = peak * 1.15
+
+    # bulatkan ke atas ke angka cantik: 1, 2, 5 dikali kelipatan 10
+    import math
+    exp = math.floor(math.log10(target))
+    base = 10 ** exp
+    for mult in (1, 2, 2.5, 5, 10):
+        nice = mult * base
+        if nice >= target:
+            return float(nice)
+    return float(10 * base)
 
 def _render_pie(sizes, labels):
     """Pie chart dengan styling konsisten dengan bar/line: edge putih,
@@ -729,18 +765,42 @@ async def build_chart_image_from_component(session, report_orm, comp_dict) -> di
                             path_effects=[withStroke(linewidth=2.5, foreground="white")],
                         )
 
+        import math as _math
+        from matplotlib.ticker import MultipleLocator
+
         max_val = max(all_values) if all_values else 0
-        headroom = max(max_val * 0.12, 120)
+
+        def _nice_num(value, round_up=True):
+            """Bulatkan `value` ke angka 'cantik' (1/2/2.5/5/10 x 10^n)."""
+            if value <= 0:
+                return 0.0
+            exp = _math.floor(_math.log10(value))
+            frac = value / (10 ** exp)        # 1 <= frac < 10
+            if round_up:
+                nice = next((n for n in (1, 2, 2.5, 5, 10) if n >= frac), 10)
+            else:
+                nice = next((n for n in (10, 5, 2.5, 2, 1) if n <= frac), 1)
+            return nice * (10 ** exp)
+
+        if max_val <= 0:
+            axis_limit, step = 10.0, 2.0
+        else:
+            # ~5 tick: tentukan step cantik dulu, lalu limit = kelipatan step di atas data+headroom
+            target = max_val * 1.12                      # headroom 12%
+            step = _nice_num(target / 5, round_up=True)  # jarak antar gridline yang rapi
+            axis_limit = _math.ceil(target / step) * step
 
         tick_positions = list(range(n_territories))
         if chart_direction == "horizontal":
-            ax.set_xlim(0, max_val + headroom)
+            ax.set_xlim(0, axis_limit)
+            ax.xaxis.set_major_locator(MultipleLocator(step))
             ax.set_yticks(tick_positions)
             ax.set_yticklabels(territories, fontsize=9)
             ax.invert_yaxis()
             ax.grid(axis="x", linestyle="--", alpha=0.4)
         else:
-            ax.set_ylim(0, max_val + headroom)
+            ax.set_ylim(0, axis_limit)
+            ax.yaxis.set_major_locator(MultipleLocator(step))
             ax.set_xticks(tick_positions)
             ax.set_xticklabels(territories, rotation=30, ha="right", fontsize=9)
             ax.grid(axis="y", linestyle="--", alpha=0.4)

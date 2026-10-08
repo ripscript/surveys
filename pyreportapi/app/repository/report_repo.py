@@ -96,6 +96,13 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
     else:
         return []
 
+    order_expr = (
+        f"(m.{name_col} ~ '^[0-9]+$') DESC, "
+        f"CASE WHEN m.{name_col} ~ '^[0-9]+$' "
+        f"THEN CAST(m.{name_col} AS INTEGER) END ASC, "
+        f"m.{name_col} ASC"
+    )
+
     filter_extra_sql = ""
     if filter_ids:
         params["filter_ids"] = tuple(filter_ids)
@@ -115,9 +122,10 @@ async def get_table_response_data(session: AsyncSession, report: Report, field_i
             AND fr.deleted_at IS NULL
         WHERE m.deleted_at IS NULL {filter_extra_sql}
         GROUP BY m.{name_col}, fr.form_field_id
-        ORDER BY m.{name_col} ASC
+        ORDER BY {order_expr}
     """
-    stmt_master = text(f"SELECT {name_col} FROM {join_table} m WHERE m.deleted_at IS NULL {filter_extra_sql} ORDER BY {name_col} ASC")
+    stmt_master = text(f"SELECT {name_col} FROM {join_table} m WHERE m.deleted_at IS NULL {filter_extra_sql} ORDER BY {order_expr}")
+
     res_master = await session.execute(stmt_master, params)
     territory_order = [getattr(row, name_col) for row in res_master.all()]
 
@@ -314,7 +322,6 @@ async def get_respondent_text_data(session: AsyncSession, report: Report, field_
             fr.form_field_id,
             fr.answer
         FROM survey_respondents sr
-        JOIN surveys s ON s.id = sr.survey_id AND s.status = 'finished'
         JOIN respondents r ON r.id = sr.respondent_id AND r.deleted_at IS NULL
         LEFT JOIN kecamatans k ON k.id = r.kecamatan_id AND k.deleted_at IS NULL
         LEFT JOIN kelurahans kel ON kel.id = r.kelurahan_id AND kel.deleted_at IS NULL
@@ -375,7 +382,6 @@ async def get_maps_response_data(session: AsyncSession, report: Report, field_id
         SELECT fr.answer
         FROM field_responses fr
         JOIN survey_respondents sr ON sr.id = fr.form_response_id {filter_survey_sql}
-        JOIN surveys s ON s.id = sr.survey_id AND s.status = 'finished'
         JOIN respondents r ON r.id = sr.respondent_id AND r.deleted_at IS NULL
         WHERE fr.form_field_id = :field_id
           AND fr.deleted_at IS NULL

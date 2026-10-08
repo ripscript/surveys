@@ -975,66 +975,92 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 	}
 
 	if respondentLogin.RoleId != nil {
-		if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
-			var kecId, kelId, rwId int64
-			if respondentLogin.KecamatanId != nil {
-				kecId = *respondentLogin.KecamatanId
-			}
-			if respondentLogin.KelurahanId != nil {
-				kelId = *respondentLogin.KelurahanId
-			}
-			if respondentLogin.RWId != nil {
-				rwId = *respondentLogin.RWId
-			}
+		role := enums.RoleID(*respondentLogin.RoleId)
 
-			// Menggunakan pendekatan Strict Top-Down Hierarchy
-			if rwId != 0 {
-				// 1. Login sebagai RW / RT
-				// BISA lihat: Survei yang ditargetkan KHUSUS untuk RW ini saja.
-				// TIDAK BISA lihat: Survei Kelurahan (karena rw_id di DB NULL) atau Survei Kecamatan.
-				db = db.Where(`
+		var kecId, kelId, rwId int64
+		if respondentLogin.KecamatanId != nil {
+			kecId = *respondentLogin.KecamatanId
+		}
+		if respondentLogin.KelurahanId != nil {
+			kelId = *respondentLogin.KelurahanId
+		}
+		if respondentLogin.RWId != nil {
+			rwId = *respondentLogin.RWId
+		}
+
+		// ATURAN AKSES SURVEY KEWILAYAHAN
+		//
+		// - ADMIN / PEMERINTAH KOTA / WALIKOTA (level kota): lihat SEMUA survey,
+		//   tanpa filter survey_wilayahs.
+		//
+		// - CAMAT s/d RT (level ber-scope wilayah): sebuah survey tampil jika
+		//   (a) survey TIDAK punya baris survey_wilayahs sama sekali
+		//       -> survey "untuk semua responden", tampil ke semua role; ATAU
+		//   (b) survey PUNYA baris survey_wilayahs yang COCOK dengan wilayah user.
+		//
+		//   Pencocokan bersifat NULL-SAFE / hierarkis:
+		//   di survey_wilayahs hanya `kecamatan_id` yang NOT NULL, sedangkan
+		//   `kelurahan_id` & `rw_id` BOLEH NULL (artinya "berlaku untuk semua
+		//   di bawahnya"). Jadi tiap kolom dicocokkan dengan pola:
+		//       (sw.kolom IS NULL OR sw.kolom = :id_user)
+		//   Dengan begitu survey level kecamatan (kelurahan_id & rw_id NULL)
+		//   tetap tampil ke lurah/RW/RT di bawahnya, dan survey level kelurahan
+		//   (rw_id NULL) tetap tampil ke semua RW/RT di kelurahan itu.
+		//   Ini juga membuat hasil RW == RT bila wilayahnya sama (bug "RT lebih
+		//   banyak dari RW" hilang).
+
+		switch role {
+		case enums.ROLE_ADMIN, enums.ROLE_PEMERINTAH_KOTA, enums.ROLE_WALIKOTA:
+			// Level kota: tanpa filter -> lihat semua survey.
+
+		case enums.ROLE_KECAMATAN:
+			db = db.Where(`
 				EXISTS (
-					SELECT 1 FROM survey_wilayahs 
-					WHERE survey_wilayahs.survey_id = surveys.id 
-					AND survey_wilayahs.kecamatan_id = ?
-					AND survey_wilayahs.kelurahan_id = ?
-					AND survey_wilayahs.rw_id = ?
-				) 
-				OR NOT EXISTS (
-					SELECT 1 FROM survey_wilayahs 
+					SELECT 1 FROM survey_wilayahs
 					WHERE survey_wilayahs.survey_id = surveys.id
-				)`, kecId, kelId, rwId)
-
-			} else if kelId != 0 {
-				// 2. Login sebagai Kelurahan
-				// BISA lihat: Survei KHUSUS Kelurahan ini, DAN Survei untuk seluruh RW di bawahnya (karena rw_id tidak di-filter).
-				// TIDAK BISA lihat: Survei Kecamatan (karena kelurahan_id di DB NULL).
-				db = db.Where(`
-				EXISTS (
-					SELECT 1 FROM survey_wilayahs 
-					WHERE survey_wilayahs.survey_id = surveys.id 
 					AND survey_wilayahs.kecamatan_id = ?
-					AND survey_wilayahs.kelurahan_id = ?
-				) 
+				)
 				OR NOT EXISTS (
-					SELECT 1 FROM survey_wilayahs 
+					SELECT 1 FROM survey_wilayahs
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`, kecId)
+
+		case enums.ROLE_KELURAHAN:
+			db = db.Where(`
+				EXISTS (
+					SELECT 1 FROM survey_wilayahs
+					WHERE survey_wilayahs.survey_id = surveys.id
+					AND survey_wilayahs.kecamatan_id = ?
+					AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+				)
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs
 					WHERE survey_wilayahs.survey_id = surveys.id
 				)`, kecId, kelId)
 
-			} else if kecId != 0 {
-				// 3. Login sebagai Kecamatan
-				// BISA lihat: Survei KHUSUS Kecamatan ini, DAN Survei Kelurahan/RW di bawahnya.
-				db = db.Where(`
+		case enums.ROLE_RW, enums.ROLE_RT:
+			// RT tidak punya kolom sendiri di survey_wilayahs (hanya sampai rw_id),
+			// jadi RT & RW dibatasi pada rw_id wilayahnya dengan aturan yang sama.
+			db = db.Where(`
 				EXISTS (
-					SELECT 1 FROM survey_wilayahs 
-					WHERE survey_wilayahs.survey_id = surveys.id 
-					AND survey_wilayahs.kecamatan_id = ?
-				) 
-				OR NOT EXISTS (
-					SELECT 1 FROM survey_wilayahs 
+					SELECT 1 FROM survey_wilayahs
 					WHERE survey_wilayahs.survey_id = surveys.id
-				)`, kecId)
-			}
+					AND survey_wilayahs.kecamatan_id = ?
+					AND (survey_wilayahs.kelurahan_id IS NULL OR survey_wilayahs.kelurahan_id = ?)
+					AND (survey_wilayahs.rw_id IS NULL OR survey_wilayahs.rw_id = ?)
+				)
+				OR NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`, kecId, kelId, rwId)
+
+		default:
+			// Role lain (mis. surveyor): hanya survey "untuk semua responden".
+			db = db.Where(`
+				NOT EXISTS (
+					SELECT 1 FROM survey_wilayahs
+					WHERE survey_wilayahs.survey_id = surveys.id
+				)`)
 		}
 	}
 

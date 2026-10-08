@@ -3016,7 +3016,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 		case 0:
 			return utils.SendError(errors.New("Tipe wilayah harus diisi"), http.StatusBadRequest)
 		case 5:
-			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -3072,7 +3072,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 4:
-			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -3139,7 +3139,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 3:
-			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -3206,7 +3206,7 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 				}
 			}
 		case 2:
-			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+			if *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) {
 				return utils.SendError(errors.New("Anda tidak memiliki hak akses"), http.StatusUnauthorized)
 			}
 
@@ -3354,7 +3354,7 @@ func (service *surveyService) SurveyResultIndex(ctx context.Context, req map[str
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
 	}
 
-	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk melihat hasil survey ini"), http.StatusUnauthorized)
 	}
 
@@ -3528,7 +3528,7 @@ func (service *surveyService) SurveyResultSectionDetail(ctx context.Context, req
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk mengikuti survey ini"), http.StatusUnauthorized)
 	}
 
-	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) {
+	if *respondentLogin.RoleId != int64(enums.ROLE_ADMIN) && *respondentLogin.RoleId != int64(enums.ROLE_WALIKOTA) && *respondentLogin.RoleId != int64(enums.ROLE_KECAMATAN) && *respondentLogin.RoleId != int64(enums.ROLE_KELURAHAN) && *respondentLogin.RoleId != int64(enums.ROLE_RW) && *respondentLogin.RoleId != int64(enums.ROLE_SURVEYOR) {
 		return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk melihat hasil survey ini"), http.StatusUnauthorized)
 	}
 
