@@ -355,6 +355,12 @@ var grpcMap = map[string]map[string]RouteConfig{
 			MenuKey: "dashboard-utama",
 		},
 	},
+	"/dashboard/top-wilayah-survey": {
+		"GET": {
+			Handler: dashboardHandler.GetTopWilayahSurvei,
+			MenuKey: "dashboard-utama",
+		},
+	},
 	// END:DASHBOARD ==================================
 
 }

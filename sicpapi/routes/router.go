@@ -449,6 +449,7 @@ func SetupRoutes(e *echo.Echo) {
 	dashboardGroup := e.Group("/dashboard")
 	dashboardGroup.GET("/summary", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/summary-compare", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
+	dashboardGroup.GET("/top-wilayah-survey", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/sarana-pengelolaan-sampah", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/card-infrastruktur", func(c echo.Context) error { return HandleFunc(c, reportapiService) })
 	dashboardGroup.GET("/card-penerangan-jalan", func(c echo.Context) error { return HandleFunc(c, reportapiService) })

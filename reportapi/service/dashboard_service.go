@@ -33,6 +33,8 @@ type DashboardService interface {
 	GetTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 
 	GetSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetTopWilayahSurvei(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardService struct {
@@ -69,6 +71,87 @@ func intersectAndValidate(requested []int64, allowed []int64, errMsg string) ([]
 		result = append(result, id)
 	}
 	return result, nil
+}
+
+func (s *dashboardService) filterSurveyorRTIDsByWilayah(ctx context.Context, surveyRTIDs []int64, filter payloads.DashboardFilter) ([]int64, error) {
+	// Tentukan himpunan RT yang diizinkan dari filter wilayah paling spesifik yang dikirim.
+	var allowedRT []int64
+
+	switch {
+	case len(filter.RTIds) > 0:
+		allowedRT = filter.RTIds
+
+	case len(filter.RWIds) > 0:
+		rts, err := s.wilayahRepo.GetRTIDsByRWIDs(ctx, filter.RWIds)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		allowedRT = rts
+
+	case len(filter.KelurahanIds) > 0:
+		rwIDs, err := s.wilayahRepo.GetRWIDsByKelurahanIDs(ctx, filter.KelurahanIds)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		rts, err := s.wilayahRepo.GetRTIDsByRWIDs(ctx, rwIDs)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		allowedRT = rts
+
+	case len(filter.KecamatanIds) > 0:
+		kelIDs, err := s.wilayahRepo.GetKelurahanIDsByKecamatanIDs(ctx, filter.KecamatanIds)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		rwIDs, err := s.wilayahRepo.GetRWIDsByKelurahanIDs(ctx, kelIDs)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		rts, err := s.wilayahRepo.GetRTIDsByRWIDs(ctx, rwIDs)
+		if err != nil {
+			return nil, errors.New("Terjadi kesalahan pada server")
+		}
+		allowedRT = rts
+
+	default:
+		// Tidak ada filter wilayah -> pertahankan seluruh RT milik surveyor.
+		return surveyRTIDs, nil
+	}
+
+	// Interseksi: hanya RT surveyor yang juga ada di himpunan allowedRT.
+	allowedSet := make(map[int64]bool, len(allowedRT))
+	for _, id := range allowedRT {
+		allowedSet[id] = true
+	}
+	result := make([]int64, 0, len(surveyRTIDs))
+	for _, id := range surveyRTIDs {
+		if allowedSet[id] {
+			result = append(result, id)
+		}
+	}
+	return result, nil
+}
+
+func (s *dashboardService) resolveSurveyorSurveyIDs(ctx context.Context, respondentID int64, param url.Values) ([]int64, error) {
+	assigned, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, respondentID)
+	if err != nil {
+		return nil, errors.New("Terjadi kesalahan pada server")
+	}
+	if len(assigned) == 0 {
+		return nil, errors.New("Anda belum ditugaskan pada survey apa pun")
+	}
+
+	requested := utils.ParseInt64SliceQueryParam(param.Get("survey_ids"))
+	if len(requested) == 0 {
+		return assigned, nil
+	}
+
+	selected, err := intersectAndValidate(requested, assigned, "survey_ids yang diminta tidak termasuk dalam survey yang ditugaskan kepada Anda")
+	if err != nil {
+		return nil, err
+	}
+	return selected, nil
 }
 
 func (s *dashboardService) resolveFilteredWilayah(ctx context.Context, filter payloads.DashboardFilter, respondentLogin *models.RespondentModel_1) ([]int64, *response.WilayahCount, response.WilayahInfo, error) {
@@ -365,10 +448,6 @@ func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interf
 	periodStartRaw := param.Get("period_start")
 	periodEndRaw := param.Get("period_end")
 
-	// Default: kalau period tidak dikirim, pakai bulan berjalan (1 tanggal
-	// awal bulan s/d hari ini). Sengaja di-default, BUKAN dibiarkan
-	// zero-value, karena zero-value start > end bikin query
-	// GetLatestMetricsByCategory selalu kosong tanpa error apapun.
 	now := time.Now()
 	periodeStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	periodeEnd := now
@@ -423,20 +502,51 @@ func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interf
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
 
-	// ADMIN/WALIKOTA boleh query wilayah_level manapun — sesuai desain RBAC
-	// yang sudah disepakati. Role lain (RT/RW/Kelurahan/Kecamatan) hanya
-	// boleh query level yang sesuai dengan role mereka sendiri; ownership
-	// terhadap wilayah_id spesifik divalidasi di resolveFilteredWilayah.
 	role := int(*respondentLogin.RoleId)
-	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && wilayahLevel != role {
+	// SURVEYOR tidak terikat hierarki wilayah; cakupan datanya ditentukan oleh
+	// survey yang di-assign ke dirinya (lihat blok khusus surveyor di bawah).
+	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && role != int(enums.ROLE_SURVEYOR) && wilayahLevel != role {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 	}
 
-	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	var (
+		rtIDs        []int64
+		wilayahCount *response.WilayahCount
+		wilayahInfo  response.WilayahInfo
+		surveyIDs    []int64 // hanya diisi untuk SURVEYOR
+	)
+
+	if role == int(enums.ROLE_SURVEYOR) {
+		// SURVEYOR: cakupan ditentukan oleh survey yang di-assign ke dirinya,
+		// bukan hierarki wilayah. Ambil survey miliknya, lalu RT yang relevan.
+		surveyIDs, err = s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		// Persempit RT surveyor berdasarkan filter wilayah yang dikirim.
+		rtIDs, err = s.filterSurveyorRTIDsByWilayah(ctx, rtIDs, filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		totalRT := len(rtIDs)
+		wilayahCount = &response.WilayahCount{TotalRT: &totalRT}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+	} else {
+		rtIDs, wilayahCount, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
 	}
-	if len(rtIDs) == 0 {
+
+	if len(rtIDs) == 0 && role != int(enums.ROLE_SURVEYOR) {
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
@@ -445,16 +555,29 @@ func (s *dashboardService) GetSummary(ctx context.Context, req map[string]interf
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
 
-	currentByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
-	}
-
 	prevStart := filter.PeriodStart.AddDate(-1, 0, 0)
 	prevEnd := filter.PeriodEnd.AddDate(-1, 0, 0)
-	prevByRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", prevStart, prevEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+
+	var currentByRT, prevByRT map[int64]map[string]int64
+	if role == int(enums.ROLE_SURVEYOR) {
+		// Metrik dibatasi HANYA pada survey yang di-assign ke surveyor.
+		currentByRT, err = s.summaryRepo.GetLatestMetricsByCategoryForSurveys(ctx, rtIDs, surveyIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		prevByRT, err = s.summaryRepo.GetLatestMetricsByCategoryForSurveys(ctx, rtIDs, surveyIDs, "summary", prevStart, prevEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		currentByRT, err = s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		prevByRT, err = s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "summary", prevStart, prevEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
 
 	metrics := make(map[string]response.DashboardMetricValue, len(metricCatalog))
@@ -537,15 +660,50 @@ func (s *dashboardService) GetSampah(ctx context.Context, req map[string]interfa
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
 
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
+	role := int(*respondentLogin.RoleId)
+	// SURVEYOR tidak terikat hierarki wilayah; cakupan datanya ditentukan oleh
+	// survey yang di-assign ke dirinya.
+	if role != int(enums.ROLE_SURVEYOR) && filter.WilayahLevel != role {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 	}
 
-	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	var (
+		rtIDs        []int64
+		wilayahCount *response.WilayahCount
+		wilayahInfo  response.WilayahInfo
+		surveyIDs    []int64 // hanya diisi untuk SURVEYOR
+	)
+
+	if role == int(enums.ROLE_SURVEYOR) {
+		// SURVEYOR: cakupan RT & data ditentukan oleh survey yang di-assign.
+		surveyIDs, err = s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		// Persempit RT surveyor berdasarkan filter wilayah yang dikirim.
+		rtIDs, err = s.filterSurveyorRTIDsByWilayah(ctx, rtIDs, filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		totalRT := len(rtIDs)
+		wilayahCount = &response.WilayahCount{TotalRT: &totalRT}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+	} else {
+		rtIDs, wilayahCount, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
 	}
-	if len(rtIDs) == 0 {
+
+	if len(rtIDs) == 0 && role != int(enums.ROLE_SURVEYOR) {
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
@@ -554,9 +712,18 @@ func (s *dashboardService) GetSampah(ctx context.Context, req map[string]interfa
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
 
-	byRT, err := s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	var byRT map[int64]map[string]int64
+	if role == int(enums.ROLE_SURVEYOR) {
+		// Metrik dibatasi HANYA pada survey yang di-assign ke surveyor.
+		byRT, err = s.summaryRepo.GetLatestMetricsByCategoryForSurveys(ctx, rtIDs, surveyIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		byRT, err = s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
 
 	values := make(map[string]int64, len(metricCatalog))
@@ -931,11 +1098,17 @@ func (s *dashboardService) GetTrend(ctx context.Context, req map[string]interfac
 	if respondentLogin.RoleId == nil {
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
-		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
-	}
-	if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
-		return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
+
+	role := int(*respondentLogin.RoleId)
+	// SURVEYOR tidak terikat hierarki wilayah; cakupan datanya ditentukan oleh
+	// survey yang di-assign ke dirinya, sehingga guard level wilayah dilewati.
+	if role != int(enums.ROLE_SURVEYOR) {
+		if filter.WilayahLevel != role {
+			return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+		}
+		if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
+		}
 	}
 
 	metric, err := s.metricRepo.FindByMetricKey(ctx, metricKey)
@@ -946,14 +1119,37 @@ func (s *dashboardService) GetTrend(ctx context.Context, req map[string]interfac
 		return utils.SendError(errors.New("metric_key tidak dikenali"), http.StatusBadRequest)
 	}
 
-	rtIDs, _, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
-	}
+	var (
+		rtIDs       []int64
+		wilayahInfo response.WilayahInfo
+		surveyIDs   []int64 // hanya diisi untuk SURVEYOR
+	)
 
-	isAdminOrWalikota := filter.WilayahLevel == int(enums.ROLE_ADMIN) || filter.WilayahLevel == int(enums.ROLE_WALIKOTA)
-	if !isAdminOrWalikota && len(rtIDs) == 0 {
-		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+	if role == int(enums.ROLE_SURVEYOR) {
+		surveyIDs, err = s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+		if len(rtIDs) == 0 {
+			return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+		}
+	} else {
+		rtIDs, _, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+		isAdminOrWalikota := filter.WilayahLevel == int(enums.ROLE_ADMIN) || filter.WilayahLevel == int(enums.ROLE_WALIKOTA)
+		if !isAdminOrWalikota && len(rtIDs) == 0 {
+			return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+		}
 	}
 
 	curWindowStart := time.Date(referenceDate.Year(), referenceDate.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -5, 0)
@@ -961,13 +1157,25 @@ func (s *dashboardService) GetTrend(ctx context.Context, req map[string]interfac
 	prevWindowStart := curWindowStart.AddDate(-1, 0, 0)
 	prevWindowEnd := curWindowEnd.AddDate(-1, 0, 0)
 
-	curRows, err := s.summaryRepo.GetMonthlyMetricSums(ctx, rtIDs, metricKey, curWindowStart, curWindowEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
-	}
-	prevRows, err := s.summaryRepo.GetMonthlyMetricSums(ctx, rtIDs, metricKey, prevWindowStart, prevWindowEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	var curRows, prevRows []repository.MonthlyMetricRow
+	if role == int(enums.ROLE_SURVEYOR) {
+		curRows, err = s.summaryRepo.GetMonthlyMetricSumsForSurveys(ctx, rtIDs, surveyIDs, metricKey, curWindowStart, curWindowEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		prevRows, err = s.summaryRepo.GetMonthlyMetricSumsForSurveys(ctx, rtIDs, surveyIDs, metricKey, prevWindowStart, prevWindowEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		curRows, err = s.summaryRepo.GetMonthlyMetricSums(ctx, rtIDs, metricKey, curWindowStart, curWindowEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		prevRows, err = s.summaryRepo.GetMonthlyMetricSums(ctx, rtIDs, metricKey, prevWindowStart, prevWindowEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
 
 	curByMonth := make(map[string]int64, len(curRows))
@@ -1063,11 +1271,17 @@ func (s *dashboardService) GetComparison(ctx context.Context, req map[string]int
 	if respondentLogin.RoleId == nil {
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
-		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
-	}
-	if filter.WilayahLevel == int(enums.ROLE_RT) {
-		return utils.SendError(errors.New("chart perbandingan tidak tersedia di level RT"), http.StatusBadRequest)
+
+	role := int(*respondentLogin.RoleId)
+	// SURVEYOR tidak terikat hierarki wilayah; perbandingan dikelompokkan
+	// PER SURVEY yang di-assign ke dirinya (tiap batang = satu survey).
+	if role != int(enums.ROLE_SURVEYOR) {
+		if filter.WilayahLevel != role {
+			return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+		}
+		if filter.WilayahLevel == int(enums.ROLE_RT) {
+			return utils.SendError(errors.New("chart perbandingan tidak tersedia di level RT"), http.StatusBadRequest)
+		}
 	}
 
 	metricA, err := s.metricRepo.FindByMetricKey(ctx, metricKeyA)
@@ -1085,8 +1299,88 @@ func (s *dashboardService) GetComparison(ctx context.Context, req map[string]int
 		return utils.SendError(errors.New("metric_key_b tidak dikenali"), http.StatusBadRequest)
 	}
 
-	var children []repository.WilayahChild
 	var wilayahInfo response.WilayahInfo
+
+	// =========================================================================
+	// SURVEYOR: perbandingan dikelompokkan per survey yang di-assign ke dirinya.
+	// =========================================================================
+	if role == int(enums.ROLE_SURVEYOR) {
+		surveyIDs, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		// nama survey (id DESC) + RT per survey
+		surveyOpts, err := s.summaryRepo.ListSurveysLatestFirstByIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		rtBySurvey, err := s.wilayahRepo.GetRTIDsGroupedBySurvey(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+
+		// Persempit RT tiap survey berdasarkan filter wilayah yang dikirim.
+		for sid, rts := range rtBySurvey {
+			filtered, err := s.filterSurveyorRTIDsByWilayah(ctx, rts, filter)
+			if err != nil {
+				return utils.SendError(err, http.StatusInternalServerError)
+			}
+			rtBySurvey[sid] = filtered
+		}
+
+		// kumpulkan semua RT untuk query metrik per-survey
+		allRTIDs := make([]int64, 0)
+		for _, rts := range rtBySurvey {
+			allRTIDs = append(allRTIDs, rts...)
+		}
+		// Catatan: allRTIDs boleh kosong untuk surveyor (filter wilayah tidak
+		// beririsan). Jangan error — biarkan hasil menjadi data kosong (nilai 0).
+
+		// data per survey -> rt -> metric (nilai tiap survey TIDAK tercampur)
+		perSurvey, err := s.summaryRepo.GetMetricSumsByCategoryPerSurvey(ctx, allRTIDs, surveyIDs, "summary", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+
+		items := make([]response.DashboardComparisonItem, 0, len(surveyOpts))
+		for _, opt := range surveyOpts {
+			var valA, valB int64
+			if byRT := perSurvey[opt.SurveyID]; byRT != nil {
+				for _, rtID := range rtBySurvey[opt.SurveyID] {
+					if m := byRT[rtID]; m != nil {
+						valA += m[metricKeyA]
+						valB += m[metricKeyB]
+					}
+				}
+			}
+			items = append(items, response.DashboardComparisonItem{
+				ChildLabel: opt.SurveyName,
+				ValueA:     valA,
+				ValueB:     valB,
+			})
+		}
+
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+
+		resp := response.DashboardComparisonResponse{
+			WilayahLevel: filter.WilayahLevel,
+			WilayahInfo:  wilayahInfo,
+			DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+			SeriesA:      response.DashboardComparisonSeries{MetricKey: metricA.MetricKey, Label: metricA.Label},
+			SeriesB:      response.DashboardComparisonSeries{MetricKey: metricB.MetricKey, Label: metricB.Label},
+			Items:        items,
+		}
+		return utils.SendData(resp, "")
+	}
+
+	// =========================================================================
+	// Role lain (ADMIN/WALIKOTA/KECAMATAN/KELURAHAN/RW): LOGIKA LAMA, tidak diubah.
+	// =========================================================================
+	var children []repository.WilayahChild
 	var requestedChildIDs []int64
 
 	switch filter.WilayahLevel {
@@ -1232,7 +1526,69 @@ func (s *dashboardService) GetHeatmap(ctx context.Context, req map[string]interf
 	if respondentLogin.RoleId == nil {
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
+
+	role := int(*respondentLogin.RoleId)
+
+	var wilayahInfo response.WilayahInfo
+
+	// =========================================================================
+	// SURVEYOR: heatmap dikelompokkan PER SURVEY yang di-assign ke dirinya.
+	// Nilai tiap zona = jumlah responden tervalidasi pada survey tersebut.
+	// =========================================================================
+	if role == int(enums.ROLE_SURVEYOR) {
+		surveyIDs, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		surveyOpts, err := s.summaryRepo.ListSurveysLatestFirstByIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		rtBySurvey, err := s.wilayahRepo.GetRTIDsGroupedBySurvey(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+
+		items := make([]response.DashboardHeatmapItem, 0, len(surveyOpts))
+		for _, opt := range surveyOpts {
+			rts := rtBySurvey[opt.SurveyID]
+			var total int64
+			if len(rts) > 0 {
+				// batasi hitung responden hanya pada survey ini
+				countByRT, err := s.summaryRepo.CountValidatedRespondentsByRTForSurveys(ctx, rts, []int64{opt.SurveyID}, filter.PeriodStart, filter.PeriodEnd)
+				if err != nil {
+					return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+				}
+				for _, rtID := range rts {
+					total += countByRT[rtID]
+				}
+			}
+			items = append(items, response.DashboardHeatmapItem{
+				Label:   opt.SurveyName,
+				GeoName: nil,
+				Value:   total,
+			})
+		}
+
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+
+		resp := response.DashboardHeatmapResponse{
+			WilayahLevel: filter.WilayahLevel,
+			WilayahInfo:  wilayahInfo,
+			DataDiambil:  time.Now().Format("02 January 2006 15:04 WIB"),
+			Items:        items,
+		}
+		return utils.SendData(resp, "")
+	}
+
+	// =========================================================================
+	// Role lain: LOGIKA LAMA, tidak diubah.
+	// =========================================================================
+	if filter.WilayahLevel != role {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 	}
 
@@ -1244,7 +1600,6 @@ func (s *dashboardService) GetHeatmap(ctx context.Context, req map[string]interf
 	}
 
 	var children []repository.WilayahChild
-	var wilayahInfo response.WilayahInfo
 	var requestedChildIDs []int64
 
 	switch filter.WilayahLevel {
@@ -1387,15 +1742,49 @@ func (s *dashboardService) GetPeneranganJalan(ctx context.Context, req map[strin
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
 
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
+	role := int(*respondentLogin.RoleId)
+	// SURVEYOR tidak terikat hierarki wilayah; cakupan datanya ditentukan oleh
+	// survey yang di-assign ke dirinya.
+	if role != int(enums.ROLE_SURVEYOR) && filter.WilayahLevel != role {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 	}
 
-	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	var (
+		rtIDs        []int64
+		wilayahCount *response.WilayahCount
+		wilayahInfo  response.WilayahInfo
+		surveyIDs    []int64 // hanya diisi untuk SURVEYOR
+	)
+
+	if role == int(enums.ROLE_SURVEYOR) {
+		surveyIDs, err = s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(surveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, surveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		// Persempit RT surveyor berdasarkan filter wilayah yang dikirim.
+		rtIDs, err = s.filterSurveyorRTIDsByWilayah(ctx, rtIDs, filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		totalRT := len(rtIDs)
+		wilayahCount = &response.WilayahCount{TotalRT: &totalRT}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+	} else {
+		rtIDs, wilayahCount, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
 	}
-	if len(rtIDs) == 0 {
+
+	if len(rtIDs) == 0 && role != int(enums.ROLE_SURVEYOR) {
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
@@ -1403,9 +1792,19 @@ func (s *dashboardService) GetPeneranganJalan(ctx context.Context, req map[strin
 	for _, def := range peneranganJalanCardDefinitions {
 		pjKeys = append(pjKeys, def.TotalMetricKey, def.RusakMetricKey)
 	}
-	numberByRT, err := s.summaryRepo.GetLatestMetricsByKeys(ctx, rtIDs, pjKeys, filter.PeriodStart, filter.PeriodEnd)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+
+	var numberByRT map[int64]map[string]int64
+	if role == int(enums.ROLE_SURVEYOR) {
+		// Metrik dibatasi HANYA pada survey yang di-assign ke surveyor.
+		numberByRT, err = s.summaryRepo.GetLatestMetricsByKeysForSurveys(ctx, rtIDs, surveyIDs, pjKeys, filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		numberByRT, err = s.summaryRepo.GetLatestMetricsByKeys(ctx, rtIDs, pjKeys, filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
 
 	items := make([]response.PeneranganJalanItem, 0, len(peneranganJalanCardDefinitions))
@@ -1503,11 +1902,16 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 	if respondentLogin.RoleId == nil {
 		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
 	}
-	if filter.WilayahLevel != int(*respondentLogin.RoleId) {
-		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
-	}
-	if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
-		return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
+
+	role := int(*respondentLogin.RoleId)
+	// SURVEYOR tidak terikat hierarki wilayah.
+	if role != int(enums.ROLE_SURVEYOR) {
+		if filter.WilayahLevel != role {
+			return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
+		}
+		if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
+			return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
+		}
 	}
 
 	metric, err := s.metricRepo.FindByMetricKey(ctx, metricKey)
@@ -1518,53 +1922,80 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 		return utils.SendError(errors.New("metric_key tidak dikenali"), http.StatusBadRequest)
 	}
 
-	rtIDs, _, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	var (
+		rtIDs       []int64
+		wilayahInfo response.WilayahInfo
+		surveyOpts  []repository.SurveyOptionRow
+	)
+
+	if role == int(enums.ROLE_SURVEYOR) {
+		assignedSurveyIDs, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(assignedSurveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, assignedSurveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+		if len(rtIDs) == 0 {
+			return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+		}
+		// opsi survey = hanya survey milik surveyor (id DESC)
+		surveyOpts, err = s.summaryRepo.ListSurveysLatestFirstByIDs(ctx, assignedSurveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		rtIDs, _, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+		isAdminOrWalikota := filter.WilayahLevel == int(enums.ROLE_ADMIN) || filter.WilayahLevel == int(enums.ROLE_WALIKOTA)
+		if !isAdminOrWalikota && len(rtIDs) == 0 {
+			return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
+		}
+		surveyOpts, err = s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
 
-	isAdminOrWalikota := filter.WilayahLevel == int(enums.ROLE_ADMIN) || filter.WilayahLevel == int(enums.ROLE_WALIKOTA)
-	if !isAdminOrWalikota && len(rtIDs) == 0 {
-		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
-	}
-
-	// window 6 bulan terakhir dari period_end (sama seperti GetTrend lama)
+	// window 6 bulan terakhir dari period_end
 	windowStart := time.Date(referenceDate.Year(), referenceDate.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -5, 0)
 	windowEnd := time.Date(referenceDate.Year(), referenceDate.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0).Add(-time.Second)
 
-	// Daftar survey untuk opsi dropdown & default, MURNI dari surveys.id DESC
-	// (tidak peduli ada data atau tidak). Ambil semua untuk opsi dropdown.
-	surveyOpts, err := s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	// himpunan survey yang diizinkan (untuk surveyor: hanya miliknya)
+	allowedSurvey := make(map[int64]bool, len(surveyOpts))
+	for _, opt := range surveyOpts {
+		allowedSurvey[opt.SurveyID] = true
 	}
 
 	latestSurveyID := int64(0)
 	if len(surveyOpts) > 0 {
-		latestSurveyID = surveyOpts[0].SurveyID // id terbesar = terbaru
+		latestSurveyID = surveyOpts[0].SurveyID
 	}
 
-	// Tentukan survey yang jadi garis.
 	requestedSurveyIDs := utils.ParseInt64SliceQueryParam(param.Get("survey_ids"))
 
 	var selectedSurveyIDs []int64
 	seen := make(map[int64]bool)
 	addSurvey := func(id int64) {
-		if id != 0 && !seen[id] {
+		if id != 0 && !seen[id] && allowedSurvey[id] {
 			selectedSurveyIDs = append(selectedSurveyIDs, id)
 			seen[id] = true
 		}
 	}
 
 	if len(requestedSurveyIDs) > 0 {
-		// garis-1 selalu survey terbaru (fixed), lalu survey pilihan user.
-		// TIDAK divalidasi harus "punya data" -- kalau kosong tampil 0 saja.
 		addSurvey(latestSurveyID)
 		for _, id := range requestedSurveyIDs {
 			addSurvey(id)
 		}
 	} else {
-		// default: 2 survey terbaru (id terbesar & terbesar kedua)
 		for i := 0; i < len(surveyOpts) && i < 2; i++ {
 			addSurvey(surveyOpts[i].SurveyID)
 		}
@@ -1579,13 +2010,11 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 		monthKeys[i] = m.Format("2006-01")
 	}
 
-	// Ambil nama survey terpilih (robust walau datanya 0 di semua bulan).
 	surveyNames, err := s.summaryRepo.GetSurveyNamesByIDs(ctx, selectedSurveyIDs)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
 
-	// Ambil data bulanan per survey (boleh kosong -> map kosong, nanti jadi 0).
 	rows, err := s.summaryRepo.GetMonthlyMetricSumsBySurvey(ctx, rtIDs, selectedSurveyIDs, metricKey, windowStart, windowEnd)
 	if err != nil {
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
@@ -1599,7 +2028,6 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 		bySurvey[r.SurveyID][r.MonthBucket.Format("2006-01")] = r.Total
 	}
 
-	// Build series. Setiap survey terpilih SELALU dibuatkan garis, walau 0 semua.
 	series := make([]response.TrendSurveySeries, 0, len(selectedSurveyIDs))
 	for _, sid := range selectedSurveyIDs {
 		points := make([]response.TrendComparePoint, 6)
@@ -1610,12 +2038,12 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 			}
 			points[i] = response.TrendComparePoint{
 				MonthLabel: monthLabels[i],
-				Value:      val, // default 0
+				Value:      val,
 			}
 		}
 		series = append(series, response.TrendSurveySeries{
 			SurveyID:   sid,
-			SurveyName: surveyNames[sid], // "" kalau tidak ketemu, tetap aman
+			SurveyName: surveyNames[sid],
 			IsLatest:   sid == latestSurveyID,
 			Points:     points,
 		})
@@ -1696,15 +2124,62 @@ func (s *dashboardService) GetSummaryCompare(ctx context.Context, req map[string
 	}
 
 	role := int(*respondentLogin.RoleId)
-	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && wilayahLevel != role {
+	// SURVEYOR tidak terikat hierarki wilayah; cakupan datanya ditentukan oleh
+	// survey yang di-assign ke dirinya.
+	if role != int(enums.ROLE_ADMIN) && role != int(enums.ROLE_WALIKOTA) && role != int(enums.ROLE_SURVEYOR) && wilayahLevel != role {
 		return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 	}
 
-	rtIDs, wilayahCount, wilayahInfo, err := s.resolveFilteredWilayah(ctx, filter, respondentLogin)
-	if err != nil {
-		return utils.SendError(err, http.StatusBadRequest)
+	var (
+		rtIDs        []int64
+		wilayahCount *response.WilayahCount
+		wilayahInfo  response.WilayahInfo
+		surveyOpts   []repository.SurveyOptionRow
+	)
+
+	if role == int(enums.ROLE_SURVEYOR) {
+		// SURVEYOR: cakupan RT ditentukan oleh survey yang di-assign ke dirinya,
+		// dan daftar survey yang bisa dibandingkan juga HANYA survey miliknya.
+		assignedSurveyIDs, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		if len(assignedSurveyIDs) == 0 {
+			return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+		}
+
+		rtIDs, err = s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, assignedSurveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		// Persempit RT surveyor berdasarkan filter wilayah yang dikirim.
+		rtIDs, err = s.filterSurveyorRTIDsByWilayah(ctx, rtIDs, filter)
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+		totalRT := len(rtIDs)
+		wilayahCount = &response.WilayahCount{TotalRT: &totalRT}
+		wilayahInfo = response.WilayahInfo{Nama: "Survey yang ditugaskan"}
+
+		// opsi survey = hanya survey milik surveyor (id DESC = terbaru dulu)
+		surveyOpts, err = s.summaryRepo.ListSurveysLatestFirstByIDs(ctx, assignedSurveyIDs)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+	} else {
+		rtIDs, wilayahCount, wilayahInfo, err = s.resolveFilteredWilayah(ctx, filter, respondentLogin)
+		if err != nil {
+			return utils.SendError(err, http.StatusBadRequest)
+		}
+
+		// opsi survey = seluruh survey (id DESC)
+		surveyOpts, err = s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	}
-	if len(rtIDs) == 0 {
+
+	if len(rtIDs) == 0 && role != int(enums.ROLE_SURVEYOR) {
 		return utils.SendError(errors.New("wilayah tidak memiliki data RT"), http.StatusNotFound)
 	}
 
@@ -1713,11 +2188,12 @@ func (s *dashboardService) GetSummaryCompare(ctx context.Context, req map[string
 		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 	}
 
-	// daftar survey (id DESC) untuk opsi dropdown & default
-	surveyOpts, err := s.summaryRepo.ListSurveysLatestFirst(ctx, 0)
-	if err != nil {
-		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	// himpunan survey yang diizinkan (untuk surveyor: hanya miliknya)
+	allowedSurvey := make(map[int64]bool, len(surveyOpts))
+	for _, opt := range surveyOpts {
+		allowedSurvey[opt.SurveyID] = true
 	}
+
 	latestSurveyID := int64(0)
 	if len(surveyOpts) > 0 {
 		latestSurveyID = surveyOpts[0].SurveyID
@@ -1728,7 +2204,7 @@ func (s *dashboardService) GetSummaryCompare(ctx context.Context, req map[string
 	var selectedSurveyIDs []int64
 	seen := make(map[int64]bool)
 	addSurvey := func(id int64) {
-		if id != 0 && !seen[id] {
+		if id != 0 && !seen[id] && allowedSurvey[id] {
 			selectedSurveyIDs = append(selectedSurveyIDs, id)
 			seen[id] = true
 		}
@@ -1800,4 +2276,108 @@ func (s *dashboardService) GetSummaryCompare(ctx context.Context, req map[string
 	}
 
 	return utils.SendData(resp, "Berhasil mengambil data perbandingan survei")
+}
+
+func (s *dashboardService) GetTopWilayahSurvei(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	defer utils.GeneralRecover()
+
+	// ---- parsing param: wilayah_level, period_start, period_end, top ----
+	wilayahLevel, _ := strconv.Atoi(param.Get("wilayah_level"))
+
+	periodStartRaw := param.Get("period_start")
+	periodEndRaw := param.Get("period_end")
+
+	now := time.Now()
+	periodeStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	periodeEnd := now
+
+	if (periodStartRaw == "") != (periodEndRaw == "") {
+		return utils.SendError(errors.New("period_start dan period_end harus diisi bersamaan"), http.StatusBadRequest)
+	}
+	if periodStartRaw != "" {
+		v, err := time.Parse("2006-01-02", periodStartRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_start tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeStart = v
+	}
+	if periodEndRaw != "" {
+		v, err := time.Parse("2006-01-02", periodEndRaw)
+		if err != nil {
+			return utils.SendError(errors.New("format period_end tidak valid, gunakan format YYYY-MM-DD"), http.StatusBadRequest)
+		}
+		periodeEnd = v
+	}
+	if periodeEnd.Before(periodeStart) {
+		return utils.SendError(errors.New("period_end tidak boleh sebelum period_start"), http.StatusBadRequest)
+	}
+
+	// top = batas jumlah item (0 / kosong = semua)
+	topN := 0
+	if raw := param.Get("top"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 0 {
+			return utils.SendError(errors.New("parameter top tidak valid"), http.StatusBadRequest)
+		}
+		topN = v
+	}
+
+	// ---- validasi role (endpoint ini khusus surveyor) ----
+	respondentLogin, err := s.userRepo.GetRespondentById(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Gagal mendapatkan data respondent dari UserAPI"), http.StatusInternalServerError)
+	}
+	if respondentLogin == nil {
+		return utils.SendError(errors.New("Data respondent tidak ditemukan"), http.StatusNotFound)
+	}
+	if respondentLogin.RoleId == nil {
+		return utils.SendError(errors.New("Anda tidak memiliki akses"), http.StatusForbidden)
+	}
+
+	role := int(*respondentLogin.RoleId)
+	if role != int(enums.ROLE_SURVEYOR) {
+		return utils.SendError(errors.New("Endpoint ini hanya untuk surveyor"), http.StatusForbidden)
+	}
+	// wilayah_level dikirim untuk konsistensi FE; untuk surveyor nilainya 8.
+	_ = wilayahLevel
+
+	// ---- ambil survey yang di-assign + RT-nya ----
+	surveyIDs, err := s.wilayahRepo.GetSurveyIDsBySurveyor(ctx, usr.RespondentID)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+	if len(surveyIDs) == 0 {
+		return utils.SendError(errors.New("Anda belum ditugaskan pada survey apa pun"), http.StatusNotFound)
+	}
+
+	rtIDs, err := s.wilayahRepo.GetRTIDsBySurveyIDs(ctx, surveyIDs)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// ---- statistik keterisian per survey (sudah terurut jumlah_data DESC) ----
+	stats, err := s.summaryRepo.GetSurveyFillStats(ctx, surveyIDs, rtIDs, periodeStart, periodeEnd)
+	if err != nil {
+		return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+	}
+
+	// batasi dengan top
+	if topN > 0 && len(stats) > topN {
+		stats = stats[:topN]
+	}
+
+	items := make([]response.DashboardTopWilayahItem, 0, len(stats))
+	for _, st := range stats {
+		items = append(items, response.DashboardTopWilayahItem{
+			KecamatanLabel: st.SurveyName,
+			TotalRT:        st.TotalRT,
+			JumlahData:     st.JumlahData,
+		})
+	}
+
+	resp := response.DashboardTopWilayahResponse{
+		DataDiambil: time.Now().Format("2006-01-02 15:04:05"),
+		Items:       items,
+	}
+	return utils.SendData(resp, "Berhasil memuat data top wilayah survei")
 }
