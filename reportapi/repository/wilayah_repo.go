@@ -26,6 +26,11 @@ type WilayahRepository interface {
 	GetRWIDsByKelurahanIDs(ctx context.Context, kelurahanIDs []int64) ([]int64, error)
 	GetKelurahanIDsByKecamatanIDs(ctx context.Context, kecamatanIDs []int64) ([]int64, error)
 	GetChildrenOfCity(ctx context.Context) ([]WilayahChild, error)
+
+	GetSurveyIDsBySurveyor(ctx context.Context, respondentID int64) ([]int64, error)
+	GetRTIDsBySurveyIDs(ctx context.Context, surveyIDs []int64) ([]int64, error)
+
+	GetRTIDsGroupedBySurvey(ctx context.Context, surveyIDs []int64) (map[int64][]int64, error)
 }
 
 type wilayahRepository struct {
@@ -300,4 +305,56 @@ func (r *wilayahRepository) GetChildrenOfCity(ctx context.Context) ([]WilayahChi
 		})
 	}
 	return children, nil
+}
+
+func (r *wilayahRepository) GetSurveyIDsBySurveyor(ctx context.Context, respondentID int64) ([]int64, error) {
+	var ids []int64
+	err := r.dbSlave.WithContext(ctx).
+		Table("survey__surveyors").
+		Where("respondent_id = ?", respondentID).
+		Pluck("survey_id", &ids).Error
+	return ids, err
+}
+
+func (r *wilayahRepository) GetRTIDsBySurveyIDs(ctx context.Context, surveyIDs []int64) ([]int64, error) {
+	if len(surveyIDs) == 0 {
+		return []int64{}, nil
+	}
+	var ids []int64
+	err := r.dbSlave.WithContext(ctx).
+		Table("survey_respondents sr").
+		Joins("JOIN respondents r ON r.id = sr.respondent_id").
+		Where("sr.survey_id IN ?", surveyIDs).
+		Where("r.rt_id IS NOT NULL").
+		Distinct().
+		Pluck("r.rt_id", &ids).Error
+	return ids, err
+}
+
+func (r *wilayahRepository) GetRTIDsGroupedBySurvey(ctx context.Context, surveyIDs []int64) (map[int64][]int64, error) {
+	result := make(map[int64][]int64, len(surveyIDs))
+	if len(surveyIDs) == 0 {
+		return result, nil
+	}
+
+	type row struct {
+		SurveyID int64 `gorm:"column:survey_id"`
+		RTID     int64 `gorm:"column:rt_id"`
+	}
+	var rows []row
+	err := r.dbSlave.WithContext(ctx).
+		Table("survey_respondents sr").
+		Joins("JOIN respondents resp ON resp.id = sr.respondent_id").
+		Select("DISTINCT sr.survey_id AS survey_id, resp.rt_id AS rt_id").
+		Where("sr.survey_id IN ?", surveyIDs).
+		Where("resp.rt_id IS NOT NULL").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rw := range rows {
+		result[rw.SurveyID] = append(result[rw.SurveyID], rw.RTID)
+	}
+	return result, nil
 }

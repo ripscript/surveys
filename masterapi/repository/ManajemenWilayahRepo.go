@@ -196,7 +196,7 @@ func (repository *manajemenWilayahRepo) GetListKecamatan(req payloads.DatatableP
 		Where("kecamatans.deleted_at IS NULL")
 
 	if respondent != nil {
-		if *respondent.RoleId != int64(enums.ROLE_WALIKOTA) && *respondent.RoleId != int64(enums.ROLE_ADMIN) && *respondent.RoleId != int64(enums.ROLE_KECAMATAN) {
+		if *respondent.RoleId != int64(enums.ROLE_WALIKOTA) && *respondent.RoleId != int64(enums.ROLE_ADMIN) && *respondent.RoleId != int64(enums.ROLE_KECAMATAN) && *respondent.RoleId != int64(enums.ROLE_SURVEYOR) {
 			db = db.Where("1 = 0")
 			countDB = countDB.Where("1 = 0")
 		} else {
@@ -871,7 +871,10 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 
 		switch roleId {
 		case 5:
-			if respondent.KecamatanId != nil {
+			if kelurahanId != nil {
+				db = db.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+				countDB = countDB.Where("data__rws.kelurahan_id = ?", *kelurahanId)
+			} else if respondent.KecamatanId != nil {
 				db = db.Where("kecamatans.id = ?", *respondent.KecamatanId)
 				countDB = countDB.Where("kecamatans.id = ?", *respondent.KecamatanId)
 			} else {
@@ -879,6 +882,7 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 				countDB = countDB.Where("1 = 0")
 			}
 		case 4:
+			// Lurah: selalu dibatasi ke kelurahannya sendiri.
 			db = db.Where("kelurahans.id = ?", *respondent.KelurahanId)
 			countDB = countDB.Where("kelurahans.id = ?", *respondent.KelurahanId)
 		case 3:
@@ -965,8 +969,8 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 		"created_at":     "kecamatans.created_at",
 	}
 
-	finalOrderBy := "data__rws.id"
-	finalOrderDir := "desc"
+	finalOrderBy := "CAST(data__rws.nama_rw AS INTEGER)"
+	finalOrderDir := "asc"
 
 	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
 		finalOrderBy = mappedCol
@@ -974,6 +978,8 @@ func (repository *manajemenWilayahRepo) GetListRw(req payloads.DatatablePayload,
 
 	if strings.ToLower(req.OrderDir) == "asc" {
 		finalOrderDir = "asc"
+	} else if strings.ToLower(req.OrderDir) == "desc" {
+		finalOrderDir = "desc"
 	}
 
 	db = db.Order(finalOrderBy + " " + finalOrderDir)
@@ -1328,8 +1334,8 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 		"created_at":     "kecamatans.created_at",
 	}
 
-	finalOrderBy := "data__rts.id"
-	finalOrderDir := "desc"
+	finalOrderBy := "CAST(data__rts.nama_rt AS INTEGER)"
+	finalOrderDir := "asc"
 
 	if mappedCol, isAllowed := allowedOrderCols[req.OrderBy]; isAllowed && req.OrderBy != "" {
 		finalOrderBy = mappedCol
@@ -1337,6 +1343,8 @@ func (repository *manajemenWilayahRepo) GetListRt(req payloads.DatatablePayload,
 
 	if strings.ToLower(req.OrderDir) == "asc" {
 		finalOrderDir = "asc"
+	} else if strings.ToLower(req.OrderDir) == "desc" {
+		finalOrderDir = "desc"
 	}
 
 	db = db.Order(finalOrderBy + " " + finalOrderDir)

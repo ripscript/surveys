@@ -3004,6 +3004,25 @@ func (service *surveyService) GetDetailSurveyKewilayahan(ctx context.Context, re
 		return utils.SendError(errors.New("Survey tidak ditemukan"), http.StatusNotFound)
 	}
 
+	if respondentLogin.RoleId != nil && *respondentLogin.RoleId == int64(enums.ROLE_SURVEYOR) {
+		assignedSurveyors, err := service.surveyRepo.GetSurveyorsBySurveyId(int64(survey.ID))
+		if err != nil {
+			return utils.SendError(err, http.StatusInternalServerError)
+		}
+
+		isAssigned := false
+		for _, s := range assignedSurveyors {
+			if s.RespondentId == respondentLogin.ID {
+				isAssigned = true
+				break
+			}
+		}
+
+		if !isAssigned {
+			return utils.SendError(errors.New("Anda tidak memiliki hak akses untuk survey ini"), http.StatusUnauthorized)
+		}
+	}
+
 	var metaTotal int
 	var metaPage int
 	var metaLimit int

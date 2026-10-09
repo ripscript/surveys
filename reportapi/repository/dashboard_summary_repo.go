@@ -17,6 +17,8 @@ type MetricFieldMapping struct {
 type DashboardSummaryRepository interface {
 	GetLatestNumberMetrics(ctx context.Context, rtIDs []int64, mappings []MetricFieldMapping, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
 	GetLatestMetricsByCategory(ctx context.Context, rtIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
+	GetLatestMetricsByCategoryForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
+
 	GetLatestStatusByCategory(ctx context.Context, rtIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]string, error)
 	GetMonthlyMetricSums(ctx context.Context, rtIDs []int64, metricKey string, rangeStart, rangeEnd time.Time) ([]MonthlyMetricRow, error)
 
@@ -30,6 +32,13 @@ type DashboardSummaryRepository interface {
 	GetMetricSumsByCategoryPerSurvey(ctx context.Context, rtIDs []int64, surveyIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[int64]map[string]int64, error)
 
 	GetLatestMetricsByKeys(ctx context.Context, rtIDs []int64, metricKeys []string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
+
+	ListSurveysLatestFirstByIDs(ctx context.Context, surveyIDs []int64) ([]SurveyOptionRow, error)
+	GetLatestMetricsByKeysForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, metricKeys []string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
+
+	GetMonthlyMetricSumsForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, metricKey string, rangeStart, rangeEnd time.Time) ([]MonthlyMetricRow, error)
+
+	CountValidatedRespondentsByRTForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, periodStart, periodEnd time.Time) (map[int64]int64, error)
 }
 
 type dashboardSummaryRepository struct {
@@ -151,6 +160,55 @@ func (r *dashboardSummaryRepository) GetLatestMetricsByCategory(
 			AND fr.created_at BETWEEN ? AND ?
 		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC
 	`, rtIDs, category, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		val, convErr := parseNumberAnswer(row.Answer)
+		if convErr != nil {
+			continue
+		}
+		result[row.RTID][row.MetricKey] = val
+	}
+
+	return result, nil
+}
+
+func (r *dashboardSummaryRepository) GetLatestMetricsByCategoryForSurveys(
+	ctx context.Context,
+	rtIDs []int64,
+	surveyIDs []int64,
+	category string,
+	periodStart, periodEnd time.Time,
+) (map[int64]map[string]int64, error) {
+	result := make(map[int64]map[string]int64, len(rtIDs))
+	for _, id := range rtIDs {
+		result[id] = make(map[string]int64)
+	}
+	if len(rtIDs) == 0 || len(surveyIDs) == 0 {
+		return result, nil
+	}
+
+	var rows []latestMetricRow
+	err := r.dbSlave.WithContext(ctx).Raw(`
+		SELECT DISTINCT ON (resp.rt_id, dm.metric_key)
+			resp.rt_id     AS rt_id,
+			dm.metric_key  AS metric_key,
+			fr.answer       AS answer
+		FROM field_responses fr
+		JOIN survey_respondents sr        ON sr.id = fr.form_response_id
+		JOIN respondents resp             ON resp.id = sr.respondent_id
+		JOIN surveys s                     ON s.id = sr.survey_id
+		JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = fr.form_field_id
+		JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
+		WHERE resp.rt_id IN (?)
+			AND sr.survey_id IN (?)
+			AND dm.category = ?
+			AND sr.status_approval = 'validated_lurah'
+			AND fr.created_at BETWEEN ? AND ?
+		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC
+	`, rtIDs, surveyIDs, category, periodStart, periodEnd).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -572,6 +630,156 @@ func (r *dashboardSummaryRepository) GetLatestMetricsByKeys(
 			continue
 		}
 		result[row.RTID][row.MetricKey] = val
+	}
+	return result, nil
+}
+
+func (r *dashboardSummaryRepository) ListSurveysLatestFirstByIDs(ctx context.Context, surveyIDs []int64) ([]SurveyOptionRow, error) {
+	var rows []SurveyOptionRow
+	if len(surveyIDs) == 0 {
+		return rows, nil
+	}
+	err := r.dbSlave.WithContext(ctx).
+		Table("surveys").
+		Select("id AS survey_id, name AS survey_name").
+		Where("id IN ?", surveyIDs).
+		Order("id DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *dashboardSummaryRepository) GetLatestMetricsByKeysForSurveys(
+	ctx context.Context,
+	rtIDs []int64,
+	surveyIDs []int64,
+	metricKeys []string,
+	periodStart, periodEnd time.Time,
+) (map[int64]map[string]int64, error) {
+	result := make(map[int64]map[string]int64, len(rtIDs))
+	for _, id := range rtIDs {
+		result[id] = make(map[string]int64)
+	}
+	if len(rtIDs) == 0 || len(metricKeys) == 0 || len(surveyIDs) == 0 {
+		return result, nil
+	}
+
+	var rows []latestMetricRow
+	err := r.dbSlave.WithContext(ctx).Raw(`
+		SELECT DISTINCT ON (resp.rt_id, dm.metric_key)
+			resp.rt_id     AS rt_id,
+			dm.metric_key  AS metric_key,
+			fr.answer       AS answer
+		FROM field_responses fr
+		JOIN survey_respondents sr        ON sr.id = fr.form_response_id
+		JOIN respondents resp             ON resp.id = sr.respondent_id
+		JOIN surveys s                     ON s.id = sr.survey_id
+		JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = fr.form_field_id
+		JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
+		WHERE resp.rt_id IN (?)
+			AND sr.survey_id IN (?)
+			AND dm.metric_key IN (?)
+			AND sr.status_approval = 'validated_lurah'
+			AND fr.created_at BETWEEN ? AND ?
+		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC
+	`, rtIDs, surveyIDs, metricKeys, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		val, convErr := parseNumberAnswer(row.Answer)
+		if convErr != nil {
+			continue
+		}
+		result[row.RTID][row.MetricKey] = val
+	}
+	return result, nil
+}
+
+func (r *dashboardSummaryRepository) GetMonthlyMetricSumsForSurveys(
+	ctx context.Context,
+	rtIDs []int64,
+	surveyIDs []int64,
+	metricKey string,
+	rangeStart, rangeEnd time.Time,
+) ([]MonthlyMetricRow, error) {
+	if len(surveyIDs) == 0 {
+		return []MonthlyMetricRow{}, nil
+	}
+
+	rtFilter := "TRUE"
+	args := []interface{}{}
+	if len(rtIDs) > 0 {
+		rtFilter = "resp.rt_id IN (?)"
+		args = append(args, rtIDs)
+	}
+	args = append(args, surveyIDs, metricKey, rangeStart, rangeEnd)
+
+	sql := fmt.Sprintf(`
+		WITH latest_per_rt_month AS (
+			SELECT DISTINCT ON (resp.rt_id, date_trunc('month', fr.created_at))
+				resp.rt_id                          AS rt_id,
+				date_trunc('month', fr.created_at)  AS month_bucket,
+				fr.answer                            AS answer
+			FROM field_responses fr
+			JOIN survey_respondents sr        ON sr.id = fr.form_response_id
+			JOIN respondents resp             ON resp.id = sr.respondent_id
+			JOIN surveys s                     ON s.id = sr.survey_id
+			JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = fr.form_field_id
+			JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
+			WHERE %s
+				AND sr.survey_id IN (?)
+				AND dm.metric_key = ?
+				AND sr.status_approval = 'validated_lurah'
+				AND fr.created_at BETWEEN ? AND ?
+			ORDER BY resp.rt_id, date_trunc('month', fr.created_at), fr.created_at DESC
+		)
+		SELECT
+			month_bucket,
+			COALESCE(SUM(NULLIF(answer, '')::bigint), 0) AS total
+		FROM latest_per_rt_month
+		GROUP BY month_bucket
+		ORDER BY month_bucket
+	`, rtFilter)
+
+	var rows []MonthlyMetricRow
+	err := r.dbSlave.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *dashboardSummaryRepository) CountValidatedRespondentsByRTForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, periodStart, periodEnd time.Time) (map[int64]int64, error) {
+	result := make(map[int64]int64, len(rtIDs))
+	for _, id := range rtIDs {
+		result[id] = 0
+	}
+	if len(rtIDs) == 0 || len(surveyIDs) == 0 {
+		return result, nil
+	}
+
+	var rows []validatedRespondentRow
+	err := r.dbSlave.WithContext(ctx).Raw(`
+		SELECT resp.rt_id AS rt_id, COUNT(DISTINCT resp.id) AS total
+		FROM survey_respondents sr
+		JOIN respondents resp ON resp.id = sr.respondent_id
+		WHERE resp.rt_id IN (?)
+			AND sr.survey_id IN (?)
+			AND sr.status = 2
+			AND sr.status_approval = 'validated_lurah'
+			AND sr.created_at BETWEEN ? AND ?
+		GROUP BY resp.rt_id
+	`, rtIDs, surveyIDs, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		result[row.RTID] = row.Total
 	}
 	return result, nil
 }
