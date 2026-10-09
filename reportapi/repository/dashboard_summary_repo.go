@@ -39,6 +39,8 @@ type DashboardSummaryRepository interface {
 	GetMonthlyMetricSumsForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, metricKey string, rangeStart, rangeEnd time.Time) ([]MonthlyMetricRow, error)
 
 	CountValidatedRespondentsByRTForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, periodStart, periodEnd time.Time) (map[int64]int64, error)
+
+	GetSurveyFillStats(ctx context.Context, surveyIDs []int64, rtIDs []int64, periodStart, periodEnd time.Time) ([]SurveyFillStatRow, error)
 }
 
 type dashboardSummaryRepository struct {
@@ -782,4 +784,61 @@ func (r *dashboardSummaryRepository) CountValidatedRespondentsByRTForSurveys(ctx
 		result[row.RTID] = row.Total
 	}
 	return result, nil
+}
+
+type SurveyFillStatRow struct {
+	SurveyID   int64  `gorm:"column:survey_id"`
+	SurveyName string `gorm:"column:survey_name"`
+	TotalRT    int64  `gorm:"column:total_rt"`
+	JumlahData int64  `gorm:"column:jumlah_data"`
+}
+
+// GetSurveyFillStats — per survey: jumlah RT berbeda yang mengisi (tervalidasi)
+// dan jumlah data/responden tervalidasi. Survey tanpa data tetap muncul
+// (total_rt = 0, jumlah_data = 0), sesuai tampilan kartu "0 RT • 0 Data".
+// Diurut dari jumlah_data terbanyak.
+func (r *dashboardSummaryRepository) GetSurveyFillStats(
+	ctx context.Context,
+	surveyIDs []int64,
+	rtIDs []int64,
+	periodStart, periodEnd time.Time,
+) ([]SurveyFillStatRow, error) {
+	if len(surveyIDs) == 0 {
+		return []SurveyFillStatRow{}, nil
+	}
+
+	rtJoinFilter := ""
+	args := []interface{}{periodStart, periodEnd}
+	if len(rtIDs) > 0 {
+		rtJoinFilter = "AND resp.rt_id IN (?)"
+		args = append(args, rtIDs)
+	}
+	args = append(args, surveyIDs)
+
+	sql := fmt.Sprintf(`
+		SELECT
+			s.id   AS survey_id,
+			s.name AS survey_name,
+			COUNT(DISTINCT resp.rt_id) AS total_rt,
+			COUNT(DISTINCT resp.id)    AS jumlah_data
+		FROM surveys s
+		LEFT JOIN survey_respondents sr
+			ON sr.survey_id = s.id
+			AND sr.status = 2
+			AND sr.status_approval = 'validated_lurah'
+			AND sr.created_at BETWEEN ? AND ?
+		LEFT JOIN respondents resp
+			ON resp.id = sr.respondent_id
+			AND resp.rt_id IS NOT NULL
+			%s
+		WHERE s.id IN (?)
+		GROUP BY s.id, s.name
+		ORDER BY jumlah_data DESC, s.id DESC
+	`, rtJoinFilter)
+
+	var rows []SurveyFillStatRow
+	if err := r.dbSlave.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

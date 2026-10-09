@@ -20,6 +20,8 @@ type DashboardHandler interface {
 	GetDashboardPeneranganJalan(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDashboardTrendCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 	GetDashboardSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
+
+	GetTopWilayahSurvei(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error)
 }
 
 type dashboardHandler struct {
@@ -70,4 +72,8 @@ func (h *dashboardHandler) GetDashboardTrendCompare(ctx context.Context, req map
 
 func (h *dashboardHandler) GetDashboardSummaryCompare(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
 	return h.dashboardService.GetSummaryCompare(ctx, req, usr, param, slug)
+}
+
+func (h *dashboardHandler) GetTopWilayahSurvei(ctx context.Context, req map[string]interface{}, usr models.JwtCustomClaims, param url.Values, slug map[string]interface{}) (*pb.ProxyResponse, error) {
+	return h.dashboardService.GetTopWilayahSurvei(ctx, req, usr, param, slug)
 }
