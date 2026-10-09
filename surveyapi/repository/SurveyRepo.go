@@ -1013,6 +1013,18 @@ func (repository *surveyRepo) GetSurveyKewilayahan(userLogin models.JwtCustomCla
 		case enums.ROLE_ADMIN, enums.ROLE_PEMERINTAH_KOTA, enums.ROLE_WALIKOTA:
 			// Level kota: tanpa filter -> lihat semua survey.
 
+		case enums.ROLE_SURVEYOR:
+			// SURVEYOR: tampilkan HANYA survey yang memang di-assign ke
+			// surveyor tersebut (relasi di tabel survey__surveyors).
+			// Tidak perlu filter kewilayahan karena penugasan surveyor sudah
+			// menentukan survey mana yang relevan untuk dia.
+			db = db.Where(`
+				EXISTS (
+					SELECT 1 FROM survey__surveyors
+					WHERE survey__surveyors.survey_id = surveys.id
+					AND survey__surveyors.respondent_id = ?
+				)`, respondentLogin.ID)
+
 		case enums.ROLE_KECAMATAN:
 			db = db.Where(`
 				EXISTS (
