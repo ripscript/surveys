@@ -1106,7 +1106,11 @@ func (s *dashboardService) GetTrend(ctx context.Context, req map[string]interfac
 		if filter.WilayahLevel != role {
 			return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 		}
-		if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
+		if filter.WilayahLevel != int(enums.ROLE_ADMIN) &&
+			filter.WilayahLevel != int(enums.ROLE_WALIKOTA) &&
+			filter.WilayahLevel != int(enums.ROLE_KECAMATAN) &&
+			filter.WilayahLevel != int(enums.ROLE_KELURAHAN) &&
+			filter.WilayahLevel != int(enums.ROLE_RW) {
 			return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
 		}
 	}
@@ -1909,7 +1913,11 @@ func (s *dashboardService) GetTrendCompare(ctx context.Context, req map[string]i
 		if filter.WilayahLevel != role {
 			return utils.SendError(errors.New("Anda tidak memiliki akses ke wilayah ini"), http.StatusForbidden)
 		}
-		if filter.WilayahLevel != int(enums.ROLE_ADMIN) && filter.WilayahLevel != int(enums.ROLE_WALIKOTA) && filter.WilayahLevel != int(enums.ROLE_RW) {
+		if filter.WilayahLevel != int(enums.ROLE_ADMIN) &&
+			filter.WilayahLevel != int(enums.ROLE_WALIKOTA) &&
+			filter.WilayahLevel != int(enums.ROLE_KECAMATAN) &&
+			filter.WilayahLevel != int(enums.ROLE_KELURAHAN) &&
+			filter.WilayahLevel != int(enums.ROLE_RW) {
 			return utils.SendError(errors.New("Anda tidak memiliki akses ke level wilayah ini"), http.StatusBadRequest)
 		}
 	}
