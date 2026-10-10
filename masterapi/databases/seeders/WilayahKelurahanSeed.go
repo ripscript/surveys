@@ -67,7 +67,7 @@ func WilayahKelurahanSeed(db *gorm.DB) error {
 				fmt.Printf("[BERHASIL UPDATE] Kelurahan: %s\n", data.Kelurahan)
 			}
 		} else {
-			if data.Kelurahan != "Cijaura" && data.Kelurahan != "Kebon Jayanti" && data.Kelurahan != "Kebon Kangkung" {
+			if data.Kelurahan != "Cijaura" && data.Kelurahan != "Kebon Jayanti" && data.Kelurahan != "Kebon Kangkung" && data.Kelurahan != "Husein Sastranegara" {
 				fmt.Printf("[BELUM ADA] Kelurahan: %s. Perlu ditambahkan!\n", data.Kelurahan)
 				kecamatan, err := getKecamatan(db, data.Kecamatan)
 				if err != nil {
