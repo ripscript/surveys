@@ -16,6 +16,7 @@ func MigrateDashboardMetrics(dbMaster *gorm.DB) error {
 			name string
 			fn   func(*gorm.DB) error
 		}{
+			{"00_create_base_dashboard_tables", step00CreateBaseTables},
 			{"01_create_dashboard_metric_statuses", step01CreateStatusesTable},
 			{"02_rename_is_dashboard_to_is_locked", step02RenameIsDashboard},
 			{"03_backfill_statuses_from_status_key", step03BackfillStatuses},
@@ -34,6 +35,45 @@ func MigrateDashboardMetrics(dbMaster *gorm.DB) error {
 		}
 		return nil
 	})
+}
+
+func step00CreateBaseTables(tx *gorm.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS dashboard_metrics (
+			id                BIGSERIAL PRIMARY KEY,
+			metric_key        VARCHAR(100) NOT NULL,
+			label             VARCHAR(191) NOT NULL,
+			expected_template VARCHAR(20)  NOT NULL,
+			category          VARCHAR(50)  NOT NULL,
+			is_locked         BOOLEAN      NOT NULL DEFAULT false,
+			created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+			updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS dashboard_metric_mappings (
+			id                  BIGSERIAL PRIMARY KEY,
+			dashboard_metric_id BIGINT NOT NULL,
+			form_id             BIGINT NOT NULL,
+			form_field_id       BIGINT NOT NULL,
+			created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+			updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS dashboard_option_status_mappings (
+			id                          BIGSERIAL PRIMARY KEY,
+			dashboard_metric_mapping_id BIGINT NOT NULL,
+			answer_option_id            BIGINT NOT NULL,
+			dashboard_metric_status_id  BIGINT,
+			created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+			updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+		);`,
+	}
+	for _, stmt := range stmts {
+		if err := tx.Exec(stmt).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------
