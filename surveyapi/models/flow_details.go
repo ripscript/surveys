@@ -71,6 +71,7 @@ type RawNodeData struct {
 	Description       *string // Dari form_fields.description
 	IsRequired        bool    // Dari form_fields.required
 	ImageQuantity     *string // Dari form_fields.image_quantity (varchar)
+	IsNew             *bool
 	SectionId         *int
 	SectionName       *string // Dari flow__sections.name
 	GroupId           *int

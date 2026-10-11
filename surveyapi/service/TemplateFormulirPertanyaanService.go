@@ -261,13 +261,13 @@ func (service *templateFormulirPertanyaanService) UpdateTemplateFormulirPertanya
 		return utils.SendError(err, http.StatusInternalServerError)
 	}
 
-	isUsed, err := service.templateFormulirPertanyaanRepo.IsTemplateFormulirPertanyaanUsed(int64(form.ID))
-	if err != nil {
-		return utils.SendError(err, http.StatusInternalServerError)
-	}
-	if isUsed {
-		return utils.SendError(errors.New("Template formulir pertanyaan tidak dapat diubah karena data sedang digunakan"), http.StatusBadRequest)
-	}
+	// isUsed, err := service.templateFormulirPertanyaanRepo.IsTemplateFormulirPertanyaanUsed(int64(form.ID))
+	// if err != nil {
+	// 	return utils.SendError(err, http.StatusInternalServerError)
+	// }
+	// if isUsed {
+	// 	return utils.SendError(errors.New("Template formulir pertanyaan tidak dapat diubah karena data sedang digunakan"), http.StatusBadRequest)
+	// }
 
 	flagTematik := "false"
 	if *payload.IsTematikQuestion {

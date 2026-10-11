@@ -1340,6 +1340,7 @@ func (service *surveyService) PreviewSurvey(ctx context.Context, req map[string]
 				Options:            []response.PreviewAlurSurveyOptionItem{},
 				Answer:             finalAnswer,
 				IsRevisi:           revisedFieldIDs[int64(raw.FormFieldId)],
+				IsNew:              raw.IsNew,
 			})
 
 			if raw.IsRequired {

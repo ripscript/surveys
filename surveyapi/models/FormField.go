@@ -22,6 +22,7 @@ type FormField struct {
 	IsVerified    bool           `gorm:"column:is_verified;default:false" json:"is_verified"`
 	Sequence      int            `gorm:"column:sequence" json:"sequence"`
 	ImageQuantity *string        `gorm:"column:image_quantity;type:varchar(10)" json:"image_quantity,omitempty"`
+	IsNew         *bool          `gorm:"column:is_new" json:"is_new,omitempty"`
 }
 
 func (u *FormField) TableName() string {

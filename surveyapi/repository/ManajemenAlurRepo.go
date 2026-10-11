@@ -539,6 +539,7 @@ func (repository *manajemenAlurRepo) GetRawNodesForPreview(detailID int, section
 			form_fields.deskripsi AS description,
 			form_fields.required AS is_required,
 			form_fields.image_quantity,
+			form_fields.is_new,
 			flow_fields.section_id,
 			flow__sections.name AS section_name,
 			flow_fields.group_id,

@@ -249,7 +249,7 @@ func PermissionSeed(db *gorm.DB) error {
 		none(Laporan, public), none(Laporan, rt), none(Laporan, rw), full(Laporan, lurah), full(Laporan, camat), none(Laporan, pemkot), full(Laporan, admin), none(Laporan, surveyor), none(Laporan, walikota),
 
 		// BEGIN:HISTORI DATA DSS ===================================================
-		none(RiwayatDataDSS, public), none(RiwayatDataDSS, rt), none(RiwayatDataDSS, rw), none(RiwayatDataDSS, lurah), none(RiwayatDataDSS, camat), none(RiwayatDataDSS, pemkot), full(RiwayatDataDSS, admin), none(RiwayatDataDSS, surveyor), none(RiwayatDataDSS, walikota),
+		none(RiwayatDataDSS, public), none(RiwayatDataDSS, rt), none(RiwayatDataDSS, rw), none(RiwayatDataDSS, lurah), none(RiwayatDataDSS, camat), none(RiwayatDataDSS, pemkot), none(RiwayatDataDSS, admin), none(RiwayatDataDSS, surveyor), none(RiwayatDataDSS, walikota),
 		// END:MONITORING DAN LAPORAN ===================================================
 
 		// Survey Kewilayahan

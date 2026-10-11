@@ -7,7 +7,10 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	err := db.AutoMigrate(&models.FlowSection{})
+	err := db.AutoMigrate(
+		&models.FlowSection{},
+		&models.FormField{},
+	)
 	if err != nil {
 		return err
 	}

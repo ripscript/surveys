@@ -35,6 +35,7 @@ type PreviewAlurSurveyQuestionDetail struct {
 	Options            []PreviewAlurSurveyOptionItem `json:"options"`
 	Answer             interface{}                   `json:"answer"`
 	IsRevisi           bool                          `json:"is_revisi"`
+	IsNew              *bool
 }
 
 type PreviewAlurSurveyOptionItem struct {
