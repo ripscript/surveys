@@ -35,7 +35,11 @@ func AddDashboardPerformanceIndexes(db *gorm.DB) error {
 
 		`CREATE INDEX IF NOT EXISTS idx_surveys_status ON surveys (status)`,
 		`CREATE INDEX IF NOT EXISTS idx_survey_respondents_status_approval ON survey_respondents (status_approval)`,
+
 		`CREATE INDEX IF NOT EXISTS idx_dashboard_metrics_category ON dashboard_metrics (category)`,
+
+		`CREATE INDEX IF NOT EXISTS idx_field_responses_form_response_id ON field_responses (form_response_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_survey_respondents_survey_status ON survey_respondents (survey_id, status_approval)`,
 
 		`CREATE INDEX IF NOT EXISTS idx_data_rts_rw_id ON data__rts (rw_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_data_rws_kelurahan_id ON data__rws (kelurahan_id)`,

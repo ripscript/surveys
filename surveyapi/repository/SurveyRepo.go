@@ -111,6 +111,7 @@ type SurveyRepo interface {
 	GetSurveyResultRespondents(ctx context.Context, surveyID int64, req payloads.DatatablePayload) ([]models.SurveyResultRespondentRawDTO, int64, error)
 	GetSurveyResultRespondentDetail(ctx context.Context, surveyID int64, surveyRespondentID int64) ([]models.SurveyResultRespondentDetailRawDTO, error)
 	GetSurveyRespondentByID(ctx context.Context, surveyRespondentID int64) (*models.SurveyRespondent, error)
+	GetRespondentByIDRaw(ctx context.Context, respondentID int64) (*models.Respondent, error)
 
 	GetAllJawabanForExport(ctx context.Context, surveyID int64) ([]models.ExportAllJawabanRawDTO, error)
 	GetLatestSurveyActive(ctx context.Context) (*models.Survey, error)
@@ -2405,30 +2406,49 @@ func (repository *surveyRepo) GetSurveyResultRaw(ctx context.Context, surveyID i
 	var results []models.SurveyResultRawDTO
 
 	query := `
+		WITH tally AS (
+			SELECT
+				fr.form_field_id,
+				fr.answer,
+				COUNT(*) AS total
+			FROM field_responses fr
+			JOIN survey_respondents sr ON sr.id = fr.form_response_id
+			WHERE sr.survey_id = ?
+				AND sr.status_approval = 'validated_lurah'
+				AND fr.answer IS NOT NULL
+				AND fr.answer != ''
+				AND fr.answer != '[SKIPPED_BY_LOGIC]'
+			GROUP BY fr.form_field_id, fr.answer
+		),
+		q AS (
+			SELECT
+				ff.id AS form_field_id,
+				ff.question,
+				ff.deskripsi,
+				ff.template,
+				ff.required,
+				MIN(flf.sequence) AS sequence
+			FROM flow_fields flf
+			JOIN form_fields ff ON ff.id = flf.form_field_id
+			JOIN surveys s ON s.flow_detail_id = flf.flow_detail_id
+			WHERE s.id = ?
+			GROUP BY ff.id, ff.question, ff.deskripsi, ff.template, ff.required
+		)
 		SELECT
-			ff.id AS form_field_id,
-			ff.question,
-			ff.deskripsi,
-			ff.template,
-			ff.required,
-			flf.sequence,
-			COALESCE(fr.answer, '') AS answer,
-			COUNT(fr.id) AS total
-		FROM flow_fields flf
-		JOIN form_fields ff ON ff.id = flf.form_field_id
-		JOIN surveys s ON s.flow_detail_id = flf.flow_detail_id
-		LEFT JOIN field_responses fr ON fr.form_field_id = ff.id
-			AND fr.form_response_id IN (
-				SELECT id FROM survey_respondents 
-				WHERE survey_id = s.id AND status_approval = 'validated_lurah'
-			)
-			AND fr.answer IS NOT NULL AND fr.answer != '' AND fr.answer != '[SKIPPED_BY_LOGIC]'
-		WHERE s.id = ?
-		GROUP BY ff.id, ff.question, ff.deskripsi, ff.template, ff.required, flf.sequence, fr.answer
-		ORDER BY flf.sequence ASC
+			q.form_field_id,
+			q.question,
+			q.deskripsi,
+			q.template,
+			q.required,
+			q.sequence,
+			COALESCE(t.answer, '') AS answer,
+			COALESCE(t.total, 0) AS total
+		FROM q
+		LEFT JOIN tally t ON t.form_field_id = q.form_field_id
+		ORDER BY q.sequence ASC
 	`
 
-	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID).Scan(&results).Error
+	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyID, surveyID).Scan(&results).Error
 	if err != nil {
 		return nil, err
 	}
@@ -2595,15 +2615,23 @@ func (repository *surveyRepo) GetSurveyResultRespondentDetail(ctx context.Contex
 			ff.question,
 			ff.deskripsi,
 			ff.template,
-			flf.sequence,
-			COALESCE(fr.answer, '') AS answer
+			MIN(flf.sequence) AS sequence,
+			COALESCE(latest_fr.answer, '') AS answer
 		FROM flow_fields flf
 		JOIN form_fields ff ON ff.id = flf.form_field_id
 		JOIN surveys s ON s.flow_detail_id = flf.flow_detail_id
-		LEFT JOIN field_responses fr ON fr.form_field_id = ff.id
-			AND fr.form_response_id = ?
+		LEFT JOIN (
+			SELECT DISTINCT ON (fr.form_field_id)
+				fr.form_field_id,
+				fr.answer
+			FROM field_responses fr
+			WHERE fr.form_response_id = ?
+				AND fr.deleted_at IS NULL
+			ORDER BY fr.form_field_id, fr.id DESC
+		) latest_fr ON latest_fr.form_field_id = ff.id
 		WHERE s.id = ?
-		ORDER BY flf.sequence ASC
+		GROUP BY ff.id, ff.question, ff.deskripsi, ff.template, latest_fr.answer
+		ORDER BY MIN(flf.sequence) ASC
 	`
 
 	err := repository.dbSlave.WithContext(ctx).Raw(query, surveyRespondentID, surveyID).Scan(&results).Error
@@ -2626,6 +2654,21 @@ func (repository *surveyRepo) GetSurveyRespondentByID(ctx context.Context, surve
 		return nil, err
 	}
 	return &surveyRespondent, nil
+}
+
+func (repository *surveyRepo) GetRespondentByIDRaw(ctx context.Context, respondentID int64) (*models.Respondent, error) {
+	defer utils.GeneralRecover()
+
+	var respondent models.Respondent
+	err := repository.dbSlave.WithContext(ctx).
+		Unscoped().
+		Where("id = ?", respondentID).
+		First(&respondent).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return &respondent, nil
 }
 
 func (repository *surveyRepo) GetAllJawabanForExport(ctx context.Context, surveyID int64) ([]models.ExportAllJawabanRawDTO, error) {

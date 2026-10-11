@@ -764,7 +764,7 @@ func (service *hasilSurveyService) SurveyResultRespondentDetail(ctx context.Cont
 		return utils.SendError(errors.New("Data responden tidak sesuai dengan survey ini"), http.StatusBadRequest)
 	}
 
-	respondentDetail, err := service.userRepo.GetRespondentById(ctx, surveyRespondent.RespondentID)
+	respondentDetail, err := service.surveyRepo.GetRespondentByIDRaw(ctx, surveyRespondent.RespondentID)
 	if err != nil || respondentDetail == nil {
 		return utils.SendError(errors.New("Data responden tidak ditemukan"), http.StatusNotFound)
 	}
@@ -880,7 +880,7 @@ func (service *hasilSurveyService) ExportExcelSurveyResultPerRespondent(ctx cont
 		return utils.SendError(errors.New("Data responden tidak sesuai dengan survey ini"), http.StatusBadRequest)
 	}
 
-	respondentDetail, err := service.userRepo.GetRespondentById(ctx, surveyRespondent.RespondentID)
+	respondentDetail, err := service.surveyRepo.GetRespondentByIDRaw(ctx, surveyRespondent.RespondentID)
 	if err != nil || respondentDetail == nil {
 		return utils.SendError(errors.New("Data responden tidak ditemukan"), http.StatusUnauthorized)
 	}
