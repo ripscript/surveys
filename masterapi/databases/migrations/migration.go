@@ -44,6 +44,8 @@ func AddDashboardPerformanceIndexes(db *gorm.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_data_rts_rw_id ON data__rts (rw_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_data_rws_kelurahan_id ON data__rws (kelurahan_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_kelurahans_sub_district_id ON kelurahans (sub_district_id)`,
+
+		`CREATE INDEX IF NOT EXISTS idx_field_responses_form_response_id ON field_responses (form_response_id)`,
 	}
 
 	for _, stmt := range statements {

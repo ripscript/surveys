@@ -1127,6 +1127,24 @@ func (service *hasilSurveyService) ExportExcelSurveyResultAll(ctx context.Contex
 		return utils.SendError(errors.New("Survey ini belum memiliki pertanyaan"), http.StatusNotFound)
 	}
 
+	// GetRawNodesForPreview membaca langsung dari flow_fields TANPA dedup.
+	// Untuk pertanyaan multiple-choice, satu form_field_id memiliki banyak baris
+	// flow_fields (satu per opsi), sehingga rawNodes berisi node GANDA untuk
+	// pertanyaan yang sama. Jika tidak di-dedup, satu pertanyaan akan muncul
+	// berkali-kali sebagai kolom di Excel dan membuat rekap Sheet 2 salah hitung
+	// (mis. "2/1" / "200%"). Dedup per form_field_id sambil menjaga urutan
+	// (rawNodes sudah terurut berdasar sequence, id dari query).
+	seenFieldID := make(map[int]bool, len(rawNodes))
+	dedupedNodes := make([]models.RawNodeData, 0, len(rawNodes))
+	for _, node := range rawNodes {
+		if seenFieldID[node.FormFieldId] {
+			continue
+		}
+		seenFieldID[node.FormFieldId] = true
+		dedupedNodes = append(dedupedNodes, node)
+	}
+	rawNodes = dedupedNodes
+
 	var blueprintFieldIDs []int
 	for _, node := range rawNodes {
 		blueprintFieldIDs = append(blueprintFieldIDs, node.FormFieldId)
@@ -1143,6 +1161,11 @@ func (service *hasilSurveyService) ExportExcelSurveyResultAll(ctx context.Contex
 	rawJawaban, err := service.surveyRepo.GetAllJawabanForExport(ctx, surveyID)
 	if err != nil {
 		return utils.SendError(errors.New("Gagal memuat hasil jawaban survei"), http.StatusInternalServerError)
+	}
+
+	optionsByFieldID := make(map[int][]models.FormAnswerField)
+	for _, opt := range options {
+		optionsByFieldID[opt.FormFieldId] = append(optionsByFieldID[opt.FormFieldId], opt)
 	}
 
 	rekapMap := make(map[int64]*dto.RekapRespondenWilayahExcel)
@@ -1171,6 +1194,72 @@ func (service *hasilSurveyService) ExportExcelSurveyResultAll(ctx context.Contex
 	}
 
 	totalResp := len(orderedRespondentIDs)
+
+	// --- Pra-hitung statistik Sheet 2 dalam SATU lintasan ---
+	//
+	// Versi lama menghitung statistik dengan me-loop ULANG seluruh responden
+	// untuk SETIAP pertanyaan (O(jumlah_pertanyaan * jumlah_responden)). Pada
+	// survey besar (puluhan ribu responden x puluhan pertanyaan) ini sangat
+	// lambat. Di sini kita hitung sekali: untuk tiap responden, iterasi
+	// jawabannya, lalu akumulasikan ke map per form_field_id. Logika kondisi
+	// (answer != "-"/""/"[SKIPPED_BY_LOGIC]") dan parsing opsi dibuat IDENTIK
+	// dengan versi lama agar angka hasilnya persis sama.
+	templateByFieldID := make(map[int]string, len(rawNodes))
+	for _, node := range rawNodes {
+		templateByFieldID[node.FormFieldId] = node.Template
+	}
+
+	answeredCountByField := make(map[int]int)
+	optionTalliesByField := make(map[int]map[int]int)
+
+	for _, respID := range orderedRespondentIDs {
+		data := rekapMap[respID]
+		for qID, ans := range data.JawabanMap {
+			if ans == "-" || ans == "[SKIPPED_BY_LOGIC]" || ans == "" {
+				continue
+			}
+			answeredCountByField[qID]++
+
+			switch templateByFieldID[qID] {
+			case "multiple-choices":
+				if optID, errConv := strconv.Atoi(ans); errConv == nil {
+					if optionTalliesByField[qID] == nil {
+						optionTalliesByField[qID] = make(map[int]int)
+					}
+					optionTalliesByField[qID][optID]++
+				}
+			case "checkboxes":
+				var optIDs []float64
+				if errUnm := json.Unmarshal([]byte(ans), &optIDs); errUnm == nil {
+					if optionTalliesByField[qID] == nil {
+						optionTalliesByField[qID] = make(map[int]int)
+					}
+					for _, idFloat := range optIDs {
+						optionTalliesByField[qID][int(idFloat)]++
+					}
+				}
+			}
+		}
+	}
+
+	// ===== DEBUG SEMENTARA (HAPUS SETELAH SELESAI) =====
+	fmt.Printf("[DEBUG EXPORT] surveyID=%d totalResp=%d jml_rawJawaban=%d jml_rawNodes=%d", surveyID, totalResp, len(rawJawaban), len(rawNodes))
+	fmt.Printf("[DEBUG EXPORT] orderedRespondentIDs=%v ", orderedRespondentIDs)
+	for _, raw := range rawJawaban {
+		ansStr := "<nil>"
+		if raw.Answer != nil {
+			ansStr = *raw.Answer
+		}
+		fmt.Printf("[DEBUG EXPORT] rawJawaban: respondent_id=%d form_field_id=%d answer=%q", raw.RespondentID, raw.FormFieldID, ansStr)
+	}
+	for fid, cnt := range answeredCountByField {
+		fmt.Printf("[DEBUG EXPORT] answeredCountByField[%d]=%d", fid, cnt)
+	}
+	for _, node := range rawNodes {
+		fmt.Printf("[DEBUG EXPORT] node: form_field_id=%d template=%q label=%q",
+			node.FormFieldId, node.Template, node.Label)
+	}
+	// ===== END DEBUG =====
 
 	f := excelize.NewFile()
 	defer f.Close()
@@ -1358,8 +1447,11 @@ func (service *hasilSurveyService) ExportExcelSurveyResultAll(ctx context.Contex
 	for i, node := range rawNodes {
 		qID := node.FormFieldId
 
-		answeredCount := 0
-		optionTallies := make(map[int]int)
+		// Ambil hasil pra-hitung (sudah diakumulasi satu kali di atas).
+		answeredCount := answeredCountByField[qID]
+		optionTallies := optionTalliesByField[qID]
+
+		f.SetCellValue(sheetStat, fmt.Sprintf("A%d", currentRowStat), fmt.Sprintf("Pertanyaan %d", i+1))
 
 		for _, respID := range orderedRespondentIDs {
 			if data, ok := rekapMap[respID]; ok {
@@ -1400,19 +1492,17 @@ func (service *hasilSurveyService) ExportExcelSurveyResultAll(ctx context.Contex
 		currentRowStat++
 
 		if node.Template == "multiple-choices" || node.Template == "checkboxes" {
-			for _, opt := range options {
-				if opt.FormFieldId == qID {
-					optCount := optionTallies[opt.ID]
-					optPct := "'0%"
-					if totalResp > 0 {
-						optPct = fmt.Sprintf("'%.0f%%", (float64(optCount)/float64(totalResp))*100)
-					}
-
-					f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), "\u200B"+opt.Option)
-					f.SetCellValue(sheetStat, fmt.Sprintf("C%d", currentRowStat), fmt.Sprintf("'%d/%d", optCount, totalResp))
-					f.SetCellValue(sheetStat, fmt.Sprintf("D%d", currentRowStat), optPct)
-					currentRowStat++
+			for _, opt := range optionsByFieldID[qID] {
+				optCount := optionTallies[opt.ID]
+				optPct := "'0%"
+				if totalResp > 0 {
+					optPct = fmt.Sprintf("'%.0f%%", (float64(optCount)/float64(totalResp))*100)
 				}
+
+				f.SetCellValue(sheetStat, fmt.Sprintf("B%d", currentRowStat), "\u200B"+opt.Option)
+				f.SetCellValue(sheetStat, fmt.Sprintf("C%d", currentRowStat), fmt.Sprintf("'%d/%d", optCount, totalResp))
+				f.SetCellValue(sheetStat, fmt.Sprintf("D%d", currentRowStat), optPct)
+				currentRowStat++
 			}
 		}
 

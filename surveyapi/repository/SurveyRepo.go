@@ -2695,6 +2695,7 @@ func (repository *surveyRepo) GetAllJawabanForExport(ctx context.Context, survey
 		LEFT JOIN data__rts AS rts ON rts.id = r.rt_id
 		LEFT JOIN field_responses fr ON fr.form_response_id = sr.id
 		WHERE sr.survey_id = ?
+			AND sr.status_approval = 'validated_lurah'
 		ORDER BY sr.id ASC
 	`
 

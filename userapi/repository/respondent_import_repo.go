@@ -44,7 +44,7 @@ func (r *respondentImportRepo) StoreRespondentWithUser(tx *gorm.DB, data models.
 		return err
 	}
 
-	hashedPassword, err := utils.HashPassword("lacirw123")
+	hashedPassword, err := utils.HashPassword("Lacirw123!")
 	if err != nil {
 		return err
 	}
