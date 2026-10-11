@@ -713,14 +713,23 @@ func (s *dashboardService) GetSampah(ctx context.Context, req map[string]interfa
 	}
 
 	var byRT map[int64]map[string]int64
+	var choiceByMetric map[string]map[string]int64 // metric_key -> status_key -> jumlah responden
 	if role == int(enums.ROLE_SURVEYOR) {
 		// Metrik dibatasi HANYA pada survey yang di-assign ke surveyor.
 		byRT, err = s.summaryRepo.GetLatestMetricsByCategoryForSurveys(ctx, rtIDs, surveyIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
 		if err != nil {
 			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 		}
+		choiceByMetric, err = s.summaryRepo.CountChoiceRespondentsByCategoryForSurveys(ctx, rtIDs, surveyIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
 	} else {
 		byRT, err = s.summaryRepo.GetLatestMetricsByCategory(ctx, rtIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
+		if err != nil {
+			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
+		}
+		choiceByMetric, err = s.summaryRepo.CountChoiceRespondentsByCategory(ctx, rtIDs, "sampah", filter.PeriodStart, filter.PeriodEnd)
 		if err != nil {
 			return utils.SendError(errors.New("Terjadi kesalahan pada server"), http.StatusInternalServerError)
 		}
@@ -730,9 +739,14 @@ func (s *dashboardService) GetSampah(ctx context.Context, req map[string]interfa
 	var totalUnit int64
 	for _, mc := range metricCatalog {
 		var sum int64
+		// (1) jalur NUMBER: jumlah angka dari pertanyaan number yang di-mapping.
 		for _, rtID := range rtIDs {
 			sum += byRT[rtID][mc.MetricKey]
 		}
+		// (2) jalur PILIHAN GANDA: jumlah responden yang menjawab opsi berstatus "ya".
+		//     Biasanya tiap tahun hanya salah satu tipe yang dipakai, jadi dijumlahkan aman.
+		sum += choiceByMetric[mc.MetricKey]["ya"]
+
 		values[mc.MetricKey] = sum
 		totalUnit += sum
 	}

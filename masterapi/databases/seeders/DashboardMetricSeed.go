@@ -34,9 +34,27 @@ func SeedDashboardMetrics(dbMaster *gorm.DB) error {
 
 		// ===== sampah =====
 		{DashboardMetric: models.DashboardMetric{MetricKey: "sampah_tps", Label: "TPS", ExpectedTemplate: "number", Category: "sampah", IsLocked: true}},
-		{DashboardMetric: models.DashboardMetric{MetricKey: "sampah_residu", Label: "Residu", ExpectedTemplate: "number", Category: "sampah", IsLocked: true}},
-		{DashboardMetric: models.DashboardMetric{MetricKey: "sampah_organik_aktif", Label: "Organik Aktif", ExpectedTemplate: "number", Category: "sampah", IsLocked: true}},
-		{DashboardMetric: models.DashboardMetric{MetricKey: "sampah_anorganik_aktif", Label: "Anorganik Aktif", ExpectedTemplate: "number", Category: "sampah", IsLocked: true}},
+		{
+			DashboardMetric: models.DashboardMetric{MetricKey: "sampah_residu", Label: "Residu", ExpectedTemplate: "number", Category: "sampah", IsLocked: true},
+			Statuses: []statusSeed{
+				{StatusKey: "ya", Label: "Ya", Sequence: 1},
+				{StatusKey: "tidak", Label: "Tidak", Sequence: 2},
+			},
+		},
+		{
+			DashboardMetric: models.DashboardMetric{MetricKey: "sampah_organik_aktif", Label: "Organik Aktif", ExpectedTemplate: "number", Category: "sampah", IsLocked: true},
+			Statuses: []statusSeed{
+				{StatusKey: "ya", Label: "Ya", Sequence: 1},
+				{StatusKey: "tidak", Label: "Tidak", Sequence: 2},
+			},
+		},
+		{
+			DashboardMetric: models.DashboardMetric{MetricKey: "sampah_anorganik_aktif", Label: "Anorganik Aktif", ExpectedTemplate: "number", Category: "sampah", IsLocked: true},
+			Statuses: []statusSeed{
+				{StatusKey: "ya", Label: "Ya", Sequence: 1},
+				{StatusKey: "tidak", Label: "Tidak", Sequence: 2},
+			},
+		},
 
 		// ===== infrastruktur =====
 		{DashboardMetric: models.DashboardMetric{MetricKey: "jalanan_umum_total", Label: "Jalanan Umum", ExpectedTemplate: "number", Category: "infrastruktur", IsLocked: true}},

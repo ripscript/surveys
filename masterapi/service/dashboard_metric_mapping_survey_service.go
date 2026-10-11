@@ -201,9 +201,12 @@ func (s *dashboardMetricMappingSurveyService) SaveMappingSurvey(ctx context.Cont
 		mappedQuestions = append(mappedQuestions, q)
 	}
 
-	if len(mappedQuestions) == 0 {
-		return utils.SendData(nil, "Tidak ada pertanyaan yang dipetakan ke metric")
-	}
+	// mappedQuestions boleh kosong = user menghapus SEMUA mapping di form ini.
+	// Jangan early-return; biarkan SaveSurveyMapping menjalankan delete-all.
+
+	// if len(mappedQuestions) == 0 {
+	// 	return utils.SendData(nil, "Tidak ada pertanyaan yang dipetakan ke metric")
+	// }
 
 	surveyCode, ok := slug["survey_code"].(string)
 	if !ok || surveyCode == "" {

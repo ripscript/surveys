@@ -18,6 +18,8 @@ type DashboardSummaryRepository interface {
 	GetLatestNumberMetrics(ctx context.Context, rtIDs []int64, mappings []MetricFieldMapping, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
 	GetLatestMetricsByCategory(ctx context.Context, rtIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
 	GetLatestMetricsByCategoryForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]int64, error)
+	CountChoiceRespondentsByCategory(ctx context.Context, rtIDs []int64, category string, periodStart, periodEnd time.Time) (map[string]map[string]int64, error)
+	CountChoiceRespondentsByCategoryForSurveys(ctx context.Context, rtIDs []int64, surveyIDs []int64, category string, periodStart, periodEnd time.Time) (map[string]map[string]int64, error)
 
 	GetLatestStatusByCategory(ctx context.Context, rtIDs []int64, category string, periodStart, periodEnd time.Time) (map[int64]map[string]string, error)
 	GetMonthlyMetricSums(ctx context.Context, rtIDs []int64, metricKey string, rangeStart, rangeEnd time.Time) ([]MonthlyMetricRow, error)
@@ -223,6 +225,125 @@ func (r *dashboardSummaryRepository) GetLatestMetricsByCategoryForSurveys(
 		result[row.RTID][row.MetricKey] = val
 	}
 
+	return result, nil
+}
+
+type choiceCountRow struct {
+	MetricKey string `gorm:"column:metric_key"`
+	StatusKey string `gorm:"column:status_key"`
+	Total     int64  `gorm:"column:total"`
+}
+
+// CountChoiceRespondentsByCategory menghitung, untuk tiap (metric, status),
+// berapa RESPONDEN yang jawaban TERAKHIR-nya memilih opsi yang dipetakan ke
+// status tsb. 1 responden = 1 suara (DISTINCT ON resp.id, dm.metric_key).
+//
+// Tidak memfilter expected_template: penentu "ini jawaban pilihan ganda" adalah
+// berhasilnya JOIN ke dashboard_option_status_mappings (answer == answer_option_id),
+// bukan template metric. Guard fr.answer ~ '^[0-9]+$' mencegah error cast ::bigint
+// untuk jawaban non-angka.
+func (r *dashboardSummaryRepository) CountChoiceRespondentsByCategory(
+	ctx context.Context,
+	rtIDs []int64,
+	category string,
+	periodStart, periodEnd time.Time,
+) (map[string]map[string]int64, error) {
+	result := make(map[string]map[string]int64)
+	if len(rtIDs) == 0 {
+		return result, nil
+	}
+
+	var rows []choiceCountRow
+	err := r.dbSlave.WithContext(ctx).Raw(`
+		SELECT metric_key, status_key, COUNT(*) AS total
+		FROM (
+			SELECT DISTINCT ON (resp.id, dm.metric_key)
+				resp.id        AS respondent_id,
+				dm.metric_key  AS metric_key,
+				dms.status_key AS status_key
+			FROM field_responses fr
+			JOIN survey_respondents sr        ON sr.id = fr.form_response_id
+			JOIN respondents resp             ON resp.id = sr.respondent_id
+			JOIN surveys s                     ON s.id = sr.survey_id
+			JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = fr.form_field_id
+			JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
+			JOIN dashboard_option_status_mappings dosm
+				ON dosm.dashboard_metric_mapping_id = dmm.id
+				AND fr.answer ~ '^[0-9]+$'
+				AND dosm.answer_option_id = fr.answer::bigint
+			JOIN dashboard_metric_statuses dms ON dms.id = dosm.dashboard_metric_status_id
+			WHERE resp.rt_id IN (?)
+				AND dm.category = ?
+				AND sr.status_approval = 'validated_lurah'
+				AND fr.created_at BETWEEN ? AND ?
+			ORDER BY resp.id, dm.metric_key, fr.created_at DESC
+		) latest
+		GROUP BY metric_key, status_key
+	`, rtIDs, category, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		if result[row.MetricKey] == nil {
+			result[row.MetricKey] = make(map[string]int64)
+		}
+		result[row.MetricKey][row.StatusKey] = row.Total
+	}
+	return result, nil
+}
+
+// CountChoiceRespondentsByCategoryForSurveys = versi SURVEYOR, dibatasi survey yang di-assign.
+func (r *dashboardSummaryRepository) CountChoiceRespondentsByCategoryForSurveys(
+	ctx context.Context,
+	rtIDs []int64,
+	surveyIDs []int64,
+	category string,
+	periodStart, periodEnd time.Time,
+) (map[string]map[string]int64, error) {
+	result := make(map[string]map[string]int64)
+	if len(rtIDs) == 0 || len(surveyIDs) == 0 {
+		return result, nil
+	}
+
+	var rows []choiceCountRow
+	err := r.dbSlave.WithContext(ctx).Raw(`
+		SELECT metric_key, status_key, COUNT(*) AS total
+		FROM (
+			SELECT DISTINCT ON (resp.id, dm.metric_key)
+				resp.id        AS respondent_id,
+				dm.metric_key  AS metric_key,
+				dms.status_key AS status_key
+			FROM field_responses fr
+			JOIN survey_respondents sr        ON sr.id = fr.form_response_id
+			JOIN respondents resp             ON resp.id = sr.respondent_id
+			JOIN surveys s                     ON s.id = sr.survey_id
+			JOIN dashboard_metric_mappings dmm ON dmm.form_field_id = fr.form_field_id
+			JOIN dashboard_metrics dm          ON dm.id = dmm.dashboard_metric_id
+			JOIN dashboard_option_status_mappings dosm
+				ON dosm.dashboard_metric_mapping_id = dmm.id
+				AND fr.answer ~ '^[0-9]+$'
+				AND dosm.answer_option_id = fr.answer::bigint
+			JOIN dashboard_metric_statuses dms ON dms.id = dosm.dashboard_metric_status_id
+			WHERE resp.rt_id IN (?)
+				AND sr.survey_id IN (?)
+				AND dm.category = ?
+				AND sr.status_approval = 'validated_lurah'
+				AND fr.created_at BETWEEN ? AND ?
+			ORDER BY resp.id, dm.metric_key, fr.created_at DESC
+		) latest
+		GROUP BY metric_key, status_key
+	`, rtIDs, surveyIDs, category, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		if result[row.MetricKey] == nil {
+			result[row.MetricKey] = make(map[string]int64)
+		}
+		result[row.MetricKey][row.StatusKey] = row.Total
+	}
 	return result, nil
 }
 

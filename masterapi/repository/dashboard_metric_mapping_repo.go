@@ -295,12 +295,27 @@ func (r *dashboardMetricMappingRepository) GetSurveyQuestionsForMapping(ctx cont
 
 func (r *dashboardMetricMappingRepository) SaveSurveyMapping(ctx context.Context, formID int64, questions []payloads.SaveMappingSurveyQuestionPayload) error {
 	return r.dbMaster.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1) Hapus option-status mapping milik SEMUA mapping di form ini lebih dulu.
+		//    Tidak ada FK ON DELETE CASCADE dari dashboard_option_status_mappings
+		//    ke dashboard_metric_mappings, jadi harus dihapus manual agar tidak
+		//    meninggalkan baris yatim.
+		if err := tx.Exec(`
+			DELETE FROM dashboard_option_status_mappings
+			WHERE dashboard_metric_mapping_id IN (
+				SELECT id FROM dashboard_metric_mappings WHERE form_id = ?
+			)
+		`, formID).Error; err != nil {
+			return err
+		}
+
+		// 2) Hapus semua mapping lama untuk form ini.
 		if err := tx.
 			Where("form_id = ?", formID).
 			Delete(&models.DashboardMetricMapping{}).Error; err != nil {
 			return err
 		}
 
+		// 3) Insert ulang hanya pertanyaan yang punya metric (kalau ada).
 		for _, q := range questions {
 			mapping := models.DashboardMetricMapping{
 				DashboardMetricID: *q.DashboardMetricID,
