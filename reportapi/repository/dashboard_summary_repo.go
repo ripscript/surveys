@@ -162,7 +162,7 @@ func (r *dashboardSummaryRepository) GetLatestMetricsByCategory(
 			AND dm.category = ?
 			AND sr.status_approval = 'validated_lurah'
 			AND fr.created_at BETWEEN ? AND ?
-		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC
+		ORDER BY resp.rt_id, dm.metric_key, fr.created_at DESC, fr.id DESC
 	`, rtIDs, category, periodStart, periodEnd).Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -688,7 +688,7 @@ func (r *dashboardSummaryRepository) GetMetricSumsByCategoryPerSurvey(
 			AND dm.category = ?
 			AND sr.status_approval = 'validated_lurah'
 			AND fr.created_at BETWEEN ? AND ?
-		ORDER BY sr.survey_id, resp.rt_id, dm.metric_key, fr.created_at DESC
+		ORDER BY sr.survey_id, resp.rt_id, dm.metric_key, fr.created_at DESC, fr.id DESC
 	`, rtIDs, surveyIDs, category, periodStart, periodEnd).Scan(&rows).Error
 	if err != nil {
 		return nil, err
