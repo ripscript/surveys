@@ -742,6 +742,7 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 
 	var validate = validator.New()
 	validate.RegisterValidation("password_rule", utils.PasswordRuleValidation)
+	validate.RegisterValidation("email_optional", utils.EmailOptionalValidation)
 
 	err = validate.Struct(payload)
 	if err != nil {

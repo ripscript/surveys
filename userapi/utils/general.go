@@ -557,6 +557,8 @@ func TranslateError(err validator.FieldError) string {
 		}
 	case "eqfield":
 		return fmt.Sprintf("%s harus sama dengan %s.", field, formatToTitleCase(toSnakeCase(err.Param())))
+	case "email", "email_optional":
+		return fmt.Sprintf("Format %s tidak valid.", field)
 
 	// Error dari Custom Business Rules (Section & Group Structure)
 	case "required_with_has_section":

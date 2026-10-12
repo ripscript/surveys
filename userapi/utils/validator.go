@@ -30,3 +30,13 @@ func PasswordRuleValidation(fl validator.FieldLevel) bool {
 
 	return hasUpper && hasDigit && hasSpecial
 }
+
+func EmailOptionalValidation(fl validator.FieldLevel) bool {
+	value := strings.TrimSpace(fl.Field().String())
+	if value == "" {
+		// Kosong/null -> tidak divalidasi, dianggap valid.
+		return true
+	}
+	// Terisi -> wajib format email yang valid. Gunakan validator email bawaan.
+	return validator.New().Var(value, "email") == nil
+}
