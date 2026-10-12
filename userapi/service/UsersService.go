@@ -830,8 +830,13 @@ func (service *usersService) UpdateProfileBundle(ctx context.Context, req map[st
 		respondentID = int(*user.RespondentID)
 	}
 
+	var emailForCheck string
+	if payload.Email != nil {
+		emailForCheck = *payload.Email
+	}
+
 	err = service.usersRepo.CheckDuplicateProfileData(
-		payload.Email,
+		emailForCheck,
 		payload.NIK,
 		payload.PhoneNumber,
 		int(user.ID),

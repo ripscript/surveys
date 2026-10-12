@@ -25,7 +25,7 @@ type UpdateProfileBundlePayload struct {
 	TempatLahir  *string `json:"tempat_lahir"`
 	TanggalLahir *string `json:"tanggal_lahir"`
 	PhoneNumber  *string `json:"nomor_telepon"`
-	Email        string  `json:"email" validate:"required,email"`
+	Email        *string `json:"email" validate:"omitempty,email"`
 
 	NoSK *string `json:"no_sk"`
 
